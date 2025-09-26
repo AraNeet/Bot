@@ -1,1 +1,3 @@
 /VBot/
+/__pycache__/
+*.pyc
