@@ -22,8 +22,9 @@ class ApplicationManagerBot:
     This bot focuses on individual operations without orchestration logic.
     """
     
-    def __init__(self, app_name: str, icon_template_path: str = None, 
-                 app_path: str = None, max_retries: int = 3, process_name: str = None):
+    def __init__(self, app_name: str, app_path: str = None, max_retries: int = 3, process_name: str = None,
+                 top_left_template_path: str = None, top_right_template_path: str = None,
+                 bottom_right_template_path: str = None):
         """
         Initialize the bot with your application details.
         
@@ -33,6 +34,9 @@ class ApplicationManagerBot:
             app_path: Path to the application executable (if needed for opening)
             max_retries: Maximum number of attempts for each operation
             process_name: Name of the process to check (e.g., 'notepad.exe')
+            top_left_template_path: Path to template for top-left corner (notepad icon)
+            top_right_template_path: Path to template for top-right corner (close X)
+            bottom_right_template_path: Path to template for bottom-right corner element
         """
         self.app_name = app_name
         self.app_path = app_path
@@ -50,10 +54,48 @@ class ApplicationManagerBot:
         self.image_matcher = ImageMatcher()
         self.window_helper = WindowHelper()
         
-        # Load icon template if provided
-        self.icon_template = None
-        if icon_template_path:
-            self.icon_template = self.image_matcher.load_template(icon_template_path)
+        # Load corner templates
+        self.corner_templates = {}
+        self.corner_templates['top_left'] = self._load_template_safely(top_left_template_path, "top-left")
+        self.corner_templates['top_right'] = self._load_template_safely(top_right_template_path, "top-right")
+        self.corner_templates['bottom_right'] = self._load_template_safely(bottom_right_template_path, "bottom-right")
+
+    def _load_template_safely(self, template_path: str, corner_name: str) -> Optional[np.ndarray]:
+        """
+        Safely load a template image with error handling and detailed path resolution.
+        
+        Args:
+            template_path: Path to the template image
+            corner_name: Name of the corner for logging
+            
+        Returns:
+            Template image as numpy array, or None if loading failed
+        """
+        if not template_path:
+            self.logger.info(f"No {corner_name} template path provided")
+            return None
+        
+        # Convert to Path object for better handling
+        from pathlib import Path
+        template_file = Path(template_path)
+        
+        # Log detailed path information for debugging
+        self.logger.info(f"Attempting to load {corner_name} template:")
+        self.logger.info(f"  Raw path: {template_path}")
+        self.logger.info(f"  Resolved path: {template_file.resolve()}")
+        self.logger.info(f"  Path exists: {template_file.exists()}")
+        self.logger.info(f"  Current working directory: {Path.cwd()}")
+        
+        if not template_file.exists():
+            self.logger.error(f"Template file does not exist: {template_file.resolve()}")
+            return None
+            
+        template = self.image_matcher.load_template(str(template_file))
+        if template is not None:
+            self.logger.info(f"[SUCCESS] Successfully loaded {corner_name} template")
+        else:
+            self.logger.error(f"[FAILED] Failed to load {corner_name} template (file exists but loading failed)")
+        return template
 
     def is_application_open(self) -> bool:
         """
@@ -208,46 +250,15 @@ class ApplicationManagerBot:
             self.logger.error(f"Error finding template on screen: {e}")
             return None
     
-    def check_visual_open(self) -> bool:
+    def check_maximized_visually(self) -> bool:
         """
-        Use icon/image template to visually check if application is open.
-        
-        Returns:
-            True if visual element is found, False otherwise
-        """
-        if self.icon_template is None:
-            self.logger.warning("No icon template configured for visual verification")
-            return True  # Skip visual check if no template
-        
-        position = self.find_template_on_screen(self.icon_template)
-        if position:
-            self.logger.info(f"Found application icon at position {position}")
-            return True
-        else:
-            self.logger.error("Application icon not found on screen")
-            return False
-    
-    def check_maximized_visually(self, window) -> bool:
-        """
-        Check if window appears maximized using WindowHelper utility.
+        Check if window appears maximized using corner template matching.
         
         Args:
-            window: Window object to check
+            window: Window object to check (not used in new implementation)
         
         Returns:
-            True if window appears maximized, False otherwise
+            True if all three corner templates are found, False otherwise
         """
-        if not window:
-            self.logger.warning("No window provided for maximized check")
-            return False
-        
-        # Use WindowHelper for consistent maximization checking
-        is_maximized = self.window_helper.is_window_maximized(window)
-        
-        if is_maximized:
-            self.logger.info("Window dimensions indicate maximized state")
-        else:
-            self.logger.info(f"Window not maximized: {window.width}x{window.height}")
-            
-        return is_maximized
+        return self.image_matcher.check_maximized_by_corners(self.corner_templates)
     

@@ -1,0 +1,127 @@
+{
+    "name": "Comprehensive Workflow Test",
+    "description": "Test workflow to validate all workflow manager functionality including corner-based template matching",
+    "version": "1.0",
+    "author": "Application Manager Bot System",
+    "objectives": [
+        {
+            "id": "test_001",
+            "name": "Application Startup Sequence",
+            "description": "Execute the complete startup sequence - opens, maximizes, and verifies the application",
+            "type": "startup_sequence",
+            "parameters": {}
+        },
+        {
+            "id": "test_002",
+            "name": "Initial Stability Wait",
+            "description": "Wait 2 seconds to ensure application is stable after startup",
+            "type": "wait",
+            "parameters": {
+                "duration": 2
+            }
+        },
+        {
+            "id": "test_003",
+            "name": "Visual Verification Check",
+            "description": "Perform corner-based visual verification to confirm application is properly displayed",
+            "type": "visual_verification",
+            "parameters": {}
+        },
+        {
+            "id": "test_004",
+            "name": "Ensure Application is Open",
+            "description": "Verify the application process is running (redundant check for testing)",
+            "type": "open_application",
+            "parameters": {}
+        },
+        {
+            "id": "test_005",
+            "name": "Force Window Maximization",
+            "description": "Explicitly maximize the window to test corner template detection",
+            "type": "maximize_window",
+            "parameters": {}
+        },
+        {
+            "id": "test_006",
+            "name": "Bring to Foreground",
+            "description": "Ensure the application window has focus and is in the foreground",
+            "type": "bring_to_foreground",
+            "parameters": {}
+        },
+        {
+            "id": "test_007",
+            "name": "Quick Stability Check",
+            "description": "Brief wait to ensure window state changes are complete",
+            "type": "wait",
+            "parameters": {
+                "duration": 1
+            }
+        },
+        {
+            "id": "test_008",
+            "name": "Final Visual Verification",
+            "description": "Final check to confirm all corner templates are detected",
+            "type": "visual_verification",
+            "parameters": {}
+        },
+        {
+            "id": "test_009",
+            "name": "Custom Action Test",
+            "description": "Test unsupported objective type to verify error handling",
+            "type": "custom_action",
+            "parameters": {
+                "action_type": "test_action",
+                "test_parameter": "example_value",
+                "number_param": 42
+            }
+        },
+        {
+            "id": "test_010",
+            "name": "File Operation Test",
+            "description": "Another unsupported objective to test workflow resilience",
+            "type": "file_operation",
+            "parameters": {
+                "operation": "create",
+                "filename": "test.txt",
+                "content": "This is a test"
+            }
+        },
+        {
+            "id": "test_011",
+            "name": "Network Request Test",
+            "description": "Simulated network operation (unsupported) to test error handling",
+            "type": "network_request",
+            "parameters": {
+                "url": "https://example.com",
+                "method": "GET",
+                "timeout": 30
+            }
+        },
+        {
+            "id": "test_012",
+            "name": "Final Wait",
+            "description": "Final wait period to observe the completed state",
+            "type": "wait",
+            "parameters": {
+                "duration": 3
+            }
+        }
+    ],
+    "metadata": {
+        "created_date": "2025-01-03",
+        "target_application": "Notepad",
+        "test_categories": [
+            "startup_sequence",
+            "visual_verification", 
+            "window_management",
+            "error_handling",
+            "timing_control"
+        ],
+        "expected_results": {
+            "total_objectives": 12,
+            "supported_objectives": 8,
+            "unsupported_objectives": 4,
+            "expected_success_rate": "100% for supported objectives"
+        }
+    }
+}

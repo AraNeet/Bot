@@ -99,24 +99,7 @@ class WindowHelper:
                 
                 if gw.getActiveWindow() == window:
                     return True
-                
-                # Method 2: Minimize/Restore
-                window.minimize()
-                time.sleep(0.2)
-                window.restore()
-                time.sleep(0.3)
-                
-                if gw.getActiveWindow() == window:
-                    return True
-                
-                # Method 3: Click
-                center_x, center_y = WindowHelper.get_window_center(window)
-                pyautogui.click(center_x, center_y)
-                time.sleep(0.2)
-                
-                if gw.getActiveWindow() == window:
-                    return True
-                    
+
             except Exception as e:
                 logging.error(f"Error forcing window focus (attempt {attempt + 1}): {e}")
         
@@ -154,14 +137,3 @@ class WindowHelper:
             return True
         except Exception as e:
             logging.error(f"Error maximizing window: {e}")
-            
-            # Try alternative method
-            try:
-                window.activate()
-                time.sleep(0.2)
-                pyautogui.hotkey('win', 'up')
-                time.sleep(0.5)
-                return True
-            except Exception as e2:
-                logging.error(f"Alternative maximize also failed: {e2}")
-                return False

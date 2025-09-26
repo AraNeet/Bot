@@ -113,20 +113,20 @@ class ApplicationOrchestrator:
         
         # Step 3.1: Visual check for open state
         self.logger.info("Step 3.1: Visual verification of open state")
-        visual_open = self.bot.check_visual_open()
+        visual_open = self.bot.check_maximized_visually()
         if not visual_open:
             attempts = 0
             while attempts < self.bot.max_retries:
                 attempts += 1
                 self.logger.warning("[FAILED] Visual open check failed")
                 self.logger.warning("Retrying Step 2.")
-                self.step3_verify_and_fix_state()
+                self.step2_maximize_application(window)
         else:
             self.logger.info("[SUCCESS] Visual open check passed")
         
         # Step 3.2: Check maximized state
         self.logger.info("Step 3.2: Checking maximized state")
-        if window and self.bot.check_maximized_visually(window):
+        if window and self.bot.check_maximized_visually():
             self.logger.info("[SUCCESS] Application is properly maximized")
             return True
         
@@ -140,14 +140,11 @@ class ApplicationOrchestrator:
             
             # Ensure foreground first
             if window:
-                self.bot.bring_to_foreground(window)
-                
-                # Try maximize
                 self.bot.maximize_application(window)
                 time.sleep(1)
                 
                 # Check if successful
-                if self.bot.check_maximized_visually(window):
+                if self.bot.check_maximized_visually():
                     self.logger.info("[SUCCESS] Successfully maximized")
                     return True
             else:
@@ -215,8 +212,7 @@ class ApplicationOrchestrator:
             'process_running': is_open,
             'window_exists': window is not None,
             'is_foreground': self.bot.is_foreground(window) if window else False,
-            'is_maximized': self.bot.check_maximized_visually(window) if window else False,
-            'visual_check': self.bot.check_visual_open() if self.bot.icon_template is not None else None
+            'is_maximized': self.bot.check_maximized_visually() if window else False
         }
         
         return status

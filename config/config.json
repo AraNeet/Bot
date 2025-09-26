@@ -1,9 +1,12 @@
 {
-    "app_name": "firefox",
-    "icon_template_path": "assets/Icon.png",
-    "app_path": "C:\\Windows\\System32\\firefox.exe",
+    "app_name": "Notepad",
+    "icon_template_path": null,
+    "app_path": "notepad.exe",
     "process_name": "notepad.exe",
     "max_retries": 5,
     "log_level": "INFO",
-    "log_to_file": true
+    "log_to_file": true,
+    "top_left_template_path": "assets/notepad_icon.png",
+    "top_right_template_path": "assets/close_x.png",
+    "bottom_right_template_path": "assets/bottom_right_element.png"
 }

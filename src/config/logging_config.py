@@ -13,7 +13,7 @@ def setup_logging(log_level=logging.INFO, log_to_file=True):
     """
     # Create logs directory if it doesn't exist
     if log_to_file:
-        log_dir = "logs"
+        log_dir = "docs/logs"
         os.makedirs(log_dir, exist_ok=True)
         
         # Create log filename with timestamp
@@ -28,7 +28,7 @@ def setup_logging(log_level=logging.INFO, log_to_file=True):
     
     if log_to_file:
         # File handler
-        file_handler = logging.FileHandler(log_file)
+        file_handler = logging.FileHandler(log_file, encoding='utf-8')
         handlers.append(file_handler)
     
     # Apply configuration
