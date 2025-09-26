@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
 """
 Main entry point for the Application Manager Bot system.
-Demonstrates how to use the bot and orchestrator together.
+Ultra-simplified interface - configure only via JSON dictionary or config.json file.
+
+Usage:
+    # Run with defaults from config.json
+    main()
+    
+    # Run with JSON configuration dictionary
+    config = {"app_name": "Calculator", "app_path": "calc.exe", "max_retries": 3}
+    main(config_json=config)
 """
 
 import sys
 import os
 from pathlib import Path
-import argparse
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -20,12 +27,12 @@ from config import setup_logging
 from utils import WindowHelper
 
 
-def load_config(config_file: str = "config.json") -> Dict[str, Any]:
+def load_config(config_json: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
-    Load configuration from a JSON file.
+    Load configuration from a JSON dictionary or default to config.json file.
     
     Args:
-        config_file: Path to configuration file
+        config_json: Configuration dictionary (if None, loads from config.json)
     
     Returns:
         Configuration dictionary
@@ -40,151 +47,53 @@ def load_config(config_file: str = "config.json") -> Dict[str, Any]:
         'log_to_file': True
     }
     
-    if os.path.exists(config_file):
-        try:
-            with open(config_file, 'r') as f:
-                loaded_config = json.load(f)
-                default_config.update(loaded_config)
-                print(f"Configuration loaded from {config_file}")
-        except Exception as e:
-            print(f"Warning: Could not load config file: {e}")
-            print("Using default configuration")
+    if config_json is not None:
+        # Use provided JSON configuration
+        default_config.update(config_json)
+        print("Configuration loaded from provided JSON dictionary")
     else:
-        # Save default config as example
-        try:
-            with open(config_file, 'w') as f:
-                json.dump(default_config, f, indent=4)
-                print(f"Default configuration saved to {config_file}")
-        except Exception as e:
-            print(f"Could not save default config: {e}")
+        # Load from config.json file
+        config_file = "config.json"
+        if os.path.exists(config_file):
+            try:
+                with open(config_file, 'r') as f:
+                    loaded_config = json.load(f)
+                    default_config.update(loaded_config)
+                    print(f"Configuration loaded from {config_file}")
+            except Exception as e:
+                print(f"Warning: Could not load config file: {e}")
+                print("Using default configuration")
+        else:
+            # Save default config as example
+            try:
+                with open(config_file, 'w') as f:
+                    json.dump(default_config, f, indent=4)
+                    print(f"Default configuration saved to {config_file}")
+            except Exception as e:
+                print(f"Could not save default config: {e}")
     
     return default_config
 
 
-def parse_arguments():
-    """
-    Parse command line arguments.
-    
-    Returns:
-        Parsed arguments
-    """
-    parser = argparse.ArgumentParser(
-        description='Application Manager Bot - Automated window management'
-    )
-    
-    parser.add_argument(
-        '--app-name',
-        type=str,
-        help='Name of the application window'
-    )
-    
-    parser.add_argument(
-        '--app-path',
-        type=str,
-        help='Path to the application executable'
-    )
-    
-    parser.add_argument(
-        '--icon-template',
-        type=str,
-        help='Path to icon template image for visual verification'
-    )
-    
-    parser.add_argument(
-        '--process-name',
-        type=str,
-        help='Process name to monitor (e.g., notepad.exe)'
-    )
-    
-    parser.add_argument(
-        '--max-retries',
-        type=int,
-        default=5,
-        help='Maximum number of retry attempts'
-    )
-    
-    parser.add_argument(
-        '--config',
-        type=str,
-        default='config.json',
-        help='Path to configuration file'
-    )
-    
-    parser.add_argument(
-        '--list-windows',
-        action='store_true',
-        help='List all available windows and exit'
-    )
-    
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose logging'
-    )
-    
-    parser.add_argument(
-        '--no-log-file',
-        action='store_true',
-        help='Disable logging to file'
-    )
-    
-    return parser.parse_args()
 
-
-def list_available_windows():
-    """List all available windows for debugging."""
-    print("\n" + "="*50)
-    print("Available Windows:")
-    print("="*50)
-    
-    window_helper = WindowHelper()
-    windows = window_helper.list_all_windows()
-    
-    if windows:
-        for i, title in enumerate(windows, 1):
-            if title.strip():  # Only show windows with titles
-                print(f"{i}. {title}")
-    else:
-        print("No windows found")
-    
-    print("="*50 + "\n")
-
-
-def main():
+def main(config_json: Optional[Dict[str, Any]] = None):
     """
     Main function to run the Application Manager Bot system.
+    
+    Args:
+        config_json: Configuration dictionary (if None, loads from config.json)
     """
-    # Parse command line arguments
-    args = parse_arguments()
-    
-    # Handle window listing
-    if args.list_windows:
-        list_available_windows()
-        sys.exit(0)
-    
-    # Load configuration
-    config = load_config(args.config)
-    
-    # Override config with command line arguments
-    if args.app_name:
-        config['app_name'] = args.app_name
-    if args.app_path:
-        config['app_path'] = args.app_path
-    if args.icon_template:
-        config['icon_template_path'] = args.icon_template
-    if args.process_name:
-        config['process_name'] = args.process_name
-    if args.max_retries:
-        config['max_retries'] = args.max_retries
+    # Load configuration 
+    config = load_config(config_json=config_json)
     
     # Setup logging
     import logging
-    log_level = logging.DEBUG if args.verbose else getattr(logging, config.get('log_level', 'INFO'))
-    log_to_file = not args.no_log_file and config.get('log_to_file', True)
+    log_level_obj = getattr(logging, config.get('log_level', 'INFO'))
+    log_to_file_setting = config.get('log_to_file', True)
     
     log_file = setup_logging(
-        log_level=log_level,
-        log_to_file=log_to_file
+        log_level=log_level_obj,
+        log_to_file=log_to_file_setting
     )
     
     logger = logging.getLogger(__name__)
@@ -214,22 +123,22 @@ def main():
         
         # Run the complete sequence
         logger.info("Starting automated sequence...")
-        success = orchestrator.run_complete_sequence()
+        success = orchestrator.run_startup_sequence()
         
         # Display results
         print("\n" + "="*50)
         if success:
-            print("✓ SUCCESS: Application is now open, in foreground, and maximized!")
+            print("[SUCCESS] SUCCESS: Application is now open, in foreground, and maximized!")
             
             # Get and display status report
             status = orchestrator.get_status_report()
             print("\nStatus Report:")
             print("-" * 30)
             for key, value in status.items():
-                status_str = "✓" if value else "✗" if value is False else "N/A"
+                status_str = "[SUCCESS]" if value else "[FAILED]" if value is False else "N/A"
                 print(f"  {key.replace('_', ' ').title()}: {status_str}")
         else:
-            print("✗ FAILED: Could not complete the sequence.")
+            print("[FAILED] FAILED: Could not complete the sequence.")
             print("Please check the logs for details.")
             
             if log_file:
@@ -246,7 +155,7 @@ def main():
         sys.exit(0)
     except Exception as e:
         logger.error(f"Unexpected error: {e}", exc_info=True)
-        print(f"\n✗ Unexpected error: {e}")
+        print(f"\n[FAILED] Unexpected error: {e}")
         print("Please check the logs for details.")
         
         if log_file:
@@ -256,4 +165,5 @@ def main():
 
 
 if __name__ == "__main__":
+    # When running as script, use defaults from config file
     main()

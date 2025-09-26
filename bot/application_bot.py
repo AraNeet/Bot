@@ -12,6 +12,8 @@ import logging
 import psutil
 import os
 import subprocess
+from utils.image_utils import ImageMatcher
+from utils.window_utils import WindowHelper
 
 
 class ApplicationManagerBot:
@@ -21,7 +23,7 @@ class ApplicationManagerBot:
     """
     
     def __init__(self, app_name: str, icon_template_path: str = None, 
-                 app_path: str = None, max_retries: int = 5, process_name: str = None):
+                 app_path: str = None, max_retries: int = 3, process_name: str = None):
         """
         Initialize the bot with your application details.
         
@@ -35,65 +37,24 @@ class ApplicationManagerBot:
         self.app_name = app_name
         self.app_path = app_path
         self.max_retries = max_retries
-        self.window = None
         self.logger = logging.getLogger(__name__)
         
         # Extract process name from app_path if not provided
         if process_name:
             self.process_name = process_name
-        elif app_path:
-            # Get the executable name from the path
-            self.process_name = os.path.basename(app_path)
         else:
             # Try to guess from app_name (add .exe if not present)
             self.process_name = app_name if app_name.endswith('.exe') else f"{app_name}.exe"
+
+        # Initialize utility classes
+        self.image_matcher = ImageMatcher()
+        self.window_helper = WindowHelper()
         
-        # Load the icon template if provided
+        # Load icon template if provided
         self.icon_template = None
         if icon_template_path:
-            try:
-                self.icon_template = cv2.imread(icon_template_path)
-                if self.icon_template is not None:
-                    self.logger.info(f"Icon template loaded successfully: {icon_template_path}")
-                else:
-                    self.logger.error(f"Failed to load icon template: {icon_template_path}")
-            except Exception as e:
-                self.logger.error(f"Error loading icon template: {e}")
-        
-        self.logger.info(f"Bot initialized for application: {app_name} (process: {self.process_name})")
-    
-    def find_template_on_screen(self, template: np.ndarray, confidence: float = 0.8) -> Optional[Tuple[int, int]]:
-        """
-        Search for a template image on the screen.
-        
-        Args:
-            template: The template image to search for
-            confidence: Matching confidence threshold (0-1)
-        
-        Returns:
-            Coordinates of the template if found, None otherwise
-        """
-        try:
-            # Take screenshot
-            screenshot = pyautogui.screenshot()
-            screenshot = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
-            
-            # Template matching
-            result = cv2.matchTemplate(screenshot, template, cv2.TM_CCOEFF_NORMED)
-            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-            
-            if max_val >= confidence:
-                # Return center coordinates of the matched template
-                h, w = template.shape[:2]
-                center_x = max_loc[0] + w // 2
-                center_y = max_loc[1] + h // 2
-                return (center_x, center_y)
-            
-            return None
-        except Exception as e:
-            self.logger.error(f"Error in template matching: {e}")
-            return None
-    
+            self.icon_template = self.image_matcher.load_template(icon_template_path)
+
     def is_application_open(self) -> bool:
         """
         Check if the application is already open using psutil.
@@ -117,29 +78,15 @@ class ApplicationManagerBot:
             if not process_found:
                 self.logger.info(f"Process '{self.process_name}' is not running")
                 return False
-            
-            # If process is running, also try to get the window handle
-            try:
-                windows = gw.getWindowsWithTitle(self.app_name)
-                if windows:
-                    self.window = windows[0]
-                    self.logger.info(f"Application window '{self.app_name}' found and linked")
-                else:
-                    self.logger.warning(f"Process is running but window '{self.app_name}' not found yet")
-                    # Process is running but window might not be ready yet
-                    # Still return True since the process exists
-            except Exception as e:
-                self.logger.warning(f"Could not get window handle: {e}")
-            
-            return True
-            
         except Exception as e:
             self.logger.error(f"Error checking if application is open: {e}")
             return False
+            
+        return process_found
     
     def open_application(self) -> bool:
         """
-        Open the application if not already open.
+        Open the application.
         
         Returns:
             True if successfully opened, False otherwise
@@ -160,81 +107,77 @@ class ApplicationManagerBot:
             self.logger.error(f"Error opening application: {e}")
             return False
     
-    def maximize_application(self) -> bool:
+    def get_window_handle(self) -> Optional[object]:
+        """
+        Get a fresh window handle by searching for the application.
+        
+        Returns:
+            Window handle if found, None otherwise
+        """
+        try:
+            window = self.window_helper.find_window_by_title(self.app_name)
+            if window:
+                self.logger.debug("Window handle obtained")
+                return window
+            else:
+                self.logger.warning("Could not find window")
+                return None
+        except Exception as e:
+            self.logger.error(f"Error getting window handle: {e}")
+            return None
+    
+    def maximize_application(self, window) -> bool:
         """
         Maximize the application window.
+        
+        Args:
+            window: Window object to maximize
         
         Returns:
             True if successfully maximized, False otherwise
         """
-        if not self.window:
-            self.logger.error("No window reference available")
+        if not window:
+            self.logger.error("No window reference provided")
             return False
         
-        try:
-            self.window.maximize()
-            self.logger.info("Application window maximized")
-            time.sleep(0.5)  # Allow time for window animation
-            return True
-        except Exception as e:
-            self.logger.error(f"Error maximizing window: {e}")
-            return False
+        # Use WindowHelper for safer maximization
+        return self.window_helper.safe_maximize(window)
     
-    def bring_to_foreground(self) -> bool:
+    def bring_to_foreground(self, window) -> bool:
         """
         Ensure the application window is in the foreground and has focus.
         Uses multiple methods to guarantee the window is active.
         
+        Args:
+            window: Window object to bring to foreground
+        
         Returns:
             True if successfully brought to foreground, False otherwise
         """
-        if not self.window:
-            self.logger.error("No window reference available for foreground operation")
+        if not window:
+            self.logger.error("No window reference provided for foreground operation")
             return False
         
-        try:
-            # Method 1: Use activate() to bring to foreground
-            self.window.activate()
-            time.sleep(0.3)
-            
-            if self.is_foreground():
-                self.logger.info("Successfully brought application to foreground")
-                return True
-                
-            # Method 2: Minimize and restore to force focus
-            self.logger.info("Trying minimize/restore method")
-            self.window.minimize()
-            time.sleep(0.2)
-            self.window.restore()
-            time.sleep(0.3)
-            
-            if self.is_foreground():
-                return True
-            
-            # Method 3: Click on the window to ensure focus
-            self.logger.info("Trying click method to bring to foreground")
-            window_center_x = self.window.left + (self.window.width // 2)
-            window_center_y = self.window.top + (self.window.height // 2)
-            pyautogui.click(window_center_x, window_center_y)
-            time.sleep(0.2)
-            
-            return self.is_foreground()
-            
-        except Exception as e:
-            self.logger.error(f"Error bringing window to foreground: {e}")
-            return False
+        # Use WindowHelper for more robust focus handling
+        return self.window_helper.force_window_focus(window)
     
-    def is_foreground(self) -> bool:
+    def is_foreground(self, window) -> bool:
         """
         Check if the application window is currently in the foreground.
+        
+        Args:
+            window: Window object to check
         
         Returns:
             True if window is active/foreground, False otherwise
         """
+        if not window:
+            return False
+            
         try:
             active_window = gw.getActiveWindow()
-            if active_window and self.window:
-                is_active = (active_window.title == self.window.title)
+            if active_window and window:
+                is_active = (active_window.title == window.title)
                 if is_active:
                     self.logger.debug("Window is in foreground")
                 else:
@@ -244,6 +187,26 @@ class ApplicationManagerBot:
         except Exception as e:
             self.logger.error(f"Error checking foreground status: {e}")
             return False
+    
+    def find_template_on_screen(self, template) -> Optional[Tuple[int, int]]:
+        """
+        Find a template on the current screen.
+        
+        Args:
+            template: Template image to search for
+            
+        Returns:
+            Position tuple (x, y) if found, None otherwise
+        """
+        if template is None:
+            return None
+            
+        try:
+            screenshot = self.image_matcher.take_screenshot()
+            return self.image_matcher.find_template(screenshot, template)
+        except Exception as e:
+            self.logger.error(f"Error finding template on screen: {e}")
+            return None
     
     def check_visual_open(self) -> bool:
         """
@@ -264,55 +227,27 @@ class ApplicationManagerBot:
             self.logger.error("Application icon not found on screen")
             return False
     
-    def check_maximized_visually(self) -> bool:
+    def check_maximized_visually(self, window) -> bool:
         """
-        Check position of icon/template to verify maximized state.
+        Check if window appears maximized using WindowHelper utility.
+        
+        Args:
+            window: Window object to check
         
         Returns:
             True if window appears maximized, False otherwise
         """
-        if not self.window:
+        if not window:
+            self.logger.warning("No window provided for maximized check")
             return False
         
-        try:
-            # Get screen dimensions
-            screen_width, screen_height = pyautogui.size()
+        # Use WindowHelper for consistent maximization checking
+        is_maximized = self.window_helper.is_window_maximized(window)
+        
+        if is_maximized:
+            self.logger.info("Window dimensions indicate maximized state")
+        else:
+            self.logger.info(f"Window not maximized: {window.width}x{window.height}")
             
-            # Check window dimensions
-            if (self.window.width >= screen_width * 0.95 and 
-                self.window.height >= screen_height * 0.90):
-                self.logger.info("Window dimensions indicate maximized state")
-                
-                # Additional visual check if template is available
-                if self.icon_template is not None:
-                    # Check if icon is visible (should be visible in maximized window)
-                    return self.check_visual_open()
-                
-                return True
-            else:
-                self.logger.info(f"Window not maximized: {self.window.width}x{self.window.height} "
-                           f"(Screen: {screen_width}x{screen_height})")
-                return False
-                
-        except Exception as e:
-            self.logger.error(f"Error checking maximized state: {e}")
-            return False
+        return is_maximized
     
-    def refresh_window_handle(self) -> bool:
-        """
-        Refresh the window handle in case it was lost.
-        
-        Returns:
-            True if window handle was successfully refreshed, False otherwise
-        """
-        try:
-            windows = gw.getWindowsWithTitle(self.app_name)
-            if windows:
-                self.window = windows[0]
-                self.logger.info("Window handle refreshed")
-                return True
-            self.logger.error("Could not refresh window handle - window not found")
-            return False
-        except Exception as e:
-            self.logger.error(f"Error refreshing window handle: {e}")
-            return False
