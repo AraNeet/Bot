@@ -31,12 +31,15 @@ def load_instructions(instruction_file_path: str) -> Tuple[bool, Any]:
         Tuple of (success: bool, instructions or error_message)
     """
     try:
+        # Check if file exists
         if not os.path.exists(instruction_file_path):
             return False, f"Instruction file not found: {instruction_file_path}"
-            
+        # Load JSON data
         with open(instruction_file_path, 'r', encoding='utf-8') as file:
-            instructions = json.load(file)
-            return True, instructions
+            instructions = json.load(file) # Load JSON.
+            return True, instructions # Return loaded instructions
+        
+    # Handle JSON parsing errors, Send email notification on error
     except json.JSONDecodeError as e:
         error_msg = f"Invalid JSON in instruction file: {e}"
         email_notifier.notify_error(error_msg, "parser.load_instructions")
@@ -56,11 +59,9 @@ def parse_objectives(instructions: Dict[str, Any]) -> Tuple[bool, Any]:
     Returns:
         Tuple of (success: bool, parsing_results or error_message)
     """
+    # Ensure than instructions is a dictionary
     if not isinstance(instructions, dict):
         return False, "Instructions must be a dictionary"
-    
-    # Get supported objectives from enum
-    supported_objectives = {objective.value for objective in ObjectiveType}
     
     supported = []
     unsupported = []
@@ -69,9 +70,9 @@ def parse_objectives(instructions: Dict[str, Any]) -> Tuple[bool, Any]:
     for objective_type, objective_list in instructions.items():
         if not isinstance(objective_list, list):
             continue
-            
+
         # Check if objective type is supported
-        if objective_type in supported_objectives:
+        if objective_type in ObjectiveType:
             supported.append({
                 "objective_type": objective_type,
                 "instructions": objective_list

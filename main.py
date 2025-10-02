@@ -10,15 +10,18 @@ On startup, the system performs the following steps:
 2. Open application if not running it open the application
 3. Maximize application window if the is not maximized it tries 3 times
 4. Then it checks if the application is open and maximized using corner templates
+After successful startup, the system is ready. And proceeds to instruction parsing.
+1. Load instruction file
+2. Parse objectives and check if supported
+3. Then email the unsupported objectives if any
+4. Pass supported objectives to workflow module (not implemented yet).
 
 Next Steps (TODO):
-- Add Parser mode for instruction analysis.
 - Add a Instruction executer module for task execution.
 """
 
 from src.StartupModule import runner
 from src.ParsingModule import parser
-
 
 def main():
     """
@@ -57,6 +60,5 @@ def main():
 
     print("\nSupported objectives ready to pass to workflow module.")
 
-# Entry point for direct script execution
 if __name__ == "__main__":
     main()

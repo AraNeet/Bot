@@ -1,8 +1,15 @@
 {
-    "make_file_instruction": [
+    "make_file_instruction": 
         {
             "file_name": "Car",
             "text": "Marketing Plus"
         }
-    ]
+    ,
+    "send_email_instruction": 
+        {
+            "to": "nerd",
+            "subject": "Meeting",
+            "body": "Let's meet at 10am"
+        }
+    
 }
