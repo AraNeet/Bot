@@ -107,14 +107,28 @@ def verify_and_fix_state(window: pygetwindow.Window, corner_templates: Dict[str,
     # Step 3.1: Visual check for open state
     print("Step 3.1/2/3: Visual verification of open state and maximized state")
     visual_open = image_helper.check_maximized_by_corners(corner_templates)
-    if not visual_open: 
-        attempts = 0
-        while attempts < max_retries:
-            attempts += 1
-            print("[FAILED] Visual open check failed")
-            print("Retrying Step 2.")
-            maximize_application(window)
-        return False
+    if not visual_open:
+        print("[FAILED] Visual open check failed")
+        print("Attempting to check if window is maximized and in foreground with alternative methods")
+        time.sleep(2)
+        if not (window_helper.is_window_maximized(window) and window_helper.is_foreground(window)):
+            print("Could not maximize application during verification")
+            attempts = 0
+            while attempts < max_retries:
+                attempts += 1
+                print(f"Failed alternative maximized check. Attempt {attempts}/{max_retries}")
+                print("Retrying Step 2.")
+                maximize_application(window)
+                time.sleep(2)  # Give time for window to maximize
+                if window_helper.is_window_maximized(window) and window_helper.is_foreground(window):
+                    print("[SUCCESS] Application is maximized and in foreground after retry")
+                    return True
+            
+            print("[FAILED] Could not maximize application after all retries")
+            return False
+        else:
+            print("[SUCCESS] Application is maximized and in foreground by alternative check")
+            return True
     else:
         print("[SUCCESS] Visual open check and maximized state passed")
         return True

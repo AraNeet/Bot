@@ -52,20 +52,6 @@ def validate_config(config: Dict[str, Any]) -> bool:
         if not config[field]:
             print(f"Empty value for required configuration field: {field}")
             return False
-    
-    # Validate templates section
-    templates = config.get('templates', {})
-    if not templates:
-        print("Warning: No templates section found in configuration")
-    else:
-        # Check for required template keys
-        expected_templates = ['top_left', 'top_right', 'bottom_right']
-        for template_key in expected_templates:
-            if template_key not in templates:
-                print(f"Warning: Missing template '{template_key}' in templates section")
-            elif not templates[template_key]:
-                print(f"Warning: Empty template path for '{template_key}'")
-    
     return True
 
 def load_corner_templates(config: Dict[str, Any]) -> Dict[str, Any]:

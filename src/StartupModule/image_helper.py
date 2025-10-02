@@ -107,8 +107,7 @@ def check_maximized_by_corners(corner_templates: Dict[str, np.ndarray],
             
             if template is None:
                 print(f"No template provided for {corner_name} corner")
-                corners_found[corner_name] = False
-                continue
+                return False
             
             region = corner_regions[corner_name]
             position = find_template_in_region(screenshot, template, region, confidence)
@@ -164,5 +163,5 @@ def load_template(template_path: str, corner_name: str) -> Optional[np.ndarray]:
         print(f"[SUCCESS] Successfully loaded {corner_name} template")
         return template
     else: 
-        print(f"Error loading template {template_path}: {e}")
+        print(f"Error loading template {template_path}")
         return None

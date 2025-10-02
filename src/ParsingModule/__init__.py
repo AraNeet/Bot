@@ -25,14 +25,12 @@ Usage:
 from .parser import (
     ObjectiveType,
     load_instructions,
-    is_objective_supported,
     process_instruction_file
 )
 
 __all__ = [
     'ObjectiveType',
     'load_instructions',
-    'is_objective_supported',
     'process_instruction_file'
 ]
 

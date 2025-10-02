@@ -17,7 +17,7 @@ from typing import Dict, Any, Tuple
 
 class ObjectiveType(Enum):
     """Enumeration of supported objective types."""
-    EDIT_COPY_INSTRUCTION = "edit_copy_instruction"
+    MAKE_FILE_INSTRUCTION = "make_file_instruction"
 
 def load_instructions(instruction_file_path: str) -> Tuple[bool, Any]:
     """

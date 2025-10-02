@@ -45,8 +45,8 @@ def run_startup(config: Dict[str, Any]) -> Tuple[bool, Optional[pygetwindow.Wind
         corner_templates: Dict[str, Any] = loader.load_corner_templates(config)
         if corner_templates is None:
             print("[FAILED] Could not load corner templates")
-            return False
-        print("Corner templates loaded successfully.")
+        else:
+            print("Corner templates loaded successfully.")
 
         # Run startup sequence
         success, window = startup.run_startup_sequence(
