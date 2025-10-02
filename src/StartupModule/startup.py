@@ -10,7 +10,7 @@ from . import window_helper
 from . import image_helper
 
 
-def step1_ensure_application_open(app_name: str, app_path: str, process_name: str, max_retries: int = 3) -> Tuple[bool, Optional[pygetwindow.Window]]:
+def ensure_application_open(app_name: str, app_path: str, process_name: str, max_retries: int = 3) -> Tuple[bool, Optional[pygetwindow.Window]]:
     """
     Step 1: Check if the application is already open.
     Step 1.1: If not open then open it (iterate until open).
@@ -55,14 +55,13 @@ def step1_ensure_application_open(app_name: str, app_path: str, process_name: st
                 return True, window
             else:
                 print("Failed to get application window handle after opening")
-        
-        time.sleep(1)  # Wait before retry
+        time.sleep(0.3)
     
     print("[FAILED] Failed to open application")
     return False, None
 
 
-def step2_maximize_application(window: pygetwindow.Window) -> bool:
+def maximize_application(window: pygetwindow.Window) -> bool:
     """
     Step 2: Maximize the application.
     Also ensures the application is in the foreground.
@@ -90,7 +89,7 @@ def step2_maximize_application(window: pygetwindow.Window) -> bool:
         return False
 
 
-def step3_verify_and_fix_state(window: pygetwindow.Window, corner_templates: Dict[str, Any], max_retries: int = 3) -> bool:
+def verify_and_fix_state(window: pygetwindow.Window, corner_templates: Dict[str, Any], max_retries: int = 3) -> bool:
     """
     Step 3: Check if the application is open and maximised.
     
@@ -114,14 +113,16 @@ def step3_verify_and_fix_state(window: pygetwindow.Window, corner_templates: Dic
             attempts += 1
             print("[FAILED] Visual open check failed")
             print("Retrying Step 2.")
-            step2_maximize_application(window)
+            maximize_application(window)
         return False
     else:
         print("[SUCCESS] Visual open check and maximized state passed")
         return True
 
 
-def run_startup_sequence(app_name: str, app_path: str, process_name: str, corner_templates: Dict[str, Any], max_retries: int = 3) -> bool:
+def run_startup_sequence(app_name: str, app_path: str, 
+                         process_name: str, corner_templates: Dict[str, Any], 
+                         max_retries: int = 3) -> Tuple[bool, Optional[pygetwindow.Window]]:
     """
     Execute the complete sequence following all specified steps.
     
@@ -142,24 +143,24 @@ def run_startup_sequence(app_name: str, app_path: str, process_name: str, corner
     start_time = time.time()
     
     # Execute Step 1
-    process_found, window = step1_ensure_application_open(app_name, app_path, process_name, max_retries)
+    process_found, window = ensure_application_open(app_name, app_path, process_name, max_retries)
     if not process_found or window is None:
-        return False
+        return False, None
     
     # Execute Step 2
-    if not step2_maximize_application(window):
+    if not maximize_application(window):
         print("Step 2 had issues, continuing to verification...")
     
     # Execute Step 3
-    if not step3_verify_and_fix_state(window, corner_templates, max_retries):
+    if not verify_and_fix_state(window, corner_templates, max_retries):
         print("Sequence failed at Step 3")
-        return False
+        return False, None
     
     # Final verification
     print("="*30)
     print("Final verification...")
     
-    # Ensure still in foreground
+    # Ensure program is foreground
     if window and not window_helper.is_foreground(window):
         print("Bringing back to foreground...")
         window_helper.window_focus(window)
@@ -172,27 +173,4 @@ def run_startup_sequence(app_name: str, app_path: str, process_name: str, corner
     print("[SUCCESS] Application is: OPEN | FOREGROUND | MAXIMIZED")
     print("="*50)
     
-    return True
-
-
-def get_status_report(app_name: str, process_name: str, corner_templates: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Get a status report of the current application state.
-    
-    Args:
-        app_name: The window title or partial title of the application
-        process_name: Name of the process to check (e.g., 'notepad.exe')
-        corner_templates: Dictionary with corner templates for visual verification
-    
-    Returns:
-        Dictionary containing current status information
-    """
-    is_open = window_helper.is_application_open(process_name)
-    window = window_helper.get_window_handle(app_name) if is_open else None
-    status = {
-        'process_running': is_open,
-        'is_foreground': window_helper.is_foreground(window) if window else False,
-        'is_maximized': image_helper.check_maximized_by_corners(corner_templates) if window else False
-    }
-    
-    return status
+    return True, window

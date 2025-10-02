@@ -58,10 +58,8 @@ def open_application(app_path: str) -> bool:
     try:
         subprocess.Popen(app_path)
         print(f"Launched application: {app_path}")
-
-        time.sleep(3)
+        time.sleep(1)
         return True
-        
     except Exception as e:
         print(f"Error opening application: {e}")
         return False

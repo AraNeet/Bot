@@ -1,33 +1,23 @@
 #!/usr/bin/env python3
 """
-Application Manager Bot - Main Entry Point
+Automation Bot - Main Entry Point
 
-This is the primary entry point for the Application Manager Bot system, which provides
-automated application window management with corner-based template matching.
+This is the primary entry point for the Automation Bot system, which provides
+automated application task management.
 
-The system operates in standard mode: Basic application startup sequence (open, maximize, verify)
+On startup, the system performs the following steps:
+!. Load Config, Check if program is running
+2. Open application if not running it open the application
+3. Maximize application window if the is not maximized it tries 3 times
+4. Then it checks if the application is open and maximized using corner templates
 
-Architecture Overview:
-- main.py: Entry point
-- manager.py: System initialization and high-level management
-- startup.py: Application startup sequence functions
-- parser.py: Configuration loading and parsing
-- window_helper.py: Window management functions
-- image_helper.py: Image processing and template matching functions
-
-Usage Examples:
-    # Standard mode with defaults
-    main()
-    
-    # Standard mode with custom config
-    config = {"app_name": "Calculator", "app_path": "calc.exe"}
-    main(config_json=config)
-
-Author: Application Manager Bot System
-Version: 3.0 - Refactored to modular architecture
+Next Steps (TODO):
+- Add Parser mode for instruction analysis.
+- Add a Instruction executer module for task execution.
 """
 
-from src import runner
+from src.StartupModule import runner
+from src.ParsingModule import parser
 
 
 def main():
@@ -58,9 +48,16 @@ def main():
         exit(1)
 
     # Running Startup
-    success = runner.run_startup(config)
+    success, program = runner.run_startup(config)
     if not success:
-        exit(1)        
+        exit(1)
+    # Test the instruction parser
+    success, results = parser.process_instruction_file("example_instructions.json")
+    if not success:
+        print(f"Parser Error: {results}")
+        exit(1)
+    
+    print("\nSupported objectives ready to pass to workflow module.")
 
 # Entry point for direct script execution
 if __name__ == "__main__":

@@ -11,17 +11,16 @@ Modules:
 - image_helper: Image processing and template matching functions
 """
 
-# Import main modules to make them available at package level
 from . import runner
 from . import startup
-from . import parser
+from . import loader
 from . import window_helper
 from . import image_helper
 
 __all__ = [
     'runner',
     'startup', 
-    'parser',
+    'loader',
     'window_helper',
     'image_helper'
 ]

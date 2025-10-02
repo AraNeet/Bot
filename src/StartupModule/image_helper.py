@@ -8,37 +8,6 @@ from typing import Optional, Tuple, List, Dict
 import pyautogui
 from pathlib import Path
 
-def find_all_templates(screenshot: np.ndarray, 
-                      template: np.ndarray, 
-                      confidence: float = 0.8) -> List[Tuple[int, int]]:
-    """
-    Find all occurrences of a template in a screenshot.
-    
-    Args:
-        screenshot: Screenshot image as numpy array
-        template: Template image to search for
-        confidence: Minimum confidence level (0-1)
-    
-    Returns:
-        List of center coordinates for all found templates
-    """
-    locations = []
-    
-    try:
-        result = cv2.matchTemplate(screenshot, template, cv2.TM_CCOEFF_NORMED)
-        locations_array = np.where(result >= confidence)
-        
-        h, w = template.shape[:2]
-        for pt in zip(*locations_array[::-1]):
-            center_x = pt[0] + w // 2
-            center_y = pt[1] + h // 2
-            locations.append((center_x, center_y))
-        
-        return locations
-    except Exception as e:
-        print(f"Error finding all templates: {e}")
-        return []
-
 def take_screenshot() -> np.ndarray:
     """
     Take a screenshot and convert it to OpenCV format.

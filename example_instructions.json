@@ -1,0 +1,35 @@
+{
+    "edit_copy_instruction": [
+        {
+            "advertiser_name": "Acme Corp",
+            "agency_name": "Marketing Plus",
+            "order_number": "ORD-12345",
+            "start_date": "2024-01-15",
+            "end_date": "2024-02-15",
+            "isci_1": "ACME001",
+            "isci_2": "ACME002",
+            "rotation_percent_isci_2": 30
+        },
+        {
+            "advertiser_name": "Tech Solutions",
+            "agency_name": "Digital Agency",
+            "order_number": "ORD-67890",
+            "start_date": "2024-01-20",
+            "end_date": "2024-03-20",
+            "isci_1": "TECH001"
+        }
+    ],
+    "do_not_air_instruction": [
+        {
+            "advertiser_name": "Old Brand",
+            "agency_name": "Legacy Media",
+            "order_number": "ORD-99999",
+            "isci": "OLD001"
+        }
+    ],
+    "unsupported_objective": [
+        {
+            "some_field": "some_value"
+        }
+    ]
+}

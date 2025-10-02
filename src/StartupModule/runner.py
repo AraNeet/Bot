@@ -5,9 +5,10 @@ Contains high-level orchestration functions that coordinate between different co
 
 import sys
 from typing import Dict, Any, Optional
-from . import parser
+from . import loader
 from . import startup
-from . import image_helper
+import pygetwindow
+from typing import Tuple, Optional, Dict, Any
 
 
 
@@ -20,7 +21,7 @@ def initialize_system() -> Optional[Dict[str, Any]]:
         Configuration dictionary if successful, None otherwise
     """
     # Load Config
-    config = parser.load_and_validate_config("config.json")
+    config = loader.load_and_validate_config("config.json")
     if not config:
         print("[FAILED] Could not load valid configuration")
         return None
@@ -29,29 +30,7 @@ def initialize_system() -> Optional[Dict[str, Any]]:
     print("APPLICATION STARTUP")    
     return config
 
-
-def prepare_corner_templates(config: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Load and prepare corner templates for visual verification.
-    
-    Args:
-        config: Configuration dictionary containing template paths
-    
-    Returns:
-        Dictionary with loaded corner templates
-    """
-    print("Loading corner templates...")
-    corner_templates: Dict[str, Any] = parser.load_corner_templates(config)
-    
-    # Display template loading status
-    for corner_name, template in corner_templates.items():
-        status = "[SUCCESS]" if template is not None else "[FAILED]"
-        print(f"  {corner_name}: {status}")
-    
-    return corner_templates
-
-
-def run_startup(config: Dict[str, Any]) -> bool:
+def run_startup(config: Dict[str, Any]) -> Tuple[bool, Optional[pygetwindow.Window]]:
     """
     Execute standard mode application startup sequence.
     
@@ -63,10 +42,14 @@ def run_startup(config: Dict[str, Any]) -> bool:
     """
     try:
         # Prepare corner templates
-        corner_templates: Dict[str, Any] = prepare_corner_templates(config)
-        
+        corner_templates: Dict[str, Any] = loader.load_corner_templates(config)
+        if corner_templates is None:
+            print("[FAILED] Could not load corner templates")
+            return False
+        print("Corner templates loaded successfully.")
+
         # Run startup sequence
-        success = startup.run_startup_sequence(
+        success, window = startup.run_startup_sequence(
             app_name=config['app_name'],
             app_path=config.get('app_path'),
             process_name=config.get('process_name'),
@@ -83,8 +66,8 @@ def run_startup(config: Dict[str, Any]) -> bool:
         
         print("="*50 + "\n")
         
-        return success
+        return success, window
         
     except Exception as e:
         print(f"Error in standard mode execution: {e}")
-        return False
+        return False, None
