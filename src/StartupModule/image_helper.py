@@ -40,22 +40,23 @@ def find_template_in_region(screenshot: np.ndarray,
     """
     try:
         x, y, width, height = region
-        
+
         # Extract the region from screenshot
         region_img = screenshot[y:y+height, x:x+width]
-        
+
         # Perform template matching in the region
         result = cv2.matchTemplate(region_img, template, cv2.TM_CCOEFF_NORMED)
         min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-        
+
         if max_val >= confidence:
             h, w = template.shape[:2]
             # Convert local coordinates to global coordinates
             center_x = x + max_loc[0] + w // 2
             center_y = y + max_loc[1] + h // 2
             return (center_x, center_y)
-        
+
         return None
+
     except Exception as e:
         print(f"Error in region template matching: {e}")
         return None
@@ -97,42 +98,44 @@ def check_maximized_by_corners(corner_templates: Dict[str, np.ndarray],
         # Take screenshot
         screenshot = take_screenshot()
         screen_height, screen_width = screenshot.shape[:2]
-        
+
         # Get corner regions
         corner_regions = get_make_regions(screen_width, screen_height, region_size)
-        
+
         # Track which corners are found
         corners_found = {}
-        
+
         # Check each corner template
         for corner_name in ['top_left', 'top_right', 'bottom_right']:
             template = corner_templates.get(corner_name)
-            
+
             if template is None:
                 print(f"No template provided for {corner_name} corner")
                 return False
-            
+
             region = corner_regions[corner_name]
             position = find_template_in_region(screenshot, template, region, confidence)
-            
+
             if position:
                 print(f"Found {corner_name} template at position {position}")
                 corners_found[corner_name] = True
+
             else:
                 print(f"{corner_name} template not found in region {region}")
                 corners_found[corner_name] = False
-        
+
         # Application is maximized if all three corners are found
         all_corners_found = all(corners_found.values())
-        
+
         if all_corners_found:
             print("All corner templates found - application appears maximized")
+
         else:
             missing_corners = [name for name, found in corners_found.items() if not found]
             print(f"Application not maximized - missing corners: {missing_corners}")
-        
+
         return all_corners_found
-        
+
     except Exception as e:
         print(f"Error in corner-based maximization check: {e}")
         return False
@@ -140,11 +143,11 @@ def check_maximized_by_corners(corner_templates: Dict[str, np.ndarray],
 def load_template(template_path: str, corner_name: str) -> Optional[np.ndarray]:
     """
     load a template image with error handling and detailed path resolution.
-    
+
     Args:
         template_path: Path to the template image
         corner_name: Name of the corner for logging
-        
+
     Returns:
         Template image as numpy array, or None if loading failed
     """
@@ -160,38 +163,41 @@ def load_template(template_path: str, corner_name: str) -> Optional[np.ndarray]:
     if not template_file.exists():
         print(f"Template file does not exist: {template_file.resolve()}")
         return None
-        
+
     template = cv2.imread(template_path)
     if template is not None:
         print(f"[SUCCESS] Successfully loaded {corner_name} template")
         return template
+
     else: 
         print(f"Error loading template {template_path}")
         return None
 
-def load_template_config(config_file_path: str = "config.json") -> Optional[Dict[str, str]]:
+def load_template_config(config_file_path: str = "template.json") -> Optional[Dict[str, str]]:
     """
     Load template paths from configuration file.
-    
+
     Args:
         config_file_path: Path to JSON config file
-    
+
     Returns:
         Dictionary of template paths, or None if failed
     """
     if not os.path.exists(config_file_path):
         print(f"Template config file not found: {config_file_path}")
         return None
-    
+
     try:
         with open(config_file_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
             templates = config.get('templates', {})
             print(f"Template paths loaded from {config_file_path}")
             return templates
+
     except json.JSONDecodeError as e:
         print(f"Error parsing template config: {e}")
         return None
+
     except Exception as e:
         print(f"Error loading template config: {e}")
         return None
@@ -212,7 +218,7 @@ def validate_template_paths(template_paths: Dict[str, str]) -> bool:
             return False
     return True
 
-def load_templates(config_file_path: str = "config.json") -> Optional[Dict[str, np.ndarray]]:
+def load_templates(config_file_path: str = "template.json") -> Optional[Dict[str, np.ndarray]]:
     """
     Load all corner templates from configuration.
     
@@ -226,11 +232,11 @@ def load_templates(config_file_path: str = "config.json") -> Optional[Dict[str, 
     template_paths = load_template_config(config_file_path)
     if not template_paths:
         return None
-    
+
     # Validate paths exist
     if not validate_template_paths(template_paths):
         return None
-    
+
     # Load templates
     corner_templates = {}
     for corner_name, template_path in template_paths.items():
@@ -239,6 +245,6 @@ def load_templates(config_file_path: str = "config.json") -> Optional[Dict[str, 
             print(f"Failed to load template: {corner_name}")
             return None
         corner_templates[corner_name] = template
-    
+
     print("All corner templates loaded successfully")
     return corner_templates

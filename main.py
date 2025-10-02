@@ -42,12 +42,13 @@ def main():
     """
     # Getting config (includes email configuration)
     config = runner.initialize_system()
+
     # Fails gracefully if config is invalid
     if config is None:
         exit(1)
 
     # Running Startup
-    success, program = runner.run_startup(config)
+    success = runner.run_startup(config)
     if not success:
         exit(1)
 
@@ -56,8 +57,8 @@ def main():
     if not success:
         print(f"Parser Error: {results}")
         exit(1)
-    print(f"Parser Results: {results}")
 
+    print(f"Parser Results: {results}")
     print("\nSupported objectives ready to pass to workflow module.")
 
 if __name__ == "__main__":

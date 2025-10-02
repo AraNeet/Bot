@@ -21,8 +21,10 @@ def initialize_system() -> Optional[Dict[str, Any]]:
     Returns:
         Configuration dictionary if successful, None otherwise
     """
+
     # Load basic config
     config = loader.load_config("bot.env")
+
     if not config:
         error_msg = "Could not load basic configuration"
         print(f"[FAILED] {error_msg}")
@@ -30,7 +32,9 @@ def initialize_system() -> Optional[Dict[str, Any]]:
         return None
 
     # Load templates
-    corner_templates = image_helper.load_templates("config.json")
+    corner_templates = image_helper.load_templates("template.json")
+
+    # Still deciding between failing hard here or just warning.
     if not corner_templates:
         error_msg = "Could not load corner templates"
         print(f"[FAILED] {error_msg}")
@@ -44,7 +48,7 @@ def initialize_system() -> Optional[Dict[str, Any]]:
 
     return config
 
-def run_startup(config: Dict[str, Any]) -> Tuple[bool, Optional[pygetwindow.Window]]:
+def run_startup(config: Dict[str, Any]) -> bool:
     """
     Execute standard mode application startup sequence.
     
@@ -59,28 +63,29 @@ def run_startup(config: Dict[str, Any]) -> Tuple[bool, Optional[pygetwindow.Wind
         corner_templates = config.get('corner_templates', {})
 
         # Run startup sequence
-        success, window = startup.run_startup_sequence(
+        success = startup.run_startup_sequence(
             app_name=config['app_name'],
             app_path=config.get('app_path'),
             process_name=config.get('process_name'),
             corner_templates=corner_templates,
             max_retries=config.get('max_retries', 3)
         )
-        
+
         # Display standard mode results
         print("\n" + "="*50)
         if success:
             print("[SUCCESS] SUCCESS: Application is now open, in foreground, and maximized!")
+
         else:
             error_msg = "Could not complete the startup sequence"
             print("[FAILED] FAILED: Could not complete the sequence.")
             email_notifier.notify_error(error_msg, "runner.run_startup", 
                                         {"app_name": config.get("app_name", "unknown")})
-        
+
         print("="*50 + "\n")
-        
-        return success, window
-        
+
+        return success
+
     except Exception as e:
         error_msg = f"Error in standard mode execution: {e}"
         print(error_msg)

@@ -107,11 +107,9 @@ def process_instruction_file(instruction_file_path: str) -> Tuple[bool, Any]:
         Tuple of (success: bool, results or error_message)
     """
     # Load instructions
-    success, data = load_instructions(instruction_file_path)
+    success, instructions = load_instructions(instruction_file_path)
     if not success:
-        return False, data
-    
-    instructions = data
+        return False, None
     
     # Running parser
     success, parsing_results = parse_objectives(instructions)

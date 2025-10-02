@@ -139,7 +139,7 @@ def verify_and_fix_state(window: pygetwindow.Window, corner_templates: Dict[str,
 
 def run_startup_sequence(app_name: str, app_path: str, 
                         process_name: str, corner_templates: Dict[str, Any], 
-                        max_retries: int = 3) -> Tuple[bool, Optional[pygetwindow.Window]]:
+                        max_retries: int = 3) -> bool:
     """
     Execute the complete sequence following all specified steps.
     
@@ -162,7 +162,7 @@ def run_startup_sequence(app_name: str, app_path: str,
     if not process_found or window is None:
         email_notifier.notify_error("Could not ensure application is open", "startup.run_startup_sequence", 
                                     {"app_name": app_name, "process_name": process_name})
-        return False, None
+        return False
     
     # Execute Step 2
     if not maximize_application(window):
@@ -173,11 +173,11 @@ def run_startup_sequence(app_name: str, app_path: str,
         print("Sequence failed at Step 3")
         email_notifier.notify_error("Could not verify and fix application state", "startup.run_startup_sequence", 
                                     {"app_name": app_name, "process_name": process_name})
-        return False, None
+        return False
 
     print("="*50)
     print("[SUCCESS] APPLICATION STARTUP SEQUENCE COMPLETED")
     print("[SUCCESS] Application is: OPEN | FOREGROUND | MAXIMIZED")
     print("="*50)
     
-    return True, window
+    return True

@@ -24,13 +24,14 @@ def load_config(env_file_path: str = "bot.env") -> Optional[Dict[str, Any]]:
         if os.path.exists(env_file_path):
             load_dotenv(env_file_path)
             print(f"Environment variables loaded from {env_file_path}")
+
         else:
             print(f"Environment file not found: {env_file_path}")
-        
+
         if not all([os.getenv('APP_NAME'), os.getenv('APP_PATH'), os.getenv('PROCESS_NAME')]):
             print("Missing one or more required environment variables: APP_NAME, APP_PATH, or PROCESS_NAME")
             return None
-        
+
         # Build basic config from environment
         config = {
             'app_name': os.getenv('APP_NAME'),
@@ -38,10 +39,10 @@ def load_config(env_file_path: str = "bot.env") -> Optional[Dict[str, Any]]:
             'process_name': os.getenv('PROCESS_NAME'),
             'max_retries': int(os.getenv('MAX_RETRIES', '3')),
         }
-        
+
         print("Configuration loaded successfully")
         return config
-        
+
     except Exception as e:
         print(f"Error loading configuration: {e}")
         return None
