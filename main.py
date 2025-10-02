@@ -27,11 +27,10 @@ Author: Application Manager Bot System
 Version: 3.0 - Refactored to modular architecture
 """
 
-from typing import Dict, Any, Optional
-import manager
+from src import runner
 
 
-def main(config_json: Optional[Dict[str, Any]] = None):
+def main():
     """
     Main execution function for the Application Manager Bot system.
     
@@ -44,9 +43,6 @@ def main(config_json: Optional[Dict[str, Any]] = None):
         - Opens target application
         - Maximizes window
         - Verifies state using corner templates
-    
-    Args:
-        config_json: Optional configuration dictionary to override defaults
         
     Returns:
         None (exits with status code 0 for success, 1 for failure)
@@ -55,29 +51,17 @@ def main(config_json: Optional[Dict[str, Any]] = None):
         SystemExit: With appropriate exit code based on execution results
         KeyboardInterrupt: Gracefully handled for user cancellation
     """
-    try:
-        # Initialize system with configuration
-        config = manager.initialize_system(config_json=config_json)
-        if not config:
-            manager.handle_system_exit(False, {})
-            return
-        
-        # Execute standard mode
-        success = manager.run_standard_mode(config)
-        
-        # Exit with appropriate status code
-        manager.handle_system_exit(success, config)
-        
-    except KeyboardInterrupt:
-        # Handle graceful shutdown on user interrupt (Ctrl+C)
-        manager.handle_keyboard_interrupt()
-    except Exception as e:
-        # Handle any unexpected errors
-        config = config if 'config' in locals() else None
-        manager.handle_unexpected_error(e, config)
+    # Getting config
+    config = runner.initialize_system()
+    # Fails gracefully if config is invalid
+    if config is None:
+        exit(1)
 
+    # Running Startup
+    success = runner.run_startup(config)
+    if not success:
+        exit(1)        
 
 # Entry point for direct script execution
 if __name__ == "__main__":
-    # When run directly, execute with default configuration
     main()

@@ -8,37 +8,6 @@ from typing import Optional, Tuple, List, Dict
 import pyautogui
 from pathlib import Path
 
-
-def find_template(screenshot: np.ndarray, 
-                 template: np.ndarray, 
-                 confidence: float = 0.8) -> Optional[Tuple[int, int]]:
-    """
-    Find a template in a screenshot.
-    
-    Args:
-        screenshot: Screenshot image as numpy array
-        template: Template image to search for
-        confidence: Minimum confidence level (0-1)
-    
-    Returns:
-        Center coordinates of found template, or None if not found
-    """
-    try:
-        result = cv2.matchTemplate(screenshot, template, cv2.TM_CCOEFF_NORMED)
-        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-        
-        if max_val >= confidence:
-            h, w = template.shape[:2]
-            center_x = max_loc[0] + w // 2
-            center_y = max_loc[1] + h // 2
-            return (center_x, center_y)
-        
-        return None
-    except Exception as e:
-        print(f"Error in template matching: {e}")
-        return None
-
-
 def find_all_templates(screenshot: np.ndarray, 
                       template: np.ndarray, 
                       confidence: float = 0.8) -> List[Tuple[int, int]]:
@@ -70,7 +39,6 @@ def find_all_templates(screenshot: np.ndarray,
         print(f"Error finding all templates: {e}")
         return []
 
-
 def take_screenshot() -> np.ndarray:
     """
     Take a screenshot and convert it to OpenCV format.
@@ -81,7 +49,6 @@ def take_screenshot() -> np.ndarray:
     screenshot = pyautogui.screenshot()
     screenshot = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
     return screenshot
-
 
 def find_template_in_region(screenshot: np.ndarray, 
                            template: np.ndarray,
@@ -121,7 +88,6 @@ def find_template_in_region(screenshot: np.ndarray,
         print(f"Error in region template matching: {e}")
         return None
 
-
 def get_corner_regions(screen_width: int, screen_height: int, 
                       region_size: int = 200) -> Dict[str, Tuple[int, int, int, int]]:
     """
@@ -140,7 +106,6 @@ def get_corner_regions(screen_width: int, screen_height: int,
         'top_right': (screen_width - region_size, 0, region_size, region_size),
         'bottom_right': (screen_width - region_size, screen_height - region_size, region_size, region_size)
     }
-
 
 def check_maximized_by_corners(corner_templates: Dict[str, np.ndarray], 
                               confidence: float = 0.8,
@@ -201,32 +166,9 @@ def check_maximized_by_corners(corner_templates: Dict[str, np.ndarray],
         print(f"Error in corner-based maximization check: {e}")
         return False
 
-
-def load_template(path: str) -> Optional[np.ndarray]:
+def load_template(template_path: str, corner_name: str) -> Optional[np.ndarray]:
     """
-    Load a template image from file.
-    
-    Args:
-        path: Path to the template image file
-    
-    Returns:
-        Template image as numpy array, or None if loading failed
-    """
-    try:
-        template = cv2.imread(path)
-        if template is not None:
-            print(f"Template loaded successfully: {path}")
-        else:
-            print(f"Failed to load template: {path}")
-        return template
-    except Exception as e:
-        print(f"Error loading template {path}: {e}")
-        return None
-
-
-def load_template_safely(template_path: str, corner_name: str) -> Optional[np.ndarray]:
-    """
-    Safely load a template image with error handling and detailed path resolution.
+    load a template image with error handling and detailed path resolution.
     
     Args:
         template_path: Path to the template image
@@ -238,58 +180,20 @@ def load_template_safely(template_path: str, corner_name: str) -> Optional[np.nd
     if not template_path:
         print(f"No {corner_name} template path provided")
         return None
-    
-    # Convert to Path object for better handling
+
     template_file = Path(template_path)
-    
-    # Log detailed path information for debugging
+
     print(f"Attempting to load {corner_name} template:")
     print(f"  Raw path: {template_path}")
-    print(f"  Resolved path: {template_file.resolve()}")
-    print(f"  Path exists: {template_file.exists()}")
-    print(f"  Current working directory: {Path.cwd()}")
-    
+
     if not template_file.exists():
         print(f"Template file does not exist: {template_file.resolve()}")
         return None
         
-    template = load_template(str(template_file))
+    template = cv2.imread(template_path)
     if template is not None:
         print(f"[SUCCESS] Successfully loaded {corner_name} template")
-    else:
-        print(f"[FAILED] Failed to load {corner_name} template (file exists but loading failed)")
-    return template
-
-
-def find_template_on_screen(template: np.ndarray) -> Optional[Tuple[int, int]]:
-    """
-    Find a template on the current screen.
-    
-    Args:
-        template: Template image to search for
-        
-    Returns:
-        Position tuple (x, y) if found, None otherwise
-    """
-    if template is None:
+        return template
+    else: 
+        print(f"Error loading template {template_path}: {e}")
         return None
-        
-    try:
-        screenshot = take_screenshot()
-        return find_template(screenshot, template)
-    except Exception as e:
-        print(f"Error finding template on screen: {e}")
-        return None
-
-
-def check_maximized_visually(corner_templates: Dict[str, np.ndarray]) -> bool:
-    """
-    Check if window appears maximized using corner template matching.
-    
-    Args:
-        corner_templates: Dictionary with corner templates
-    
-    Returns:
-        True if all three corner templates are found, False otherwise
-    """
-    return check_maximized_by_corners(corner_templates)

@@ -1,0 +1,28 @@
+"""
+Application Manager Bot - Source Package
+
+This package contains all the core modules for the Application Manager Bot system.
+
+Modules:
+- runner: System initialization and management logic
+- startup: Application startup sequence functions
+- parser: Configuration loading and parsing
+- window_helper: Window management functions
+- image_helper: Image processing and template matching functions
+"""
+
+# Import main modules to make them available at package level
+from . import runner
+from . import startup
+from . import parser
+from . import window_helper
+from . import image_helper
+
+__all__ = [
+    'runner',
+    'startup', 
+    'parser',
+    'window_helper',
+    'image_helper'
+]
+

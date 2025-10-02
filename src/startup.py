@@ -4,42 +4,13 @@ Contains step-by-step functions for the application startup sequence.
 """
 
 import time
-import subprocess
-import os
 from typing import Tuple, Optional, Dict, Any
-import pygetwindow as gw
-import window_helper
-import image_helper
+import pygetwindow
+from . import window_helper
+from . import image_helper
 
 
-def open_application(app_path: str) -> bool:
-    """
-    Open the application.
-    
-    Args:
-        app_path: Path to the application executable
-    
-    Returns:
-        True if successfully opened, False otherwise
-    """
-    if not app_path:
-        print("No application path provided")
-        return False
-    
-    try:
-        subprocess.Popen(app_path)
-        print(f"Launched application: {app_path}")
-        
-        # Wait for application to start
-        time.sleep(3)
-        return True
-        
-    except Exception as e:
-        print(f"Error opening application: {e}")
-        return False
-
-
-def step1_ensure_application_open(app_name: str, app_path: str, process_name: str, max_retries: int = 3) -> Tuple[bool, Optional[gw.Window]]:
+def step1_ensure_application_open(app_name: str, app_path: str, process_name: str, max_retries: int = 3) -> Tuple[bool, Optional[pygetwindow.Window]]:
     """
     Step 1: Check if the application is already open.
     Step 1.1: If not open then open it (iterate until open).
@@ -63,6 +34,7 @@ def step1_ensure_application_open(app_name: str, app_path: str, process_name: st
         if window:
             print("[SUCCESS] Window handle obtained")
             return True, window
+        # If we can't get the window handle, Application name is likely incorrect/ not matching
         else:
             print("Failed to get application window handle")
             return False, None
@@ -75,7 +47,7 @@ def step1_ensure_application_open(app_name: str, app_path: str, process_name: st
         attempts += 1
         print(f"Opening attempt {attempts}/{max_retries}")
         
-        success = open_application(app_path)
+        success = window_helper.open_application(app_path)
         if success:
             window = window_helper.get_window_handle(app_name)
             if window:
@@ -90,7 +62,7 @@ def step1_ensure_application_open(app_name: str, app_path: str, process_name: st
     return False, None
 
 
-def step2_maximize_application(window: gw.Window) -> bool:
+def step2_maximize_application(window: pygetwindow.Window) -> bool:
     """
     Step 2: Maximize the application.
     Also ensures the application is in the foreground.
@@ -106,7 +78,7 @@ def step2_maximize_application(window: gw.Window) -> bool:
     
 
     # First bring to foreground
-    if not window_helper.bring_to_foreground(window):
+    if not window_helper.window_focus(window):
         print("Could not bring to foreground, attempting to continue...")
     
     # Attempt to maximize
@@ -118,7 +90,7 @@ def step2_maximize_application(window: gw.Window) -> bool:
         return False
 
 
-def step3_verify_and_fix_state(window: gw.Window, corner_templates: Dict[str, Any], max_retries: int = 3) -> bool:
+def step3_verify_and_fix_state(window: pygetwindow.Window, corner_templates: Dict[str, Any], max_retries: int = 3) -> bool:
     """
     Step 3: Check if the application is open and maximised.
     
@@ -190,7 +162,7 @@ def run_startup_sequence(app_name: str, app_path: str, process_name: str, corner
     # Ensure still in foreground
     if window and not window_helper.is_foreground(window):
         print("Bringing back to foreground...")
-        window_helper.bring_to_foreground(window)
+        window_helper.window_focus(window)
     
     elapsed_time = time.time() - start_time
     
@@ -219,9 +191,8 @@ def get_status_report(app_name: str, process_name: str, corner_templates: Dict[s
     window = window_helper.get_window_handle(app_name) if is_open else None
     status = {
         'process_running': is_open,
-        'window_exists': window is not None,
         'is_foreground': window_helper.is_foreground(window) if window else False,
-        'is_maximized': image_helper.check_maximized_visually(corner_templates) if window else False
+        'is_maximized': image_helper.check_maximized_by_corners(corner_templates) if window else False
     }
     
     return status
