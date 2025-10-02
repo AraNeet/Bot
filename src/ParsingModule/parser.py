@@ -13,6 +13,7 @@ import json
 import os
 from enum import Enum
 from typing import Dict, Any, Tuple
+from src.NotificationModule import email_notifier
 
 
 class ObjectiveType(Enum):
@@ -37,9 +38,13 @@ def load_instructions(instruction_file_path: str) -> Tuple[bool, Any]:
             instructions = json.load(file)
             return True, instructions
     except json.JSONDecodeError as e:
-        return False, f"Invalid JSON in instruction file: {e}"
+        error_msg = f"Invalid JSON in instruction file: {e}"
+        email_notifier.notify_error(error_msg, "parser.load_instructions")
+        return False, error_msg
     except Exception as e:
-        return False, f"Error loading instruction file: {e}"
+        error_msg = f"Error loading instruction file: {e}"
+        email_notifier.notify_error(error_msg, "parser.load_instructions")
+        return False, error_msg
 
 def parse_objectives(instructions: Dict[str, Any]) -> Tuple[bool, Any]:
     """
@@ -76,6 +81,8 @@ def parse_objectives(instructions: Dict[str, Any]) -> Tuple[bool, Any]:
                 "objective_type": objective_type,
                 "instructions": objective_list
             })
+            email_notifier.notify_error(f"Unsupported objective type: {objective_type}", "parser.parse_objectives", 
+                                       {"objective_type": objective_type})
     
     results = {
         "supported": supported,

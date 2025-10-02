@@ -8,6 +8,7 @@ from typing import Tuple, Optional, Dict, Any
 import pygetwindow
 from . import window_helper
 from . import image_helper
+from src.NotificationModule import email_notifier
 
 
 def ensure_application_open(app_name: str, app_path: str, process_name: str, max_retries: int = 3) -> Tuple[bool, Optional[pygetwindow.Window]]:
@@ -60,7 +61,6 @@ def ensure_application_open(app_name: str, app_path: str, process_name: str, max
     print("[FAILED] Failed to open application")
     return False, None
 
-
 def maximize_application(window: pygetwindow.Window) -> bool:
     """
     Step 2: Maximize the application.
@@ -76,7 +76,7 @@ def maximize_application(window: pygetwindow.Window) -> bool:
     print("Step 2: Maximizing application")
     
 
-    # First bring to foreground
+    # Attempt to bring to foreground
     if not window_helper.window_focus(window):
         print("Could not bring to foreground, attempting to continue...")
     
@@ -86,8 +86,9 @@ def maximize_application(window: pygetwindow.Window) -> bool:
         return True
     else:
         print("[FAILED] Initial maximize attempt failed")
+        email_notifier.notify_error("Could not maximize application", "startup.maximize_application", 
+                                {"window_title": window.title})
         return False
-
 
 def verify_and_fix_state(window: pygetwindow.Window, corner_templates: Dict[str, Any], max_retries: int = 3) -> bool:
     """
@@ -110,21 +111,24 @@ def verify_and_fix_state(window: pygetwindow.Window, corner_templates: Dict[str,
     if not visual_open:
         print("[FAILED] Visual open check failed")
         print("Attempting to check if window is maximized and in foreground with alternative methods")
-        time.sleep(2)
+        time.sleep(.5)
+        
+        # If templates are not provided, System fallback to window state checks
         if not (window_helper.is_window_maximized(window) and window_helper.is_foreground(window)):
             print("Could not maximize application during verification")
+
             attempts = 0
             while attempts < max_retries:
                 attempts += 1
                 print(f"Failed alternative maximized check. Attempt {attempts}/{max_retries}")
                 print("Retrying Step 2.")
                 maximize_application(window)
-                time.sleep(2)  # Give time for window to maximize
+                time.sleep(.5)
+
                 if window_helper.is_window_maximized(window) and window_helper.is_foreground(window):
                     print("[SUCCESS] Application is maximized and in foreground after retry")
                     return True
-            
-            print("[FAILED] Could not maximize application after all retries")
+
             return False
         else:
             print("[SUCCESS] Application is maximized and in foreground by alternative check")
@@ -133,10 +137,9 @@ def verify_and_fix_state(window: pygetwindow.Window, corner_templates: Dict[str,
         print("[SUCCESS] Visual open check and maximized state passed")
         return True
 
-
 def run_startup_sequence(app_name: str, app_path: str, 
-                         process_name: str, corner_templates: Dict[str, Any], 
-                         max_retries: int = 3) -> Tuple[bool, Optional[pygetwindow.Window]]:
+                        process_name: str, corner_templates: Dict[str, Any], 
+                        max_retries: int = 3) -> Tuple[bool, Optional[pygetwindow.Window]]:
     """
     Execute the complete sequence following all specified steps.
     
@@ -151,14 +154,14 @@ def run_startup_sequence(app_name: str, app_path: str,
         True if all steps completed successfully, False otherwise
     """
     print("="*50)
-    print("STARTING APPLICATION MANAGEMENT SEQUENCE")
+    print("STARTING APPLICATION STARTUP SEQUENCE")
     print("="*50)
-    
-    start_time = time.time()
     
     # Execute Step 1
     process_found, window = ensure_application_open(app_name, app_path, process_name, max_retries)
     if not process_found or window is None:
+        email_notifier.notify_error("Could not ensure application is open", "startup.run_startup_sequence", 
+                                    {"app_name": app_name, "process_name": process_name})
         return False, None
     
     # Execute Step 2
@@ -168,22 +171,12 @@ def run_startup_sequence(app_name: str, app_path: str,
     # Execute Step 3
     if not verify_and_fix_state(window, corner_templates, max_retries):
         print("Sequence failed at Step 3")
+        email_notifier.notify_error("Could not verify and fix application state", "startup.run_startup_sequence", 
+                                    {"app_name": app_name, "process_name": process_name})
         return False, None
-    
-    # Final verification
-    print("="*30)
-    print("Final verification...")
-    
-    # Ensure program is foreground
-    if window and not window_helper.is_foreground(window):
-        print("Bringing back to foreground...")
-        window_helper.window_focus(window)
-    
-    elapsed_time = time.time() - start_time
-    
+
     print("="*50)
-    print("[SUCCESS] APPLICATION MANAGEMENT SEQUENCE COMPLETED")
-    print(f"[SUCCESS] Total time: {elapsed_time:.2f} seconds")
+    print("[SUCCESS] APPLICATION STARTUP SEQUENCE COMPLETED")
     print("[SUCCESS] Application is: OPEN | FOREGROUND | MAXIMIZED")
     print("="*50)
     

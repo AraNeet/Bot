@@ -37,7 +37,7 @@ def main():
     Returns:
         None (exits with status code 0 for success, 1 for failure)
     """
-    # Getting config
+    # Getting config (includes email configuration)
     config = runner.initialize_system()
     # Fails gracefully if config is invalid
     if config is None:
@@ -47,7 +47,8 @@ def main():
     success, program = runner.run_startup(config)
     if not success:
         exit(1)
-    # Test the instruction parser
+
+    # Parser instruction file. and return supported
     success, results = parser.process_instruction_file("example_instructions.json")
     if not success:
         print(f"Parser Error: {results}")

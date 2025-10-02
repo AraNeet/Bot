@@ -1,9 +1,12 @@
 """
 Image processing helper functions for template matching and visual verification.
+Manages all template-related operations including loading and validation.
 """
 
 import cv2
 import numpy as np
+import os
+import json
 from typing import Optional, Tuple, List, Dict
 import pyautogui
 from pathlib import Path
@@ -57,7 +60,7 @@ def find_template_in_region(screenshot: np.ndarray,
         print(f"Error in region template matching: {e}")
         return None
 
-def get_corner_regions(screen_width: int, screen_height: int, 
+def get_make_regions(screen_width: int, screen_height: int, 
                       region_size: int = 200) -> Dict[str, Tuple[int, int, int, int]]:
     """
     Get predefined corner regions for template matching.
@@ -96,7 +99,7 @@ def check_maximized_by_corners(corner_templates: Dict[str, np.ndarray],
         screen_height, screen_width = screenshot.shape[:2]
         
         # Get corner regions
-        corner_regions = get_corner_regions(screen_width, screen_height, region_size)
+        corner_regions = get_make_regions(screen_width, screen_height, region_size)
         
         # Track which corners are found
         corners_found = {}
@@ -165,3 +168,77 @@ def load_template(template_path: str, corner_name: str) -> Optional[np.ndarray]:
     else: 
         print(f"Error loading template {template_path}")
         return None
+
+def load_template_config(config_file_path: str = "config.json") -> Optional[Dict[str, str]]:
+    """
+    Load template paths from configuration file.
+    
+    Args:
+        config_file_path: Path to JSON config file
+    
+    Returns:
+        Dictionary of template paths, or None if failed
+    """
+    if not os.path.exists(config_file_path):
+        print(f"Template config file not found: {config_file_path}")
+        return None
+    
+    try:
+        with open(config_file_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+            templates = config.get('templates', {})
+            print(f"Template paths loaded from {config_file_path}")
+            return templates
+    except json.JSONDecodeError as e:
+        print(f"Error parsing template config: {e}")
+        return None
+    except Exception as e:
+        print(f"Error loading template config: {e}")
+        return None
+
+def validate_template_paths(template_paths: Dict[str, str]) -> bool:
+    """
+    Validate that all template files exist.
+    
+    Args:
+        template_paths: Dictionary of template name to file path
+    
+    Returns:
+        True if all template files exist, False otherwise
+    """
+    for template_name, template_path in template_paths.items():
+        if not os.path.exists(template_path):
+            print(f"Template file not found: {template_path} (for {template_name})")
+            return False
+    return True
+
+def load_templates(config_file_path: str = "config.json") -> Optional[Dict[str, np.ndarray]]:
+    """
+    Load all corner templates from configuration.
+    
+    Args:
+        config_file_path: Path to JSON config file
+    
+    Returns:
+        Dictionary of loaded corner templates, or None if failed
+    """
+    # Load template paths
+    template_paths = load_template_config(config_file_path)
+    if not template_paths:
+        return None
+    
+    # Validate paths exist
+    if not validate_template_paths(template_paths):
+        return None
+    
+    # Load templates
+    corner_templates = {}
+    for corner_name, template_path in template_paths.items():
+        template = load_template(template_path, corner_name)
+        if template is None:
+            print(f"Failed to load template: {corner_name}")
+            return None
+        corner_templates[corner_name] = template
+    
+    print("All corner templates loaded successfully")
+    return corner_templates

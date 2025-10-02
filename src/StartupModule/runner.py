@@ -4,11 +4,12 @@ Contains high-level orchestration functions that coordinate between different co
 """
 
 import sys
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 from . import loader
 from . import startup
+from . import image_helper
 import pygetwindow
-from typing import Tuple, Optional, Dict, Any
+from src.NotificationModule import email_notifier
 
 
 
@@ -20,14 +21,27 @@ def initialize_system() -> Optional[Dict[str, Any]]:
     Returns:
         Configuration dictionary if successful, None otherwise
     """
-    # Load Config
-    config = loader.load_and_validate_config("config.json")
+    # Load basic config
+    config = loader.load_config("bot.env")
     if not config:
-        print("[FAILED] Could not load valid configuration")
+        error_msg = "Could not load basic configuration"
+        print(f"[FAILED] {error_msg}")
+        email_notifier.notify_error(error_msg, "runner.initialize_system")
         return None
-    
+
+    # Load templates
+    corner_templates = image_helper.load_templates("config.json")
+    if not corner_templates:
+        error_msg = "Could not load corner templates"
+        print(f"[FAILED] {error_msg}")
+        email_notifier.notify_error(error_msg, "runner.initialize_system")
+        return None
+
+    config['corner_templates'] = corner_templates
+
     print("="*50)
-    print("APPLICATION STARTUP")    
+    print("APPLICATION STARTUP")
+
     return config
 
 def run_startup(config: Dict[str, Any]) -> Tuple[bool, Optional[pygetwindow.Window]]:
@@ -41,12 +55,8 @@ def run_startup(config: Dict[str, Any]) -> Tuple[bool, Optional[pygetwindow.Wind
         True if successful, False otherwise
     """
     try:
-        # Prepare corner templates
-        corner_templates: Dict[str, Any] = loader.load_corner_templates(config)
-        if corner_templates is None:
-            print("[FAILED] Could not load corner templates")
-        else:
-            print("Corner templates loaded successfully.")
+        # Get corner templates from config (already loaded)
+        corner_templates = config.get('corner_templates', {})
 
         # Run startup sequence
         success, window = startup.run_startup_sequence(
@@ -54,7 +64,7 @@ def run_startup(config: Dict[str, Any]) -> Tuple[bool, Optional[pygetwindow.Wind
             app_path=config.get('app_path'),
             process_name=config.get('process_name'),
             corner_templates=corner_templates,
-            max_retries=config.get('max_retries', 5)
+            max_retries=config.get('max_retries', 3)
         )
         
         # Display standard mode results
@@ -62,12 +72,17 @@ def run_startup(config: Dict[str, Any]) -> Tuple[bool, Optional[pygetwindow.Wind
         if success:
             print("[SUCCESS] SUCCESS: Application is now open, in foreground, and maximized!")
         else:
+            error_msg = "Could not complete the startup sequence"
             print("[FAILED] FAILED: Could not complete the sequence.")
+            email_notifier.notify_error(error_msg, "runner.run_startup", 
+                                        {"app_name": config.get("app_name", "unknown")})
         
         print("="*50 + "\n")
         
         return success, window
         
     except Exception as e:
-        print(f"Error in standard mode execution: {e}")
+        error_msg = f"Error in standard mode execution: {e}"
+        print(error_msg)
+        email_notifier.notify_error(error_msg, "runner.run_startup")
         return False, None

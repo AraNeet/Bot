@@ -1,8 +1,4 @@
 {
-    "app_name": "notepad",
-    "app_path": "C:\\Windows\\System32\\notepad.exe",
-    "process_name": "notepad.exe",
-    "max_retries": 3,
     "templates": {
         "top_left": "assets/Icon.png",
         "top_right": "assets/close_x.png",
