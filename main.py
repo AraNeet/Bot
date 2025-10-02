@@ -36,10 +36,6 @@ def main():
         
     Returns:
         None (exits with status code 0 for success, 1 for failure)
-        
-    Raises:
-        SystemExit: With appropriate exit code based on execution results
-        KeyboardInterrupt: Gracefully handled for user cancellation
     """
     # Getting config
     config = runner.initialize_system()
@@ -56,7 +52,8 @@ def main():
     if not success:
         print(f"Parser Error: {results}")
         exit(1)
-    
+    print(f"Parser Results: {results}")
+
     print("\nSupported objectives ready to pass to workflow module.")
 
 # Entry point for direct script execution
