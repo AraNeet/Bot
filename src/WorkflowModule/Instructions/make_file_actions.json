@@ -1,6 +1,6 @@
 {
-    "Action_Lists": {
-        "make_file_instruction": [
+    "Instructions": {
+        "make_file": [
             {
                 "action_type": "open_file_menu",
                 "description": "Open the File menu",
@@ -14,17 +14,23 @@
             {
                 "action_type": "wait_for_new_file",
                 "description": "Wait for new file window to be ready",
-                "parameters": {"timeout": 5}
+                "parameters": {
+                    "timeout": 5
+                }
             },
             {
                 "action_type": "enter_filename",
                 "description": "Enter the filename",
-                "parameters": {"filename": ""}
+                "parameters": {
+                    "filename": ""
+                }
             },
             {
                 "action_type": "enter_text",
                 "description": "Enter the text content",
-                "parameters": {"text": ""}
+                "parameters": {
+                    "text": ""
+                }
             },
             {
                 "action_type": "save_file",

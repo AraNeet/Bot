@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-Instruction Parser Module
+Objectives Parser Module
 
-This module handles parsing of JSON instruction files and validates them against
-supported objectives. It identifies required and optional fields for each objective
-type and separates supported from unsupported instructions.
+This module handles parsing of JSON objectives files and validates them against
+supported objective types. It separates supported from unsupported objectives.
 
-The parser works with a simple functional approach without global variables or classes.
+TERMINOLOGY:
+- Objective Type: What you want to accomplish (e.g., "make_file", "send_email")
+- Values: User-provided data for an objective (e.g., {"file_name": "test.txt"})
+- Instructions: Action steps the bot performs (e.g., "open_menu", "type_text")
 """
 
 import json
@@ -18,72 +20,104 @@ from src.NotificationModule import email_notifier
 
 class ObjectiveType(Enum):
     """Enumeration of supported objective types."""
-    MAKE_FILE_INSTRUCTION = "make_file_instruction"
+    MAKE_FILE = "make_file"
 
-def load_instructions(instruction_file_path: str) -> Tuple[bool, Any]:
+def load_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
     """
-    Load instructions from a JSON file.
+    Load objectives from a JSON file.
     
     Args:
-        instruction_file_path: Path to the JSON instruction file
+        objectives_file_path: Path to the JSON objectives file
         
     Returns:
-        Tuple of (success: bool, instructions or error_message)
+        Tuple of (success: bool, objectives or error_message)
+        
+    Example file structure:
+    {
+        "make_file": [
+            {
+                "file_name": "Report.txt",
+                "text": "Q4 Sales Report"
+            }
+        ]
+    }
     """
     try:
         # Check if file exists
-        if not os.path.exists(instruction_file_path):
-            return False, f"Instruction file not found: {instruction_file_path}"
-        # Load JSON data
-        with open(instruction_file_path, 'r', encoding='utf-8') as file:
-            instructions = json.load(file) # Load JSON.
-            return True, instructions # Return loaded instructions
+        if not os.path.exists(objectives_file_path):
+            return False, f"Objectives file not found: {objectives_file_path}"
         
-    # Handle JSON parsing errors, Send email notification on error
+        # Load JSON data
+        with open(objectives_file_path, 'r', encoding='utf-8') as file:
+            objectives = json.load(file)
+            return True, objectives
+        
     except json.JSONDecodeError as e:
-        error_msg = f"Invalid JSON in instruction file: {e}"
-        email_notifier.notify_error(error_msg, "parser.load_instructions")
+        error_msg = f"Invalid JSON in objectives file: {e}"
+        email_notifier.notify_error(error_msg, "parser.load_objectives")
         return False, error_msg
     except Exception as e:
-        error_msg = f"Error loading instruction file: {e}"
-        email_notifier.notify_error(error_msg, "parser.load_instructions")
+        error_msg = f"Error loading objectives file: {e}"
+        email_notifier.notify_error(error_msg, "parser.load_objectives")
         return False, error_msg
 
-def parse_objectives(instructions: Dict[str, Any]) -> Tuple[bool, Any]:
+
+def parse_objectives(objectives: Dict[str, Any]) -> Tuple[bool, Any]:
     """
-    Parse objectives from instructions and separate supported from unsupported.
+    Parse objectives and separate supported from unsupported.
     
     Args:
-        instructions: Dictionary containing instruction data
+        objectives: Dictionary containing objective data
         
     Returns:
         Tuple of (success: bool, parsing_results or error_message)
+        
+    Example input:
+    {
+        "make_file": [{"file_name": "test.txt", "text": "content"}],
+        "send_email": [{"to": "user@example.com", "subject": "Hi"}]
+    }
+    
+    Example output:
+    {
+        "supported": [
+            {
+                "objective_type": "make_file",
+                "values_list": [{"file_name": "test.txt", "text": "content"}]
+            }
+        ],
+        "unsupported": [...]
+    }
     """
-    # Ensure than instructions is a dictionary
-    if not isinstance(instructions, dict):
-        return False, "Instructions must be a dictionary"
+    if not isinstance(objectives, dict):
+        return False, "Objectives must be a dictionary"
     
     supported = []
     unsupported = []
     
-    # Process each objective in the instructions
-    for objective_type, objective_list in instructions.items():
-        if not isinstance(objective_list, list):
+    # Process each objective type in the file
+    for objective_type, values_list in objectives.items():
+        if not isinstance(values_list, list):
             continue
-
+        
         # Check if objective type is supported
-        if objective_type in ObjectiveType:
+        is_supported = any(obj.value == objective_type for obj in ObjectiveType)
+        
+        if is_supported:
             supported.append({
                 "objective_type": objective_type,
-                "instructions": objective_list
+                "values_list": values_list  # Renamed from "instructions"
             })
         else:
             unsupported.append({
                 "objective_type": objective_type,
-                "instructions": objective_list
+                "values_list": values_list
             })
-            email_notifier.notify_error(f"Unsupported objective type: {objective_type}", "parser.parse_objectives", 
-                                       {"objective_type": objective_type})
+            email_notifier.notify_error(
+                f"Unsupported objective type: {objective_type}", 
+                "parser.parse_objectives", 
+                {"objective_type": objective_type}
+            )
     
     results = {
         "supported": supported,
@@ -92,42 +126,54 @@ def parse_objectives(instructions: Dict[str, Any]) -> Tuple[bool, Any]:
     
     return True, results
 
-def process_instruction_file(instruction_file_path: str) -> Tuple[bool, Any]:
+
+def process_objectives_file(objectives_file_path: str) -> Tuple[bool, Any]:
     """
-    Complete processing pipeline for an instruction file.
+    Complete processing pipeline for an objectives file.
     
-    This is the main function that orchestrates the entire parsing process:
-    1. Load the instruction file
-    2. Parse objectives and check if supported
+    This function:
+    1. Loads the objectives file
+    2. Parses and validates objective types
+    3. Separates supported from unsupported objectives
     
     Args:
-        instruction_file_path: Path to the JSON instruction file
+        objectives_file_path: Path to the JSON objectives file
         
     Returns:
         Tuple of (success: bool, results or error_message)
+        
+    Results structure:
+    {
+        "supported_objectives": [...],  # Ready for workflow execution
+        "unsupported_objectives": [...]  # Need implementation
+    }
     """
-    # Load instructions
-    success, instructions = load_instructions(instruction_file_path)
+    # Load objectives
+    success, objectives = load_objectives(objectives_file_path)
     if not success:
         return False, None
     
-    # Running parser
-    success, parsing_results = parse_objectives(instructions)
+    # Parse objectives
+    success, parsing_results = parse_objectives(objectives)
     if not success:
-        return False, parsing_results  # parsing_results is error message
-
-    # Display summary of parsing results
+        return False, parsing_results
+    
+    # Display summary
     if parsing_results['supported']:
         print("\nSupported Objectives:")
         for obj in parsing_results['supported']:
-            print(f"  - {obj['objective_type']}: {len(obj['instructions'])} instructions")
+            objective_type = obj['objective_type']
+            values_count = len(obj['values_list'])
+            print(f"  - {objective_type}: {values_count} value set(s)")
     
     if parsing_results['unsupported']:
         print("\nUnsupported Objectives:")
         for obj in parsing_results['unsupported']:
-            print(f"  - {obj['objective_type']}: {len(obj['instructions'])} instructions")
+            objective_type = obj['objective_type']
+            values_count = len(obj['values_list'])
+            print(f"  - {objective_type}: {values_count} value set(s)")
     
-    # Returning Supported and Unsupported objectives to be used by workflow module
+    # Return results for workflow module
     results = {
         "supported_objectives": parsing_results["supported"],
         "unsupported_objectives": parsing_results["unsupported"]

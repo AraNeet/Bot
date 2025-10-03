@@ -1,15 +1,19 @@
 {
-    "make_file_instruction": [
+    "make_file": [
         {
             "file_name": "Car",
             "text": "Marketing Plus"
+        },
+        {
+            "file_name": "Report",
+            "text": "Q4 Sales Summary"
         }
     ],
-    "send_email_instruction": [
+    "send_email": [
         {
-            "to": "nerd",
-            "subject": "Meeting",
-            "body": "Let's meet at 10am"
+            "to": "nerd@example.com",
+            "subject": "Meeting Reminder",
+            "body": "Let's meet at 10am tomorrow"
         }
     ]
 }
