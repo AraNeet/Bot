@@ -22,6 +22,7 @@ Next Steps (TODO):
 
 from src.StartupModule import runner
 from src.ParsingModule import parser
+from src.WorkflowModule import workflow_engine, action_executor
 
 def main():
     """
@@ -60,6 +61,17 @@ def main():
 
     print(f"Parser Results: {results}")
     print("\nSupported objectives ready to pass to workflow module.")
+
+    print("\nStarting Workflow.")
+    workflow_success, workflow_results = workflow_engine.start_workflow_from_parser_results(
+        parser_results=results,
+        action_executor=action_executor
+    )
+
+    if not workflow_success:
+        print(f"Workflow Error: {workflow_results}")
+        exit(1)
+    print(f"Workflow Results: {workflow_results}")
 
 if __name__ == "__main__":
     main()

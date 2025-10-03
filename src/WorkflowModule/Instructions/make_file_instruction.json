@@ -1,0 +1,36 @@
+{
+    "Action_Lists": {
+        "make_file_instruction": [
+            {
+                "action_type": "open_file_menu",
+                "description": "Open the File menu",
+                "parameters": {}
+            },
+            {
+                "action_type": "click_new_file",
+                "description": "Click New to create new file",
+                "parameters": {}
+            },
+            {
+                "action_type": "wait_for_new_file",
+                "description": "Wait for new file window to be ready",
+                "parameters": {"timeout": 5}
+            },
+            {
+                "action_type": "enter_filename",
+                "description": "Enter the filename",
+                "parameters": {"filename": ""}
+            },
+            {
+                "action_type": "enter_text",
+                "description": "Enter the text content",
+                "parameters": {"text": ""}
+            },
+            {
+                "action_type": "save_file",
+                "description": "Save the file",
+                "parameters": {}
+            }
+        ]
+    }
+}

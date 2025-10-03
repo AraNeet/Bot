@@ -6,7 +6,3 @@ numpy>=1.24.0
 Pillow>=10.0.0
 psutil>=5.9.0
 python-dotenv>=1.0.0
-
-# Optional dependencies for enhanced features
-# colorama>=0.4.6  # For colored console output on Windows
-# pyyaml>=6.0  # For YAML configuration support
