@@ -13,89 +13,163 @@ The workflow follows this pattern:
 4. Track success/failure and continue or stop accordingly
 """
 
+import json
+import os
 import time
 from typing import Dict, Any, List, Tuple, Optional
+from pathlib import Path
 from src.NotificationModule import email_notifier
 
 
-
-def load_action_steps(objective_type: str, instruction_data: Dict[str, Any]) -> Tuple[bool, Any]:
+def load_action_definitions(objective_type: str, 
+                            actions_dir: str = "src/WorkflowModule/Instructions") -> Tuple[bool, Any]:
     """
-    Load the list of actions required for a specific objective type.
+    Load action definitions from JSON file for a specific objective type.
     
-    This function determines what actions need to be performed based on
-    the objective type and creates a workflow of steps to execute.
+    This replaces the hardcoded action steps in the original implementation.
+    Each objective type has its own JSON file: {objective_type}.json
+    
+    Args:
+        objective_type: The type of objective (e.g., "make_file_instruction")
+        actions_dir: Directory containing action definition JSON files
+        
+    Returns:
+        Tuple of (success: bool, action_definitions or error_message)
+        
+    Example JSON structure:
+    {
+        "Action_Lists": {
+            "make_file_instruction": [
+                {
+                    "action_type": "open_file_menu",
+                    "description": "Open the File menu",
+                    "parameters": {}
+                },
+                ...
+            ]
+        }
+    }
+    """
+    # Construct the path to the JSON file
+    json_file = Path(actions_dir) / f"{objective_type}.json"
+    
+    print(f"Loading action definitions from: {json_file}")
+    
+    # Check if file exists
+    if not json_file.exists():
+        error_msg = f"Action definition file not found: {json_file}"
+        email_notifier.notify_error(error_msg, "workflow.load_action_definitions",
+                                    {"objective_type": objective_type})
+        return False, error_msg
+    
+    try:
+        # Load JSON file
+        with open(json_file, 'r', encoding='utf-8') as f:
+            action_data = json.load(f)
+        
+        # Extract action list for this objective type
+        action_lists = action_data.get("Action_Lists", {})
+        actions = action_lists.get(objective_type)
+        
+        if actions is None:
+            error_msg = f"No action list found for objective type: {objective_type}"
+            return False, error_msg
+        
+        if not isinstance(actions, list):
+            error_msg = f"Action list must be an array, got: {type(actions)}"
+            return False, error_msg
+        
+        print(f"Successfully loaded {len(actions)} actions for {objective_type}")
+        return True, actions
+        
+    except json.JSONDecodeError as e:
+        error_msg = f"Invalid JSON in action definition file: {e}"
+        email_notifier.notify_error(error_msg, "workflow.load_action_definitions",
+                                    {"objective_type": objective_type})
+        return False, error_msg
+    except Exception as e:
+        error_msg = f"Error loading action definitions: {e}"
+        email_notifier.notify_error(error_msg, "workflow.load_action_definitions",
+                                    {"objective_type": objective_type})
+        return False, error_msg
+
+
+def merge_action_parameters(action_template: Dict[str, Any], 
+                           instruction_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Merge instruction-specific data into action template parameters.
+    
+    This function takes the template parameters from the JSON file and
+    fills in values from the actual instruction data.
+    
+    Args:
+        action_template: Action definition from JSON (with empty/default parameters)
+        instruction_data: Actual instruction data from user (contains specific values)
+        
+    Returns:
+        Action dictionary with merged parameters
+        
+    Example:
+        Template: {"action_type": "enter_filename", "parameters": {"filename": ""}}
+        Instruction: {"file_name": "test.txt", "text": "Hello"}
+        Result: {"action_type": "enter_filename", "parameters": {"filename": "test.txt"}}
+    """
+    merged_action = action_template.copy()
+    template_params = merged_action.get("parameters", {})
+
+    # Define the field that might need to be filled from instruction data
+    field_mapping = {
+        "filename": "file_name",  # parameter "filename" comes from instruction "file_name"
+        "text": "text"            # parameter "text" comes from instruction "text"
+    }
+    
+    # Fill in parameters from instruction data
+    for param_key, instruction_key in field_mapping.items():
+        if param_key in template_params and instruction_key in instruction_data:
+            template_params[param_key] = instruction_data[instruction_key]
+    
+    merged_action["parameters"] = template_params
+    return merged_action
+
+
+def load_action_steps(objective_type: str, 
+                     instruction_data: Dict[str, Any],
+                     actions_dir: str = "src/WorkflowModule/Instructions") -> Tuple[bool, Any]:
+    """
+    Load and prepare action steps for a specific objective.
+    
+    This is the new version that loads from JSON instead of hardcoding actions.
+    It replaces the original hardcoded version in your workflow_engine.py.
     
     Args:
         objective_type: The type of objective (e.g., "make_file_instruction")
         instruction_data: Dictionary containing the instruction parameters
+        actions_dir: Directory containing action definition JSON files
         
     Returns:
         Tuple of (success: bool, action_steps or error_message)
     """
     # Validate inputs
-    # Check if objective_type is provided
     if not objective_type:
         return False, "No objective type provided"
     
-    # Check if instruction_data is a dictionary
     if not isinstance(instruction_data, dict):
         return False, "Instruction data must be a dictionary"
     
-    # Define action steps for each objective type
+    # Load action definitions from JSON
+    success, action_data = load_action_definitions(objective_type, actions_dir)
+    if not success:
+        return False, action_data  # action_data contains error message
+    
+    action_templates = action_data
+    
+    # Merge instruction data into action templates
     action_steps = []
+    for action_template in action_templates:
+        merged_action = merge_action_parameters(action_template, instruction_data)
+        action_steps.append(merged_action)
     
-    # Check which objective type we're handling
-    if objective_type == "make_file_instruction":
-        # For making a file, we need these steps:
-        # 1. Verify application is ready
-        # 2. Open File menu
-        # 3. Click New
-        # 4. Wait for new file to open
-        # 5. Enter filename
-        # 6. Enter text content
-        # 7. Save file
-        
-        action_steps = [
-            {
-                "action_type": "open_file_menu",
-                "description": "Open the File menu",
-                "parameters": {}
-            },
-            {
-                "action_type": "click_new_file",
-                "description": "Click New to create new file",
-                "parameters": {}
-            },
-            {
-                "action_type": "wait_for_new_file",
-                "description": "Wait for new file window to be ready",
-                "parameters": {"timeout": 5}
-            },
-            {
-                "action_type": "enter_filename",
-                "description": "Enter the filename",
-                "parameters": {"filename": instruction_data.get("file_name", "Untitled")}
-            },
-            {
-                "action_type": "enter_text",
-                "description": "Enter the text content",
-                "parameters": {"text": instruction_data.get("text", "")}
-            },
-            {
-                "action_type": "save_file",
-                "description": "Save the file",
-                "parameters": {}
-            }
-        ]
-    else:
-        # If objective type is not recognized
-        error_msg = f"Unknown objective type: {objective_type}"
-        email_notifier.notify_error(error_msg, "workflow.load_action_steps", 
-                                    {"objective_type": objective_type})
-        return False, error_msg
-    
-    print(f"Loaded {len(action_steps)} action steps for objective: {objective_type}")
+    print(f"Prepared {len(action_steps)} action steps for objective: {objective_type}")
     return True, action_steps
 
 
