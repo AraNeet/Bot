@@ -6,7 +6,7 @@ Handles only core app configuration from environment variables.
 import os
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
-from src.NotificationModule import email_notifier
+
 
 
 def load_config(env_file_path: str = "bot.env") -> Optional[Dict[str, Any]]:

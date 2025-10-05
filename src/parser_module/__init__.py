@@ -22,16 +22,9 @@ Usage:
         print(f"Found {len(result['unsupported'])} unsupported objectives")
 """
 
-from .parser import (
-    ObjectiveType,
-    load_instructions,
-    process_instruction_file
-)
-
+from .objective_processer import process_objectives_file
 __all__ = [
-    'ObjectiveType',
-    'load_instructions',
-    'process_instruction_file'
+    'process_objectives_file'
 ]
 
 __version__ = "1.0.0"

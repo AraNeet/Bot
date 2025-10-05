@@ -1,5 +1,5 @@
 {
-    "templates": {
+    "corners_templates": {
         "top_left": "assets/Icon.png",
         "top_right": "assets/close_x.png",
         "bottom_right": "assets/bottom_right_element.png"

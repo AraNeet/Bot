@@ -16,7 +16,7 @@ import os
 import time
 from typing import Dict, Any, List, Tuple, Optional
 from pathlib import Path
-from src.NotificationModule import email_notifier
+from src.notification_module import email_sender
 
 
 def load_instruction_definitions(objective_type: str, 
@@ -59,7 +59,7 @@ def load_instruction_definitions(objective_type: str,
     # Check if file exists
     if not json_file.exists():
         error_msg = f"Instruction definition file not found: {json_file}"
-        email_notifier.notify_error(error_msg, "workflow.load_instruction_definitions",
+        email_sender.notify_error(error_msg, "workflow.load_instruction_definitions",
                                     {"objective_type": objective_type})
         return False, error_msg
     
@@ -85,12 +85,12 @@ def load_instruction_definitions(objective_type: str,
         
     except json.JSONDecodeError as e:
         error_msg = f"Invalid JSON in instruction definition file: {e}"
-        email_notifier.notify_error(error_msg, "workflow.load_instruction_definitions",
+        email_sender.notify_error(error_msg, "workflow.load_instruction_definitions",
                                     {"objective_type": objective_type})
         return False, error_msg
     except Exception as e:
         error_msg = f"Error loading instruction definitions: {e}"
-        email_notifier.notify_error(error_msg, "workflow.load_instruction_definitions",
+        email_sender.notify_error(error_msg, "workflow.load_instruction_definitions",
                                     {"objective_type": objective_type})
         return False, error_msg
 
@@ -202,7 +202,7 @@ def execute_single_objective(objective_type: str,
     if not success:
         error_msg = f"Failed to prepare instructions: {instruction_data}"
         print(f"[FAILED] {error_msg}")
-        email_notifier.notify_error(error_msg, "workflow.execute_single_objective",
+        email_sender.notify_error(error_msg, "workflow.execute_single_objective",
                                     {"objective_type": objective_type})
         return False, error_msg
     
@@ -221,7 +221,7 @@ def execute_single_objective(objective_type: str,
         if not action_success:
             error_msg = f"Instruction failed at step {step_index}: {action_result}"
             print(f"[FAILED] {error_msg}")
-            email_notifier.notify_error(error_msg, "workflow.execute_single_objective",
+            email_sender.notify_error(error_msg, "workflow.execute_single_objective",
                                         {"objective_type": objective_type,
                                          "step_index": step_index,
                                          "action_type": instruction['action_type']})
@@ -313,7 +313,7 @@ def execute_workflow(supported_objectives: List[Dict[str, Any]],
             
             # Stop workflow on failure
             if not success:
-                email_notifier.notify_error(
+                email_sender.notify_error(
                     f"Stopping workflow due to failure in value set {values_index} of objective {objective_type}",
                     "workflow.execute_workflow",
                     {"results": results}
@@ -333,7 +333,7 @@ def execute_workflow(supported_objectives: List[Dict[str, Any]],
     # Determine overall success
     if results['failed'] > 0:
         overall_success = False
-        email_notifier.notify_error(
+        email_sender.notify_error(
             f"Workflow completed with {results['failed']} failures",
             "workflow.execute_workflow",
             {"results": results}

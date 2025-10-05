@@ -9,7 +9,7 @@ from . import loader
 from . import startup
 from . import image_helper
 import pygetwindow
-from src.NotificationModule import email_notifier
+from notification_module import notify_error as email_notifier
 
 
 

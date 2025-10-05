@@ -11,17 +11,9 @@ Modules:
 - image_helper: Image processing and template matching functions
 """
 
-from . import runner
-from . import startup
-from . import loader
-from . import window_helper
-from . import image_helper
+from . import system_initializer
 
 __all__ = [
-    'runner',
-    'startup', 
-    'loader',
-    'window_helper',
-    'image_helper'
+    "system_initializer",
 ]
 

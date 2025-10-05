@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 Objectives Parser Module
@@ -15,8 +16,7 @@ import json
 import os
 from enum import Enum
 from typing import Dict, Any, Tuple
-from src.NotificationModule import email_notifier
-
+from notification_module import notify_error as email_notifier
 
 class ObjectiveType(Enum):
     """Enumeration of supported objective types."""
@@ -122,61 +122,6 @@ def parse_objectives(objectives: Dict[str, Any]) -> Tuple[bool, Any]:
     results = {
         "supported": supported,
         "unsupported": unsupported
-    }
-    
-    return True, results
-
-
-def process_objectives_file(objectives_file_path: str) -> Tuple[bool, Any]:
-    """
-    Complete processing pipeline for an objectives file.
-    
-    This function:
-    1. Loads the objectives file
-    2. Parses and validates objective types
-    3. Separates supported from unsupported objectives
-    
-    Args:
-        objectives_file_path: Path to the JSON objectives file
-        
-    Returns:
-        Tuple of (success: bool, results or error_message)
-        
-    Results structure:
-    {
-        "supported_objectives": [...],  # Ready for workflow execution
-        "unsupported_objectives": [...]  # Need implementation
-    }
-    """
-    # Load objectives
-    success, objectives = load_objectives(objectives_file_path)
-    if not success:
-        return False, None
-    
-    # Parse objectives
-    success, parsing_results = parse_objectives(objectives)
-    if not success:
-        return False, parsing_results
-    
-    # Display summary
-    if parsing_results['supported']:
-        print("\nSupported Objectives:")
-        for obj in parsing_results['supported']:
-            objective_type = obj['objective_type']
-            values_count = len(obj['values_list'])
-            print(f"  - {objective_type}: {values_count} value set(s)")
-    
-    if parsing_results['unsupported']:
-        print("\nUnsupported Objectives:")
-        for obj in parsing_results['unsupported']:
-            objective_type = obj['objective_type']
-            values_count = len(obj['values_list'])
-            print(f"  - {objective_type}: {values_count} value set(s)")
-    
-    # Return results for workflow module
-    results = {
-        "supported_objectives": parsing_results["supported"],
-        "unsupported_objectives": parsing_results["unsupported"]
     }
     
     return True, results
