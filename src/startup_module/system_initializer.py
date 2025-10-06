@@ -7,8 +7,7 @@ import sys
 from typing import Dict, Any, Optional, Tuple
 from . import loader
 from . import startup
-from . import image_helper
-import pygetwindow
+from .helpers import image_helper
 from notification_module import notify_error as email_notifier
 
 
