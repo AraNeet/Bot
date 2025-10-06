@@ -23,8 +23,8 @@ from src.notification_module import notify_error
 
 
 def prepare_single_objective(objective_type: str, 
-                             objective_values: Dict[str, Any],
-                             actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
+                            objective_values: Dict[str, Any],
+                            actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
     """
     Prepare instruction data for a single objective execution.
     
@@ -88,10 +88,10 @@ def prepare_single_objective(objective_type: str,
 
 
 def execute_single_instruction(instruction: Dict[str, Any],
-                               instruction_index: int,
-                               total_instructions: int,
-                               action_executor = None,
-                               max_retries: int = 3) -> Tuple[bool, str]:
+                                instruction_index: int,
+                                total_instructions: int,
+                                action_executor = None,
+                                max_retries: int = 3) -> Tuple[bool, str]:
     """
     Execute a single instruction with retry logic and verification.
     
@@ -346,11 +346,11 @@ def execute_workflow(prepared_objectives: List[Dict[str, Any]],
 
 
 def start_workflow(parser_results: Dict[str, Any],
-                                       corner_templates: Dict[str, Any],
-                                       expected_page_text: Optional[str] = None,
-                                       action_executor = None,
-                                       max_retries: int = 3,
-                                       actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
+                                    corner_templates: Dict[str, Any],
+                                    expected_page_text: Optional[str] = None,
+                                    action_executor = None,
+                                    max_retries: int = 3,
+                                    actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
     """
     Start the workflow execution from parser results.
     
@@ -371,7 +371,6 @@ def start_workflow(parser_results: Dict[str, Any],
     Returns:
         Tuple of (success: bool, workflow_results)
     """
-    print("\n[WORKFLOW] Received parser results, validating...")
 
     supported_objectives = parser_results["supported_objectives"]
     

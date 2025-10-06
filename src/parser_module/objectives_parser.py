@@ -55,11 +55,11 @@ def load_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
         
     except json.JSONDecodeError as e:
         error_msg = f"Invalid JSON in objectives file: {e}"
-        notify_error(error_msg, "parser.load_objectives")
+        notify_error(error_msg, "load_objectives")
         return False, error_msg
     except Exception as e:
         error_msg = f"Error loading objectives file: {e}"
-        notify_error(error_msg, "parser.load_objectives")
+        notify_error(error_msg, "load_objectives")
         return False, error_msg
 
 
@@ -120,6 +120,14 @@ def parse_objectives(objectives: Dict[str, Any]) -> Tuple[bool, Any]:
                 {"objective_type": objective_type}
             )
     
+    if supported is None:
+        notify_error(
+            "There were no supported objective given",
+            "parse_objectives",
+            {"Support_Objectives": supported, "Unsupported": unsupported}
+        )
+        return False, {}
+
     results = {
         "supported": supported,
         "unsupported": unsupported

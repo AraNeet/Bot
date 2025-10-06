@@ -70,7 +70,7 @@ def initialize_system() -> bool:
     # Load templates
     corner_templates = computer_vision_utils.load_templates("assets/template_paths.json")
 
-    # Still deciding between failing hard here or just warning.
+    # If the templates aren't loaded the program closed
     if not corner_templates:
         error_msg = "Could not load corner templates"
         print(f"[FAILED] {error_msg}")
@@ -82,36 +82,27 @@ def initialize_system() -> bool:
     print("="*50)
     print("APPLICATION STARTUP")
 
-    try:
-        # Get corner templates from config (already loaded)
-        corner_templates = config.get('corner_templates', {})
+    # Get corner templates from config (already loaded)
+    corner_templates = config.get('corner_templates', {})
 
-        # Run startup sequence
-        success = startup_sequence(
-            app_name=config['app_name'],
-            app_path=config.get('app_path'),
-            process_name=config.get('process_name'),
-            corner_templates=corner_templates,
-            max_retries=config.get('max_retries', 3)
-        )
+    # Run startup sequence
+    success = startup_sequence(
+        app_name=config['app_name'],
+        app_path=config.get('app_path'),
+        process_name=config.get('process_name'),
+        corner_templates=corner_templates,
+        max_retries=config.get('max_retries', 3)
+    )
 
-        # Display standard mode results
-        print("\n" + "="*50)
-        if success:
-            print("[SUCCESS] SUCCESS: Application is now open, in foreground, and maximized!")
+    # Display standard mode results
+    print("\n" + "="*50)
+    if success:
+        print("[SUCCESS] SUCCESS: Application is now open, in foreground, and maximized!")
+        return True
 
-        else:
-            error_msg = "Could not complete the startup sequence"
-            print("[FAILED] FAILED: Could not complete the sequence.")
-            notify_error(error_msg, "runner.run_startup", 
-                                        {"app_name": config.get("app_name", "unknown")})
-
-        print("="*50 + "\n")
-
-        return success
-
-    except Exception as e:
-        error_msg = f"Error in standard mode execution: {e}"
-        print(error_msg)
-        notify_error(error_msg, "runner.run_startup")
+    else:
+        error_msg = "Could not complete the startup sequence"
+        print("[FAILED] FAILED: Could not complete the sequence.")
+        notify_error(error_msg, "run_startup", 
+                                    {"app_name": config.get("app_name", "unknown")})
         return False
