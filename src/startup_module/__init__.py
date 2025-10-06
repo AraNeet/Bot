@@ -11,9 +11,11 @@ Modules:
 - image_helper: Image processing and template matching functions
 """
 
-from . import system_initializer
+from .system_initializer import initialize_system
+from .application_launcher import run_startup
 
 __all__ = [
-    "system_initializer",
+    "initialize_system",
+    "run_startup"
 ]
 

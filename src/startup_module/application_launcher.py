@@ -136,7 +136,7 @@ def verify_and_fix_state(window: pygetwindow.Window, corner_templates: Dict[str,
         print("[SUCCESS] Visual open check and maximized state passed")
         return True
 
-def run_startup_sequence(app_name: str, app_path: str, 
+def startup_sequence(app_name: str, app_path: str, 
                         process_name: str, corner_templates: Dict[str, Any], 
                         max_retries: int = 3) -> bool:
     """
@@ -180,3 +180,47 @@ def run_startup_sequence(app_name: str, app_path: str,
     print("="*50)
     
     return True
+
+def run_startup(config: Dict[str, Any]) -> bool:
+    """
+    Execute standard mode application startup sequence.
+    
+    Args:
+        config: Configuration dictionary
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        # Get corner templates from config (already loaded)
+        corner_templates = config.get('corner_templates', {})
+
+        # Run startup sequence
+        success = startup_sequence(
+            app_name=config['app_name'],
+            app_path=config.get('app_path'),
+            process_name=config.get('process_name'),
+            corner_templates=corner_templates,
+            max_retries=config.get('max_retries', 3)
+        )
+
+        # Display standard mode results
+        print("\n" + "="*50)
+        if success:
+            print("[SUCCESS] SUCCESS: Application is now open, in foreground, and maximized!")
+
+        else:
+            error_msg = "Could not complete the startup sequence"
+            print("[FAILED] FAILED: Could not complete the sequence.")
+            notify_error(error_msg, "runner.run_startup", 
+                                        {"app_name": config.get("app_name", "unknown")})
+
+        print("="*50 + "\n")
+
+        return success
+
+    except Exception as e:
+        error_msg = f"Error in standard mode execution: {e}"
+        print(error_msg)
+        notify_error(error_msg, "runner.run_startup")
+        return False, None

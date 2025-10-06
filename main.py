@@ -20,7 +20,7 @@ Next Steps (TODO):
 - Add a Instruction executer module for task execution.
 """
 
-from src.startup_module import system_initializer
+from src.startup_module import initialize_system, run_startup
 from src.parser_module import process_objectives_file
 from src.workflow_module import start_workflow_from_parser_results
 
@@ -43,14 +43,14 @@ def main():
         None (exits with status code 0 for success, 1 for failure)
     """
     # # Getting config (includes email configuration)
-    # config = system_initializer.initialize_system()
+    # config = initialize_system()
 
     # # Fails gracefully if config is invalid
     # if config is None:
     #     exit(1)
 
     # # Running Startup
-    # success = system_initializer.run_startup(config)
+    # success = run_startup(config)
     # if not success:
     #     exit(1)
 
