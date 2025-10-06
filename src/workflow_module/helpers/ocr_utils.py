@@ -19,54 +19,47 @@ This module focuses on text extraction operations that the verifier can use.
 
 import cv2
 import numpy as np
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Optional, Tuple, Any
+import pytesseract
 
-# Try to import pytesseract
-try:
-    import pytesseract
-    TESSERACT_AVAILABLE = True
-except ImportError:
-    TESSERACT_AVAILABLE = False
-    print("[OCR WARNING] pytesseract not installed. OCR functionality disabled.")
-    print("[OCR WARNING] Install with: pip install pytesseract")
 
-# def preprocess_for_ocr(image: np.ndarray) -> Optional[np.ndarray]:
-#     """
-#     Preprocess an image for better OCR accuracy.
+def preprocess_for_ocr(image: np.ndarray) -> Optional[np.ndarray]:
+    """
+    Preprocess an image for better OCR accuracy.
     
-#     Applies common preprocessing steps:
-#     - Convert to grayscale
-#     - Apply thresholding
-#     - Denoise (optional)
+    Applies common preprocessing steps:
+    - Convert to grayscale
+    - Apply thresholding
+    - Denoise (optional)
     
-#     Args:
-#         image: Input image as numpy array (BGR format)
+    Args:
+        image: Input image as numpy array (BGR format)
         
-#     Returns:
-#         Preprocessed image, or None if failed
-#     """
-#     try:
-#         # Convert to grayscale if needed
-#         if len(image.shape) == 3:
-#             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-#         else:
-#             gray = image.copy()
+    Returns:
+        Preprocessed image, or None if failed
+    """
+    try:
+        # Convert to grayscale if needed
+        if len(image.shape) == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = image.copy()
         
-#         # Apply thresholding to make text stand out
-#         # Using adaptive threshold for better results with varying lighting
-#         processed = cv2.adaptiveThreshold(
-#             gray, 255, 
-#             cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-#             cv2.THRESH_BINARY, 
-#             11, 2
-#         )
+        # Apply thresholding to make text stand out
+        # Using adaptive threshold for better results with varying lighting
+        processed = cv2.adaptiveThreshold(
+            gray, 255, 
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+            cv2.THRESH_BINARY, 
+            11, 2
+        )
         
-#         print("[OCR] Image preprocessed for OCR")
-#         return processed
+        print("[OCR] Image preprocessed for OCR")
+        return processed
         
-#     except Exception as e:
-#         print(f"[OCR ERROR] Preprocessing failed: {e}")
-#         return None
+    except Exception as e:
+        print(f"[OCR ERROR] Preprocessing failed: {e}")
+        return None
 
 
 def extract_text(image: np.ndarray, 
@@ -89,9 +82,7 @@ def extract_text(image: np.ndarray,
         if success:
             print(f"Found text: {text}")
     """
-    if not check_tesseract_available():
-        return False, "Tesseract OCR not available"
-    
+
     try:
         # Preprocess if requested
         if preprocess:
@@ -139,6 +130,7 @@ def find_text(image: np.ndarray,
         if success and found:
             print("Submit button text found!")
     """
+
     # Extract all text from image
     success, extracted_text = extract_text(image, preprocess)
     
@@ -192,9 +184,7 @@ def get_text_data(image: np.ndarray,
                     y = data['top'][i]
                     print(f"'{word}' at position ({x}, {y})")
     """
-    if not check_tesseract_available():
-        return False, "Tesseract OCR not available"
-    
+
     try:
         # Preprocess if requested
         if preprocess:

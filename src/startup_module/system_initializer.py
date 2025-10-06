@@ -5,7 +5,7 @@ Contains high-level orchestration functions that coordinate between different co
 
 import os
 from typing import Dict, Any, Optional, Tuple
-from .helpers import image_helper
+from .helpers import computer_vision_utils
 from .application_launcher import startup_sequence
 from src.notification_module import notify_error
 from dotenv import load_dotenv
@@ -50,7 +50,7 @@ def load_config(env_file_path: str = "bot.env") -> Optional[Dict[str, Any]]:
         return None
 
 
-def initialize_system() -> Optional[Dict[str, Any]]:
+def initialize_system() -> bool:
     """
     Initialize the system with configuration.
     
@@ -65,17 +65,17 @@ def initialize_system() -> Optional[Dict[str, Any]]:
         error_msg = "Could not load basic configuration"
         print(f"[FAILED] {error_msg}")
         notify_error(error_msg, "runner.initialize_system")
-        return None
+        return False
 
     # Load templates
-    corner_templates = image_helper.load_templates("template.json")
+    corner_templates = computer_vision_utils.load_templates("assets/template_paths.json")
 
     # Still deciding between failing hard here or just warning.
     if not corner_templates:
         error_msg = "Could not load corner templates"
         print(f"[FAILED] {error_msg}")
         notify_error(error_msg, "runner.initialize_system")
-        return None
+        return False
 
     config['corner_templates'] = corner_templates
 
@@ -114,4 +114,4 @@ def initialize_system() -> Optional[Dict[str, Any]]:
         error_msg = f"Error in standard mode execution: {e}"
         print(error_msg)
         notify_error(error_msg, "runner.run_startup")
-        return False, None
+        return False

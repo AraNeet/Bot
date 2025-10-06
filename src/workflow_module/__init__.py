@@ -9,10 +9,10 @@ Main Components:
 
 """
 
-from .workflow_engine import start_workflow_from_parser_results
+from .workflow_engine import start_workflow_from_parser_results as workflow
 
 __all__ = [
-    'start_workflow_from_parser_results',
+    'workflow',
 ]
 
 __version__ = "1.0.0"

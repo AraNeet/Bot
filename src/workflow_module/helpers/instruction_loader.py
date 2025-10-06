@@ -48,6 +48,7 @@ def load_instruction_file(objective_type: str,
         }
     }
     """
+
     # Construct file path
     json_file = Path(actions_dir) / f"{objective_type}.json"
     
@@ -62,7 +63,6 @@ def load_instruction_file(objective_type: str,
         return False, error_msg
     
     try:
-        # Read JSON file
         with open(json_file, 'r', encoding='utf-8') as f:
             instruction_data = json.load(f)
         
@@ -83,7 +83,6 @@ def load_instruction_file(objective_type: str,
                     {"objective_type": objective_type})
         return False, error_msg
 
-
 def extract_instructions_list(instruction_data: Dict[str, Any], 
                               objective_type: str) -> Tuple[bool, Any]:
     """
@@ -99,6 +98,7 @@ def extract_instructions_list(instruction_data: Dict[str, Any],
     Returns:
         Tuple of (success: bool, instructions_list or error_message)
     """
+
     # Validate JSON has "Instructions" key
     if "Instructions" not in instruction_data:
         error_msg = "Instruction file missing 'Instructions' key"
@@ -123,7 +123,6 @@ def extract_instructions_list(instruction_data: Dict[str, Any],
     
     print(f"[LOADER] Extracted {len(instructions_list)} instruction steps")
     return True, instructions_list
-
 
 def extract_and_organize_values(objective_values: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], Dict[str, Any]]:
     """
@@ -184,7 +183,6 @@ def extract_and_organize_values(objective_values: Dict[str, Any]) -> Tuple[bool,
     
     return True, required_values, optional_values
 
-
 def merge_values_into_instructions(instructions_list: List[Dict[str, Any]],
                                    required_values: Dict[str, Any],
                                    optional_values: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -243,7 +241,6 @@ def merge_values_into_instructions(instructions_list: List[Dict[str, Any]],
     
     print(f"[LOADER] Merged values into {len(merged_instructions)} instructions")
     return merged_instructions
-
 
 def load_objective_data(objective_type: str,
                        objective_values: Dict[str, Any],

@@ -15,7 +15,7 @@ import json
 import os
 from enum import Enum
 from typing import Dict, Any, Tuple
-from .objective_parser import parse_objectives, load_objectives
+from .objectives_parser import parse_objectives, load_objectives
 
 def process_objectives_file(objectives_file_path: str) -> Tuple[bool, Any]:
     """

@@ -22,7 +22,7 @@ Next Steps (TODO):
 
 from src.startup_module import initialize_system
 from src.parser_module import process_objectives_file
-from src.workflow_module import start_workflow_from_parser_results
+from src.workflow_module import workflow
 
 
 def main():
@@ -42,17 +42,11 @@ def main():
     Returns:
         None (exits with status code 0 for success, 1 for failure)
     """
-    # # Getting config (includes email configuration)
-    # config = initialize_system()
 
-    # # Fails gracefully if config is invalid
-    # if config is None:
-    #     exit(1)
-
-    # # Running Startup
-    # success = run_startup(config)
-    # if not success:
-    #     exit(1)
+    success = initialize_system()
+    if not success:
+        print("Failed startup sequence.")
+        exit(1)
 
     # Parser instruction file. and return supported
     success, results = process_objectives_file("objective_file.json")
@@ -63,7 +57,7 @@ def main():
     print(f"Parser Results: {results}")
     print("\nSupported objectives ready to pass to workflow module.")
 
-    success, results = start_workflow_from_parser_results(results)
+    success, results = workflow(results)
     if not success:
         print(f"Workflow Error: {results}")
         exit(1)
