@@ -345,7 +345,7 @@ def execute_workflow(prepared_objectives: List[Dict[str, Any]],
     return overall_success, results
 
 
-def start_workflow_from_parser_results(parser_results: Dict[str, Any],
+def start_workflow(parser_results: Dict[str, Any],
                                        corner_templates: Dict[str, Any],
                                        expected_page_text: Optional[str] = None,
                                        action_executor = None,
