@@ -16,7 +16,7 @@ import json
 import os
 from enum import Enum
 from typing import Dict, Any, Tuple
-from notification_module import notify_error as email_notifier
+from src.notification_module import notify_error
 
 class ObjectiveType(Enum):
     """Enumeration of supported objective types."""
@@ -55,11 +55,11 @@ def load_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
         
     except json.JSONDecodeError as e:
         error_msg = f"Invalid JSON in objectives file: {e}"
-        email_notifier.notify_error(error_msg, "parser.load_objectives")
+        notify_error(error_msg, "parser.load_objectives")
         return False, error_msg
     except Exception as e:
         error_msg = f"Error loading objectives file: {e}"
-        email_notifier.notify_error(error_msg, "parser.load_objectives")
+        notify_error(error_msg, "parser.load_objectives")
         return False, error_msg
 
 
@@ -114,7 +114,7 @@ def parse_objectives(objectives: Dict[str, Any]) -> Tuple[bool, Any]:
                 "objective_type": objective_type,
                 "values_list": values_list
             })
-            email_notifier.notify_error(
+            notify_error(
                 f"Unsupported objective type: {objective_type}", 
                 "parser.parse_objectives", 
                 {"objective_type": objective_type}

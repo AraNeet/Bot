@@ -49,7 +49,7 @@ def load_instruction_file(objective_type: str,
     }
     """
     # Construct file path
-    json_file = Path(actions_dir) / f"{objective_type}_actions.json"
+    json_file = Path(actions_dir) / f"{objective_type}.json"
     
     print(f"[LOADER] Loading instruction file: {json_file}")
     
@@ -182,7 +182,7 @@ def extract_and_organize_values(objective_values: Dict[str, Any]) -> Tuple[bool,
         print("Optional values found")
         optional_values = objective_values.get("optional", {})
     
-    return required_values, optional_values
+    return True, required_values, optional_values
 
 
 def merge_values_into_instructions(instructions_list: List[Dict[str, Any]],

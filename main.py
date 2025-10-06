@@ -21,7 +21,8 @@ Next Steps (TODO):
 """
 
 from src.startup_module import system_initializer
-from src.parser_module import process_objectives_file as parser
+from src.parser_module import process_objectives_file
+from src.workflow_module import start_workflow_from_parser_results
 
 
 def main():
@@ -54,13 +55,18 @@ def main():
     #     exit(1)
 
     # Parser instruction file. and return supported
-    success, results = parser.process_instruction_file("objective_file.json")
+    success, results = process_objectives_file("objective_file.json")
     if not success:
         print(f"Parser Error: {results}")
         exit(1)
 
     print(f"Parser Results: {results}")
     print("\nSupported objectives ready to pass to workflow module.")
+
+    success, results = start_workflow_from_parser_results(results)
+    if not success:
+        print(f"Workflow Error: {results}")
+        exit(1)
 
 
 if __name__ == "__main__":

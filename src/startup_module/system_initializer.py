@@ -5,10 +5,10 @@ Contains high-level orchestration functions that coordinate between different co
 
 import sys
 from typing import Dict, Any, Optional, Tuple
-from . import loader
-from . import startup
+from . import application_launcher
 from .helpers import image_helper
-from notification_module import notify_error as email_notifier
+from src.notification_module import notify_error
+from . import config_loader
 
 
 
@@ -22,12 +22,12 @@ def initialize_system() -> Optional[Dict[str, Any]]:
     """
 
     # Load basic config
-    config = loader.load_config("bot.env")
+    config = config_loader.load_config("bot.env")
 
     if not config:
         error_msg = "Could not load basic configuration"
         print(f"[FAILED] {error_msg}")
-        email_notifier.notify_error(error_msg, "runner.initialize_system")
+        notify_error(error_msg, "runner.initialize_system")
         return None
 
     # Load templates
@@ -37,7 +37,7 @@ def initialize_system() -> Optional[Dict[str, Any]]:
     if not corner_templates:
         error_msg = "Could not load corner templates"
         print(f"[FAILED] {error_msg}")
-        email_notifier.notify_error(error_msg, "runner.initialize_system")
+        notify_error(error_msg, "runner.initialize_system")
         return None
 
     config['corner_templates'] = corner_templates
@@ -62,7 +62,7 @@ def run_startup(config: Dict[str, Any]) -> bool:
         corner_templates = config.get('corner_templates', {})
 
         # Run startup sequence
-        success = startup.run_startup_sequence(
+        success = application_launcher.run_startup_sequence(
             app_name=config['app_name'],
             app_path=config.get('app_path'),
             process_name=config.get('process_name'),
@@ -78,7 +78,7 @@ def run_startup(config: Dict[str, Any]) -> bool:
         else:
             error_msg = "Could not complete the startup sequence"
             print("[FAILED] FAILED: Could not complete the sequence.")
-            email_notifier.notify_error(error_msg, "runner.run_startup", 
+            notify_error(error_msg, "runner.run_startup", 
                                         {"app_name": config.get("app_name", "unknown")})
 
         print("="*50 + "\n")
@@ -88,5 +88,5 @@ def run_startup(config: Dict[str, Any]) -> bool:
     except Exception as e:
         error_msg = f"Error in standard mode execution: {e}"
         print(error_msg)
-        email_notifier.notify_error(error_msg, "runner.run_startup")
+        notify_error(error_msg, "runner.run_startup")
         return False, None

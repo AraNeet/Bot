@@ -27,25 +27,5 @@
             },
             "optional": {}
         }
-    ],
-    "do_not_air_instruction": [
-        {
-            "required": {
-                "advertiser_name": "RetailBrand Co",
-                "agency_name": "Creative Solutions",
-                "order_number": "ORD-2025-003",
-                "isci": "RETL7890"
-            },
-            "optional": {}
-        },
-        {
-            "required": {
-                "advertiser_name": "FoodMart Inc",
-                "agency_name": "Broadcast Media",
-                "order_number": "ORD-2025-004",
-                "isci": "FOOD2345"
-            },
-            "optional": {}
-        }
     ]
 }

@@ -6,9 +6,8 @@ Contains step-by-step functions for the application startup sequence.
 import time
 from typing import Tuple, Optional, Dict, Any
 import pygetwindow
-from . import window_helper
-from . import image_helper
-from src.NotificationModule import email_notifier
+from .helpers import window_helper, image_helper
+from src.notification_module import notify_error
 
 
 def ensure_application_open(app_name: str, app_path: str, process_name: str, max_retries: int = 3) -> Tuple[bool, Optional[pygetwindow.Window]]:
@@ -86,7 +85,7 @@ def maximize_application(window: pygetwindow.Window) -> bool:
         return True
     else:
         print("[FAILED] Initial maximize attempt failed")
-        email_notifier.notify_error("Could not maximize application", "startup.maximize_application", 
+        notify_error("Could not maximize application", "startup.maximize_application", 
                                 {"window_title": window.title})
         return False
 
@@ -160,7 +159,7 @@ def run_startup_sequence(app_name: str, app_path: str,
     # Execute Step 1
     process_found, window = ensure_application_open(app_name, app_path, process_name, max_retries)
     if not process_found or window is None:
-        email_notifier.notify_error("Could not ensure application is open", "startup.run_startup_sequence", 
+        notify_error("Could not ensure application is open", "startup.run_startup_sequence", 
                                     {"app_name": app_name, "process_name": process_name})
         return False
     
@@ -171,7 +170,7 @@ def run_startup_sequence(app_name: str, app_path: str,
     # Execute Step 3
     if not verify_and_fix_state(window, corner_templates, max_retries):
         print("Sequence failed at Step 3")
-        email_notifier.notify_error("Could not verify and fix application state", "startup.run_startup_sequence", 
+        notify_error("Could not verify and fix application state", "startup.run_startup_sequence", 
                                     {"app_name": app_name, "process_name": process_name})
         return False
 
