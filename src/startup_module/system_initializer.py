@@ -6,6 +6,7 @@ Contains high-level orchestration functions that coordinate between different co
 import os
 from typing import Dict, Any, Optional, Tuple
 from .helpers import image_helper
+from .application_launcher import startup_sequence
 from src.notification_module import notify_error
 from dotenv import load_dotenv
 
@@ -81,4 +82,36 @@ def initialize_system() -> Optional[Dict[str, Any]]:
     print("="*50)
     print("APPLICATION STARTUP")
 
-    return config
+    try:
+        # Get corner templates from config (already loaded)
+        corner_templates = config.get('corner_templates', {})
+
+        # Run startup sequence
+        success = startup_sequence(
+            app_name=config['app_name'],
+            app_path=config.get('app_path'),
+            process_name=config.get('process_name'),
+            corner_templates=corner_templates,
+            max_retries=config.get('max_retries', 3)
+        )
+
+        # Display standard mode results
+        print("\n" + "="*50)
+        if success:
+            print("[SUCCESS] SUCCESS: Application is now open, in foreground, and maximized!")
+
+        else:
+            error_msg = "Could not complete the startup sequence"
+            print("[FAILED] FAILED: Could not complete the sequence.")
+            notify_error(error_msg, "runner.run_startup", 
+                                        {"app_name": config.get("app_name", "unknown")})
+
+        print("="*50 + "\n")
+
+        return success
+
+    except Exception as e:
+        error_msg = f"Error in standard mode execution: {e}"
+        print(error_msg)
+        notify_error(error_msg, "runner.run_startup")
+        return False, None

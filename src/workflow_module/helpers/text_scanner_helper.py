@@ -30,69 +30,43 @@ except ImportError:
     print("[OCR WARNING] pytesseract not installed. OCR functionality disabled.")
     print("[OCR WARNING] Install with: pip install pytesseract")
 
-
-def check_tesseract_available() -> bool:
-    """
-    Check if Tesseract OCR is available and properly configured.
+# def preprocess_for_ocr(image: np.ndarray) -> Optional[np.ndarray]:
+#     """
+#     Preprocess an image for better OCR accuracy.
     
-    Returns:
-        True if Tesseract is available, False otherwise
-    """
-    if not TESSERACT_AVAILABLE:
-        print("[OCR ERROR] pytesseract module not installed")
-        return False
+#     Applies common preprocessing steps:
+#     - Convert to grayscale
+#     - Apply thresholding
+#     - Denoise (optional)
     
-    try:
-        # Try to get Tesseract version
-        version = pytesseract.get_tesseract_version()
-        print(f"[OCR] Tesseract version: {version}")
-        return True
-    except Exception as e:
-        print(f"[OCR ERROR] Tesseract not properly configured: {e}")
-        print("[OCR INFO] Please install Tesseract OCR engine:")
-        print("[OCR INFO] - Windows: https://github.com/UB-Mannheim/tesseract/wiki")
-        print("[OCR INFO] - Linux: sudo apt-get install tesseract-ocr")
-        print("[OCR INFO] - Mac: brew install tesseract")
-        return False
-
-
-def preprocess_for_ocr(image: np.ndarray) -> Optional[np.ndarray]:
-    """
-    Preprocess an image for better OCR accuracy.
-    
-    Applies common preprocessing steps:
-    - Convert to grayscale
-    - Apply thresholding
-    - Denoise (optional)
-    
-    Args:
-        image: Input image as numpy array (BGR format)
+#     Args:
+#         image: Input image as numpy array (BGR format)
         
-    Returns:
-        Preprocessed image, or None if failed
-    """
-    try:
-        # Convert to grayscale if needed
-        if len(image.shape) == 3:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = image.copy()
+#     Returns:
+#         Preprocessed image, or None if failed
+#     """
+#     try:
+#         # Convert to grayscale if needed
+#         if len(image.shape) == 3:
+#             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+#         else:
+#             gray = image.copy()
         
-        # Apply thresholding to make text stand out
-        # Using adaptive threshold for better results with varying lighting
-        processed = cv2.adaptiveThreshold(
-            gray, 255, 
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-            cv2.THRESH_BINARY, 
-            11, 2
-        )
+#         # Apply thresholding to make text stand out
+#         # Using adaptive threshold for better results with varying lighting
+#         processed = cv2.adaptiveThreshold(
+#             gray, 255, 
+#             cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+#             cv2.THRESH_BINARY, 
+#             11, 2
+#         )
         
-        print("[OCR] Image preprocessed for OCR")
-        return processed
+#         print("[OCR] Image preprocessed for OCR")
+#         return processed
         
-    except Exception as e:
-        print(f"[OCR ERROR] Preprocessing failed: {e}")
-        return None
+#     except Exception as e:
+#         print(f"[OCR ERROR] Preprocessing failed: {e}")
+#         return None
 
 
 def extract_text(image: np.ndarray, 
@@ -138,54 +112,6 @@ def extract_text(image: np.ndarray,
         
     except Exception as e:
         error_msg = f"OCR extraction failed: {e}"
-        print(f"[OCR ERROR] {error_msg}")
-        return False, error_msg
-
-
-def extract_text_from_region(image: np.ndarray, 
-                             x: int, y: int, 
-                             width: int, height: int,
-                             preprocess: bool = True,
-                             lang: str = 'eng') -> Tuple[bool, str]:
-    """
-    Extract text from a specific region of an image.
-    
-    Args:
-        image: Input image as numpy array
-        x: X-coordinate of top-left corner
-        y: Y-coordinate of top-left corner
-        width: Width of region
-        height: Height of region
-        preprocess: Whether to preprocess image before OCR
-        lang: Language for OCR
-        
-    Returns:
-        Tuple of (success: bool, extracted_text or error_message)
-        
-    Example:
-        # Extract text from top-left 300x100 region
-        success, text = extract_text_from_region(screenshot, 0, 0, 300, 100)
-    """
-    try:
-        # Validate coordinates
-        img_height, img_width = image.shape[:2]
-        
-        if x < 0 or y < 0 or width <= 0 or height <= 0:
-            return False, "Invalid region coordinates"
-        
-        if x + width > img_width or y + height > img_height:
-            return False, "Region exceeds image bounds"
-        
-        # Crop the region
-        region = image[y:y+height, x:x+width]
-        
-        print(f"[OCR] Extracting text from region ({x},{y},{width},{height})")
-        
-        # Extract text from the region
-        return extract_text(region, preprocess, lang)
-        
-    except Exception as e:
-        error_msg = f"Region text extraction failed: {e}"
         print(f"[OCR ERROR] {error_msg}")
         return False, error_msg
 
@@ -288,60 +214,3 @@ def get_text_data(image: np.ndarray,
         error_msg = f"Failed to get text data: {e}"
         print(f"[OCR ERROR] {error_msg}")
         return False, error_msg
-
-
-def find_text_position(image: np.ndarray,
-                      search_text: str,
-                      case_sensitive: bool = False,
-                      preprocess: bool = True) -> Tuple[bool, Optional[Tuple[int, int, int, int]]]:
-    """
-    Find the position of specific text in an image.
-    
-    Args:
-        image: Input image as numpy array
-        search_text: Text to search for
-        case_sensitive: Whether search should be case-sensitive
-        preprocess: Whether to preprocess image before OCR
-        
-    Returns:
-        Tuple of (success: bool, position or None)
-        Position is (x, y, width, height) of the text bounding box
-        
-    Example:
-        success, position = find_text_position(screenshot, "Submit")
-        if success and position:
-            x, y, w, h = position
-            center_x = x + w // 2
-            center_y = y + h // 2
-            print(f"'Submit' button center: ({center_x}, {center_y})")
-    """
-    # Get detailed text data
-    success, data = get_text_data(image, preprocess)
-    
-    if not success:
-        return False, None
-    
-    # Search through detected text
-    for i, word in enumerate(data['text']):
-        if not word.strip():  # Skip empty strings
-            continue
-        
-        # Compare text
-        match = False
-        if case_sensitive:
-            match = search_text == word
-        else:
-            match = search_text.lower() == word.lower()
-        
-        if match:
-            # Found the text, return its position
-            x = data['left'][i]
-            y = data['top'][i]
-            w = data['width'][i]
-            h = data['height'][i]
-            
-            print(f"[OCR] Text '{search_text}' found at position ({x}, {y}, {w}, {h})")
-            return True, (x, y, w, h)
-    
-    print(f"[OCR] Text '{search_text}' position not found")
-    return True, None

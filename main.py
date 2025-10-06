@@ -20,7 +20,7 @@ Next Steps (TODO):
 - Add a Instruction executer module for task execution.
 """
 
-from src.startup_module import initialize_system, run_startup
+from src.startup_module import initialize_system
 from src.parser_module import process_objectives_file
 from src.workflow_module import start_workflow_from_parser_results
 

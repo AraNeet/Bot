@@ -51,56 +51,6 @@ def take_screenshot() -> Optional[np.ndarray]:
         print(f"[CV ERROR] Failed to take screenshot: {e}")
         return None
 
-
-def save_screenshot(screenshot: np.ndarray, 
-                   filename: Optional[str] = None,
-                   output_dir: str = "screenshots") -> Tuple[bool, str]:
-    """
-    Save a screenshot to file.
-    
-    Args:
-        screenshot: Screenshot image as numpy array
-        filename: Optional custom filename. If None, generates timestamp-based name
-        output_dir: Directory to save screenshots in
-        
-    Returns:
-        Tuple of (success: bool, filepath or error_message)
-        
-    Example:
-        screenshot = take_screenshot()
-        success, filepath = save_screenshot(screenshot)
-        if success:
-            print(f"Saved to: {filepath}")
-    """
-    try:
-        # Create output directory if it doesn't exist
-        output_path = Path(output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
-        
-        # Generate filename if not provided
-        if filename is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"screenshot_{timestamp}.png"
-        
-        # Ensure filename has .png extension
-        if not filename.endswith('.png'):
-            filename += '.png'
-        
-        # Full file path
-        filepath = output_path / filename
-        
-        # Save the image
-        cv2.imwrite(str(filepath), screenshot)
-        
-        print(f"[CV] Screenshot saved: {filepath}")
-        return True, str(filepath)
-        
-    except Exception as e:
-        error_msg = f"Failed to save screenshot: {e}"
-        print(f"[CV ERROR] {error_msg}")
-        return False, error_msg
-
-
 def load_image(image_path: str) -> Optional[np.ndarray]:
     """
     Load an image from file.
@@ -135,55 +85,6 @@ def load_image(image_path: str) -> Optional[np.ndarray]:
     except Exception as e:
         print(f"[CV ERROR] Exception loading image: {e}")
         return None
-
-
-def convert_color(image: np.ndarray, 
-                 conversion_code: int) -> Optional[np.ndarray]:
-    """
-    Convert image between color spaces.
-    
-    Args:
-        image: Input image as numpy array
-        conversion_code: OpenCV color conversion code (e.g., cv2.COLOR_BGR2GRAY)
-        
-    Returns:
-        Converted image, or None if failed
-        
-    Common conversion codes:
-        - cv2.COLOR_BGR2GRAY: Convert to grayscale
-        - cv2.COLOR_BGR2RGB: Convert to RGB
-        - cv2.COLOR_BGR2HSV: Convert to HSV
-        
-    Example:
-        gray_image = convert_color(screenshot, cv2.COLOR_BGR2GRAY)
-    """
-    try:
-        converted = cv2.cvtColor(image, conversion_code)
-        print(f"[CV] Color conversion applied: {image.shape} -> {converted.shape}")
-        return converted
-        
-    except Exception as e:
-        print(f"[CV ERROR] Color conversion failed: {e}")
-        return None
-
-
-def get_image_dimensions(image: np.ndarray) -> Tuple[int, int]:
-    """
-    Get the dimensions of an image.
-    
-    Args:
-        image: Image as numpy array
-        
-    Returns:
-        Tuple of (width, height)
-        
-    Example:
-        width, height = get_image_dimensions(screenshot)
-        print(f"Image size: {width}x{height}")
-    """
-    height, width = image.shape[:2]
-    return width, height
-
 
 def crop_image(image: np.ndarray, 
               x: int, y: int, 
@@ -225,35 +126,4 @@ def crop_image(image: np.ndarray,
         
     except Exception as e:
         print(f"[CV ERROR] Crop failed: {e}")
-        return None
-
-
-def resize_image(image: np.ndarray, 
-                width: int, height: int) -> Optional[np.ndarray]:
-    """
-    Resize an image to specified dimensions.
-    
-    Args:
-        image: Input image as numpy array
-        width: Target width
-        height: Target height
-        
-    Returns:
-        Resized image, or None if failed
-        
-    Example:
-        resized = resize_image(screenshot, 800, 600)
-    """
-    try:
-        if width <= 0 or height <= 0:
-            print(f"[CV ERROR] Invalid dimensions: {width}x{height}")
-            return None
-        
-        resized = cv2.resize(image, (width, height))
-        
-        print(f"[CV] Image resized: {image.shape[:2]} -> {resized.shape[:2]}")
-        return resized
-        
-    except Exception as e:
-        print(f"[CV ERROR] Resize failed: {e}")
         return None

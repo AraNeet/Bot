@@ -12,10 +12,8 @@ Modules:
 """
 
 from .system_initializer import initialize_system
-from .application_launcher import run_startup
 
 __all__ = [
     "initialize_system",
-    "run_startup"
 ]
 
