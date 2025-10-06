@@ -20,7 +20,8 @@ from notification_module import notify_error as email_notifier
 
 class ObjectiveType(Enum):
     """Enumeration of supported objective types."""
-    MAKE_FILE = "make_file"
+    EDIT_COPY_INSTRUCTION = "edit_copy_instruction"
+    DO_NOT_AIR_INSTRUCTION = "do_not_air_instruction"
 
 def load_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
     """

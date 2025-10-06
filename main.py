@@ -41,26 +41,27 @@ def main():
     Returns:
         None (exits with status code 0 for success, 1 for failure)
     """
-    # Getting config (includes email configuration)
-    config = system_initializer.initialize_system()
+    # # Getting config (includes email configuration)
+    # config = system_initializer.initialize_system()
 
-    # Fails gracefully if config is invalid
-    if config is None:
-        exit(1)
+    # # Fails gracefully if config is invalid
+    # if config is None:
+    #     exit(1)
 
-    # Running Startup
-    success = system_initializer.run_startup(config)
-    if not success:
-        exit(1)
+    # # Running Startup
+    # success = system_initializer.run_startup(config)
+    # if not success:
+    #     exit(1)
 
     # Parser instruction file. and return supported
-    success, results = parser.process_instruction_file("example_instructions.json")
+    success, results = parser.process_instruction_file("objective_file.json")
     if not success:
         print(f"Parser Error: {results}")
         exit(1)
 
     print(f"Parser Results: {results}")
     print("\nSupported objectives ready to pass to workflow module.")
+
 
 if __name__ == "__main__":
     main()

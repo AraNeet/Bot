@@ -1,19 +1,51 @@
 {
-    "make_file": [
+    "edit_copy_instruction": [
         {
-            "file_name": "Car",
-            "text": "Marketing Plus"
+            "required": {
+                "advertiser_name": "Acme Corporation",
+                "agency_name": "MediaWorks Agency",
+                "order_number": "ORD-2025-001",
+                "start_date": "2025-01-15",
+                "end_date": "2025-02-15",
+                "isci_1": "ACME1234"
+            },
+            "optional": {
+                "isci_2": "ACME5678",
+                "rotation_percent_isci_2": "50",
+                "isci_3": "ACME9012",
+                "rotation_percent_isci_3": "30"
+            }
         },
         {
-            "file_name": "Report",
-            "text": "Q4 Sales Summary"
+            "required": {
+                "advertiser_name": "TechCo Industries",
+                "agency_name": "Digital Plus",
+                "order_number": "ORD-2025-002",
+                "start_date": "2025-03-01",
+                "end_date": "2025-03-31",
+                "isci_1": "TECH4567"
+            },
+            "optional": {}
         }
     ],
-    "send_email": [
+    "do_not_air_instruction": [
         {
-            "to": "nerd@example.com",
-            "subject": "Meeting Reminder",
-            "body": "Let's meet at 10am tomorrow"
+            "required": {
+                "advertiser_name": "RetailBrand Co",
+                "agency_name": "Creative Solutions",
+                "order_number": "ORD-2025-003",
+                "isci": "RETL7890"
+            },
+            "optional": {}
+        },
+        {
+            "required": {
+                "advertiser_name": "FoodMart Inc",
+                "agency_name": "Broadcast Media",
+                "order_number": "ORD-2025-004",
+                "isci": "FOOD2345"
+            },
+            "optional": {}
         }
     ]
 }
