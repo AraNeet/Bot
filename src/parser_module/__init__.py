@@ -22,7 +22,7 @@ Usage:
         print(f"Found {len(result['unsupported'])} unsupported objectives")
 """
 
-from .objective_processer import process_objectives_file
+from .objectives_processer import process_objectives_file
 __all__ = [
     'process_objectives_file'
 ]

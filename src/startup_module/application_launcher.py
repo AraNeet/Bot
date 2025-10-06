@@ -6,7 +6,7 @@ Contains step-by-step functions for the application startup sequence.
 import time
 from typing import Tuple, Optional, Dict, Any
 import pygetwindow
-from .helpers import window_helper, image_helper
+from .helpers import computer_vision_utils, window_utils
 from src.notification_module import notify_error
 
 
@@ -27,10 +27,10 @@ def ensure_application_open(app_name: str, app_path: str, process_name: str, max
     print("="*30)
     print("Step 1: Checking if application is open")
     
-    is_open = window_helper.is_application_open(process_name)
+    is_open = window_utils.is_application_open(process_name)
     if is_open:
         print("[SUCCESS] Application is already open")
-        window = window_helper.get_window_handle(app_name)
+        window = window_utils.get_window_handle(app_name)
         if window:
             print("[SUCCESS] Window handle obtained")
             return True, window
@@ -47,9 +47,9 @@ def ensure_application_open(app_name: str, app_path: str, process_name: str, max
         attempts += 1
         print(f"Opening attempt {attempts}/{max_retries}")
         
-        success = window_helper.open_application(app_path)
+        success = window_utils.open_application(app_path)
         if success:
-            window = window_helper.get_window_handle(app_name)
+            window = window_utils.get_window_handle(app_name)
             if window:
                 print("[SUCCESS] Application successfully opened")
                 return True, window
@@ -76,11 +76,11 @@ def maximize_application(window: pygetwindow.Window) -> bool:
     
 
     # Attempt to bring to foreground
-    if not window_helper.window_focus(window):
+    if not window_utils.window_focus(window):
         print("Could not bring to foreground, attempting to continue...")
     
     # Attempt to maximize
-    if window_helper.maximize_application(window):
+    if window_utils.maximize_application(window):
         print("[SUCCESS] Maximize command sent")
         return True
     else:
@@ -106,14 +106,14 @@ def verify_and_fix_state(window: pygetwindow.Window, corner_templates: Dict[str,
     
     # Step 3.1: Visual check for open state
     print("Step 3.1/2/3: Visual verification of open state and maximized state")
-    visual_open = image_helper.check_maximized_by_corners(corner_templates)
+    visual_open = computer_vision_utils.check_maximized_by_corners(corner_templates)
     if not visual_open:
         print("[FAILED] Visual open check failed")
         print("Attempting to check if window is maximized and in foreground with alternative methods")
         time.sleep(.5)
         
         # If templates are not provided, System fallback to window state checks
-        if not (window_helper.is_window_maximized(window) and window_helper.is_foreground(window)):
+        if not (window_utils.is_window_maximized(window) and window_utils.is_foreground(window)):
             print("Could not maximize application during verification")
 
             attempts = 0
@@ -124,7 +124,7 @@ def verify_and_fix_state(window: pygetwindow.Window, corner_templates: Dict[str,
                 maximize_application(window)
                 time.sleep(.5)
 
-                if window_helper.is_window_maximized(window) and window_helper.is_foreground(window):
+                if window_utils.is_window_maximized(window) and window_utils.is_foreground(window):
                     print("[SUCCESS] Application is maximized and in foreground after retry")
                     return True
 
