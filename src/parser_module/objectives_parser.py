@@ -22,6 +22,7 @@ class ObjectiveType(Enum):
     """Enumeration of supported objective types."""
     EDIT_COPY_INSTRUCTION = "edit_copy_instruction"
     DO_NOT_AIR_INSTRUCTION = "do_not_air_instruction"
+    OPEN_MULTINETWORK_INSTRUCTIONS_PAGE = "open_multinetwork_instructions_page"
 
 def load_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
     """

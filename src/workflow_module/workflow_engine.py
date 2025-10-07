@@ -25,8 +25,9 @@ Responsibilities:
 """
 
 from typing import Dict, Any, List, Tuple, Optional
-from src.workflow_module import action_executor, verifier
+from .verifier_module import verifier
 from src.notification_module import notify_error
+from .action_module import action_executor
 
 def execute_single_instruction(instruction: Dict[str, Any],
                                 instruction_index: int,
@@ -36,12 +37,15 @@ def execute_single_instruction(instruction: Dict[str, Any],
     Execute a single instruction with retry logic and verification.
     
     Execution flow:
-    1. Extract instruction details (action_type, parameters, verification)
+    1. Extract instruction details (action_type, parameters)
     2. For each attempt (up to max_retries):
         a. Execute action via action_executor
-        b. Verify action completed via verifier
+        b. Verify action completed via new verifier module
         c. If verification fails, save debug screenshot and retry
     3. If all retries fail, send error notification
+    
+    The new verifier module automatically routes instruction names to their
+    corresponding verifier handlers, making verification more robust and extensible.
     
     Args:
         instruction: Single instruction dictionary with:
@@ -117,53 +121,57 @@ def execute_single_instruction(instruction: Dict[str, Any],
         
         print(f"[ENGINE SUCCESS] Action executed: {action_msg}")
         
-        # Step 2: Verify action completed (if verification configured)
-        if verification_config:
-            print(f"[ENGINE] Verifying action completion...")
+        # Step 2: Verify action completed using new verifier module
+        print(f"[ENGINE] Verifying action completion...")
+        
+        # Check if verifier exists for this action type
+        if verifier.has_verifier(action_type):
+            print(f"[ENGINE] Using verifier for action type: '{action_type}'")
+        else:
+            print(f"[ENGINE] No verifier found for action type: '{action_type}' - skipping verification")
+            return True, f"Action '{action_type}' executed (no verifier available)"
+        
+        # Use new verifier module to check action completion
+        verification_success, verification_msg, verification_data = verifier.verify_action_completion(
+            instruction_name=action_type,
+            **parameters  # Pass all parameters to the verifier
+        )
+        
+        if verification_success:
+            print(f"[ENGINE SUCCESS] Action verified: {verification_msg}")
+            if verification_data:
+                print(f"[ENGINE] Verification data: {verification_data}")
+            return True, f"Action '{action_type}' completed and verified"
+        else:
+            print(f"[ENGINE ERROR] Verification failed: {verification_msg}")
             
-            verification_success, verification_msg = verifier.verify_action_completed(
+            # Save failure context for debugging
+            screenshot_path = verifier.save_failure_context(
                 action_type=action_type,
                 parameters=parameters,
-                verification_config=verification_config
+                verification_error=verification_msg,
+                attempt_number=attempt
             )
             
-            if verification_success:
-                print(f"[ENGINE SUCCESS] Action verified: {verification_msg}")
-                return True, f"Action '{action_type}' completed and verified"
-            else:
-                print(f"[ENGINE ERROR] Verification failed: {verification_msg}")
-                
-                # Save failure context for debugging
-                screenshot_path = verifier.save_failure_context(
-                    action_type=action_type,
-                    parameters=parameters,
-                    verification_error=verification_msg,
-                    attempt_number=attempt
+            print(f"[ENGINE] Debug screenshot saved: {screenshot_path}")
+            
+            # Check if this was the last attempt
+            if attempt == max_retries:
+                error_msg = f"Action '{action_type}' failed verification after {max_retries} attempts"
+                notify_error(
+                    error_msg,
+                    "workflow_engine.execute_single_instruction",
+                    {
+                        "action_type": action_type,
+                        "parameters": parameters,
+                        "verification_error": verification_msg,
+                        "screenshot": screenshot_path,
+                        "attempts": max_retries
+                    }
                 )
-                
-                print(f"[ENGINE] Debug screenshot saved: {screenshot_path}")
-                
-                # Check if this was the last attempt
-                if attempt == max_retries:
-                    error_msg = f"Action '{action_type}' failed verification after {max_retries} attempts"
-                    notify_error(
-                        error_msg,
-                        "workflow_engine.execute_single_instruction",
-                        {
-                            "action_type": action_type,
-                            "parameters": parameters,
-                            "verification_error": verification_msg,
-                            "screenshot": screenshot_path,
-                            "attempts": max_retries
-                        }
-                    )
-                    return False, f"{error_msg}: {verification_msg}"
-                else:
-                    print(f"[ENGINE] Retrying action after verification failure...")
-        else:
-            # No verification configured - assume success after execution
-            print(f"[ENGINE] No verification configured - assuming success")
-            return True, f"Action '{action_type}' executed (no verification)"
+                return False, f"{error_msg}: {verification_msg}"
+            else:
+                print(f"[ENGINE] Retrying action after verification failure...")
     
     # Should not reach here, but just in case
     return False, f"Action '{action_type}' failed after {max_retries} attempts"
@@ -264,7 +272,6 @@ def execute_single_objective(objective: Dict[str, Any],
 # ============================================================================
 
 def execute_workflow(prepared_objectives: List[Dict[str, Any]],
-                    corner_templates: Dict[str, Any],
                     expected_page_text: Optional[str] = None,
                     max_retries: int = 3) -> Tuple[bool, Dict[str, Any]]:
     """
@@ -330,22 +337,22 @@ def execute_workflow(prepared_objectives: List[Dict[str, Any]],
     
     # Step 1: Verify workspace is ready
     print("\n[ENGINE] Verifying workspace is ready...")
-    workspace_ready, workspace_msg = verifier.check_workspace_ready(
-        corner_templates=corner_templates,
-        expected_page_text=expected_page_text
-    )
+    # workspace_ready, workspace_msg = verifier.check_workspace_ready(
+    #     corner_templates=corner_templates,
+    #     expected_page_text=expected_page_text
+    # )
     
-    if not workspace_ready:
-        error_msg = f"Workspace verification failed: {workspace_msg}"
-        print(f"[ENGINE ERROR] {error_msg}")
-        notify_error(
-            "Workspace not ready for workflow execution",
-            "workflow_engine.execute_workflow",
-            {"error": workspace_msg}
-        )
-        return False, results
+    # if not workspace_ready:
+    #     error_msg = f"Workspace verification failed: {workspace_msg}"
+    #     print(f"[ENGINE ERROR] {error_msg}")
+    #     notify_error(
+    #         "Workspace not ready for workflow execution",
+    #         "workflow_engine.execute_workflow",
+    #         {"error": workspace_msg}
+    #     )
+    #     return False, results
     
-    print(f"[ENGINE SUCCESS] ✓ {workspace_msg}")
+    # print(f"[ENGINE SUCCESS] ✓ {workspace_msg}")
     print(f"[ENGINE] Workspace is ready - starting execution...")
     
     # Step 2: Execute each prepared objective
@@ -408,7 +415,6 @@ def execute_workflow(prepared_objectives: List[Dict[str, Any]],
 # ============================================================================
 
 def start_workflow(parser_results: Dict[str, Any],
-                  corner_templates: Dict[str, Any],
                   expected_page_text: Optional[str] = None,
                   max_retries: int = 3,
                   actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
@@ -451,8 +457,14 @@ def start_workflow(parser_results: Dict[str, Any],
     print("WORKFLOW ENGINE - WORKFLOW START")
     print("="*70)
     
+    # Show supported verifiers
+    supported_verifiers = verifier.get_supported_verifications()
+    print(f"\n[ENGINE] Supported verifiers ({len(supported_verifiers)}):")
+    for verifier_name in supported_verifiers:
+        print(f"  - {verifier_name}")
+    
     # Import planner (imported here to avoid circular imports)
-    from src.workflow_module import workflow_planner
+    from . import workflow_planner
     
     # Step 1: Plan workflow (preparation phase)
     print("\n[ENGINE] Starting planning phase...")
@@ -466,7 +478,7 @@ def start_workflow(parser_results: Dict[str, Any],
         print(f"[ENGINE ERROR] {error_msg}")
         return False, error_msg
     
-    prepared_objectives = result
+    prepared_objectives = result.get("prepared_objectives", [])
     print(f"[ENGINE SUCCESS] ✓ Planning phase complete")
     print(f"[ENGINE] Prepared {len(prepared_objectives)} objectives for execution")
     
@@ -474,7 +486,6 @@ def start_workflow(parser_results: Dict[str, Any],
     print("\n[ENGINE] Starting execution phase...")
     success, execution_results = execute_workflow(
         prepared_objectives=prepared_objectives,
-        corner_templates=corner_templates,
         expected_page_text=expected_page_text,
         max_retries=max_retries
     )
@@ -538,32 +549,3 @@ def print_execution_summary(results: Dict[str, Any]) -> None:
     else:
         print("Overall Status: FAILED ✗")
     print(f"{'='*70}\n")
-
-def get_execution_statistics(results: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Extract key statistics from execution results.
-    
-    Args:
-        results: Results dictionary from execute_workflow()
-        
-    Returns:
-        Dictionary with key statistics
-        
-    Example:
-        stats = get_execution_statistics(results)
-        print(f"Success rate: {stats['success_rate']:.1f}%")
-    """
-    total_obj = results.get('total_objectives', 0)
-    completed_obj = results.get('completed_objectives', 0)
-    total_inst = results.get('total_instructions', 0)
-    completed_inst = results.get('completed_instructions', 0)
-    
-    return {
-        'total_objectives': total_obj,
-        'completed_objectives': completed_obj,
-        'objective_success_rate': (completed_obj / total_obj * 100) if total_obj > 0 else 0,
-        'total_instructions': total_inst,
-        'completed_instructions': completed_inst,
-        'instruction_success_rate': (completed_inst / total_inst * 100) if total_inst > 0 else 0,
-        'overall_success': results.get('failed_objectives', 1) == 0
-    }

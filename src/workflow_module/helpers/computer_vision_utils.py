@@ -290,6 +290,116 @@ def match_template_in_region(screenshot: np.ndarray,
         print(f"[CV ERROR] Template matching failed: {e}")
         return False, 0.0, None
 
+def find_template_in_region(screenshot: np.ndarray,
+                           template_path: str,
+                           region: Tuple[int, int, int, int],
+                           confidence: float = 0.8) -> Tuple[bool, float, Optional[Tuple[int, int]]]:
+    """
+    Find a template image within a specific region of a screenshot.
+    
+    Loads a template from file and searches for it within the specified region.
+    Returns whether the template was found, confidence score, and position.
+    
+    Args:
+        screenshot: Screenshot image as numpy array
+        template_path: Path to the template image file
+        region: Region as (x, y, width, height) tuple
+        confidence: Minimum confidence threshold (0-1)
+        
+    Returns:
+        Tuple of (found: bool, confidence_score: float, position: Optional[Tuple[int, int]])
+        Position is (center_x, center_y) in global coordinates if found
+        
+    Example:
+        screenshot = take_screenshot()
+        region = (94, 46, 74, 72)  # (x, y, width, height)
+        
+        found, score, position = find_template_in_region(
+            screenshot, 'assets/multi_network_Icon.png', region, confidence=0.8
+        )
+        
+        if found:
+            print(f"Template found at {position} with confidence {score:.2f}")
+    """
+    try:
+        # Load template image
+        template = load_image(template_path)
+        if template is None:
+            print(f"[CV ERROR] Failed to load template: {template_path}")
+            return False, 0.0, None
+        
+        # Use existing match_template_in_region function
+        return match_template_in_region(screenshot, template, region, confidence)
+        
+    except Exception as e:
+        print(f"[CV ERROR] Template finding failed: {e}")
+        return False, 0.0, None
+
+def find_template_full_screen(screenshot: np.ndarray,
+                             template_path: str,
+                             confidence: float = 0.8) -> Tuple[bool, float, Optional[Tuple[int, int]], Optional[Tuple[int, int, int, int]]]:
+    """
+    Find a template image anywhere on the full screenshot.
+    
+    Searches the entire screenshot for the template and returns the position and region.
+    
+    Args:
+        screenshot: Screenshot image as numpy array
+        template_path: Path to the template image file
+        confidence: Minimum confidence threshold (0-1)
+        
+    Returns:
+        Tuple of (found: bool, confidence_score: float, position: Optional[Tuple[int, int]], region: Optional[Tuple[int, int, int, int]])
+        - found: Whether template was found
+        - confidence_score: Confidence score of the match
+        - position: Center coordinates (x, y) if found
+        - region: Bounding box (x, y, width, height) if found
+        
+    Example:
+        screenshot = take_screenshot()
+        
+        found, score, position, region = find_template_full_screen(
+            screenshot, 'assets/multi_network_Icon.png', confidence=0.9
+        )
+        
+        if found:
+            print(f"Template found at {position} with confidence {score:.2f}")
+            print(f"Region: {region}")
+    """
+    try:
+        # Load template image
+        template = load_image(template_path)
+        if template is None:
+            print(f"[CV ERROR] Failed to load template: {template_path}")
+            return False, 0.0, None, None
+        
+        # Get template dimensions
+        template_height, template_width = template.shape[:2]
+        
+        # Perform template matching on full screenshot
+        result = cv2.matchTemplate(screenshot, template, cv2.TM_CCOEFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+        
+        # Check if confidence threshold met
+        if max_val >= confidence:
+            # Calculate center position
+            center_x = max_loc[0] + template_width // 2
+            center_y = max_loc[1] + template_height // 2
+            
+            # Calculate bounding box region
+            region = (max_loc[0], max_loc[1], template_width, template_height)
+            
+            print(f"[CV] Template found on full screen with confidence {max_val:.2f}")
+            print(f"[CV] Position: ({center_x}, {center_y}), Region: {region}")
+            return True, max_val, (center_x, center_y), region
+        else:
+            print(f"[CV] Template not found on full screen (confidence {max_val:.2f} < {confidence})")
+            return False, max_val, None, None
+            
+    except Exception as e:
+        print(f"[CV ERROR] Full screen template finding failed: {e}")
+        return False, 0.0, None, None
+
 def check_corners_maximized(screenshot: np.ndarray,
                            corner_templates: Dict[str, np.ndarray],
                            region_size: int = 200,

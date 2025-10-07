@@ -1,29 +1,25 @@
 #!/usr/bin/env python3
 """
-Workflow Planner Module
+Workflow Planner Module - RESILIENT VERSION
 
-This module handles the PLANNING phase of workflow execution:
-- Loading instruction definitions
-- Merging user values into instruction templates  
-- Preparing executable instruction sequences
-- Validating all required data is present
+This module handles the PLANNING phase of workflow execution with resilient error handling.
+If some objectives fail to prepare, it:
+- Continues preparing the rest
+- Notifies user about failures
+- Returns successfully prepared objectives
+- Only fails if ALL objectives fail to prepare
 
-The planner transforms parser output into execution-ready instructions.
-
-Responsibilities:
-- Load instruction JSON files for objective types
-- Extract and organize required/optional values
-- Merge values into instruction parameters
-- Validate preparation succeeded
-- Return organized instruction sequences
-
-The workflow engine then executes what the planner prepares.
+Key Change: Graceful failure handling - partial success is still success!
 """
 
 from typing import Dict, Any, List, Tuple
-from workflow_module.helpers import instruction_loader
+from .helpers import instruction_loader
 from src.notification_module import notify_error
 
+
+# ============================================================================
+# SINGLE OBJECTIVE PREPARATION
+# ============================================================================
 
 def prepare_single_objective(objective_type: str, 
                             objective_values: Dict[str, Any],
@@ -45,39 +41,6 @@ def prepare_single_objective(objective_type: str,
         
     Returns:
         Tuple of (success: bool, prepared_data or error_message)
-        
-    Success returns dictionary:
-    {
-        "objective_type": "edit_copy_instruction",
-        "instructions": [
-            {
-                "action_type": "enter_advertiser_name",
-                "description": "Enter advertiser name",
-                "parameters": {"advertiser_name": "Acme Corp"},  # Merged!
-                "verification": {
-                    "type": "text_inputted",
-                    "expected_text": "Acme Corp"  # Merged!
-                }
-            },
-            ...
-        ]
-    }
-    
-    Example:
-        objective_type = "edit_copy_instruction"
-        objective_values = {
-            "required": {
-                "advertiser_name": "Acme Corp",
-                "order_number": "ORD-001"
-            },
-            "optional": {
-                "isci_2": "ACME5678"
-            }
-        }
-        
-        success, data = prepare_single_objective(objective_type, objective_values)
-        if success:
-            instructions = data["instructions"]  # Ready to execute!
     """
     print(f"\n{'='*50}")
     print(f"[PLANNER] Preparing objective: {objective_type}")
@@ -94,11 +57,6 @@ def prepare_single_objective(objective_type: str,
     if not success:
         error_msg = f"Failed to load instruction data: {loaded_data}"
         print(f"[PLANNER ERROR] {error_msg}")
-        notify_error(
-            error_msg, 
-            "workflow_planner.prepare_single_objective",
-            {"objective_type": objective_type}
-        )
         return False, error_msg
     
     # Validate the loaded data structure
@@ -107,11 +65,6 @@ def prepare_single_objective(objective_type: str,
     if not instructions:
         error_msg = f"No instructions found for objective type: {objective_type}"
         print(f"[PLANNER ERROR] {error_msg}")
-        notify_error(
-            error_msg,
-            "workflow_planner.prepare_single_objective",
-            {"objective_type": objective_type, "loaded_data": loaded_data}
-        )
         return False, error_msg
     
     # Validate each instruction has required fields
@@ -133,16 +86,22 @@ def prepare_single_objective(objective_type: str,
     
     return True, loaded_data
 
+
+# ============================================================================
+# BATCH PREPARATION (RESILIENT VERSION)
+# ============================================================================
+
 def prepare_all_objectives(supported_objectives: List[Dict[str, Any]],
-                           actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
+                           actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Dict[str, Any]]:
     """
-    Prepare all supported objectives from parser results.
+    Prepare all supported objectives from parser results - RESILIENT VERSION.
     
-    This function:
-    1. Iterates through all supported objective types
-    2. For each objective, prepares all value sets
-    3. Tracks which value set each preparation represents
-    4. Returns list of all prepared objectives
+    This function is RESILIENT to partial failures:
+    - If some objectives fail, it continues with the rest
+    - Tracks which objectives succeeded and which failed
+    - Sends notifications for failures
+    - Returns success if AT LEAST ONE objective prepared successfully
+    - Only fails if ALL objectives fail
     
     Args:
         supported_objectives: List from parser with structure:
@@ -158,52 +117,56 @@ def prepare_all_objectives(supported_objectives: List[Dict[str, Any]],
         actions_dir: Directory containing instruction JSON files
         
     Returns:
-        Tuple of (success: bool, prepared_list or error_message)
+        Tuple of (success: bool, results_dict)
         
-    Success returns list of prepared objectives:
-    [
-        {
-            "objective_type": "edit_copy_instruction",
-            "value_set_index": 1,
-            "instructions": [...]
-        },
-        {
-            "objective_type": "edit_copy_instruction", 
-            "value_set_index": 2,
-            "instructions": [...]
-        }
-    ]
+    Results dictionary structure:
+    {
+        "prepared_objectives": [...],  # Successfully prepared objectives
+        "failed_objectives": [...],    # Failed objectives with error details
+        "total_requested": 5,
+        "total_prepared": 3,
+        "total_failed": 2
+    }
     
     Example:
-        parser_results = {
-            "supported_objectives": [...],
-            "unsupported_objectives": [...]
-        }
-        
-        success, prepared = prepare_all_objectives(
-            parser_results["supported_objectives"]
-        )
+        success, results = prepare_all_objectives(supported_objectives)
         
         if success:
-            for prep_obj in prepared:
-                print(f"Ready: {prep_obj['objective_type']} #{prep_obj['value_set_index']}")
+            print(f"Prepared: {results['total_prepared']}/{results['total_requested']}")
+            
+            if results['failed_objectives']:
+                print("Some objectives failed:")
+                for failed in results['failed_objectives']:
+                    print(f"  - {failed['objective_type']}: {failed['error']}")
     """
-    print("\n" + "="*60)
+    print("\n" + "="*70)
     print("[PLANNER] PREPARING ALL OBJECTIVES")
-    print("="*60)
+    print("="*70)
     
+    # Validate input
     if not isinstance(supported_objectives, list):
         error_msg = f"'supported_objectives' must be a list, got: {type(supported_objectives)}"
         print(f"[PLANNER ERROR] {error_msg}")
-        return False, error_msg
+        return False, {"error": error_msg}
     
     if not supported_objectives:
         warning_msg = "No supported objectives to prepare"
         print(f"[PLANNER WARNING] {warning_msg}")
-        return True, []  # Empty but successful
+        return True, {
+            "prepared_objectives": [],
+            "failed_objectives": [],
+            "total_requested": 0,
+            "total_prepared": 0,
+            "total_failed": 0
+        }
     
+    # Initialize tracking
     prepared_objectives = []
-    total_value_sets = 0
+    failed_objectives = []
+    total_value_sets = sum(len(obj.get("values_list", [])) for obj in supported_objectives)
+    
+    print(f"[PLANNER] Total objective types: {len(supported_objectives)}")
+    print(f"[PLANNER] Total value sets to prepare: {total_value_sets}")
     
     # Iterate through each objective type
     for obj_index, objective in enumerate(supported_objectives, start=1):
@@ -213,126 +176,134 @@ def prepare_all_objectives(supported_objectives: List[Dict[str, Any]],
         if not objective_type:
             error_msg = f"Objective {obj_index} missing 'objective_type'"
             print(f"[PLANNER ERROR] {error_msg}")
-            return False, error_msg
+            failed_objectives.append({
+                "objective_type": "unknown",
+                "value_set_index": None,
+                "error": error_msg,
+                "error_type": "missing_objective_type"
+            })
+            continue
         
         print(f"\n[PLANNER] Processing '{objective_type}':")
         print(f"  - Value sets to prepare: {len(values_list)}")
         
         # Prepare each value set for this objective type
         for val_index, objective_values in enumerate(values_list, start=1):
-            total_value_sets += 1
-            
             print(f"\n[PLANNER] Preparing value set {val_index}/{len(values_list)}...")
             
-            success, prepared_data = prepare_single_objective(
-                objective_type=objective_type,
-                objective_values=objective_values,
-                actions_dir=actions_dir
-            )
-            
-            if not success:
-                error_msg = f"Failed to prepare '{objective_type}' value set {val_index}: {prepared_data}"
-                print(f"[PLANNER ERROR] {error_msg}")
+            try:
+                success, prepared_data = prepare_single_objective(
+                    objective_type=objective_type,
+                    objective_values=objective_values,
+                    actions_dir=actions_dir
+                )
+                
+                if success:
+                    # Preparation succeeded
+                    prepared_data["value_set_index"] = val_index
+                    prepared_objectives.append(prepared_data)
+                    print(f"[PLANNER] ✓ Value set {val_index} prepared successfully")
+                else:
+                    # Preparation failed
+                    error_msg = prepared_data  # prepared_data contains error message
+                    print(f"[PLANNER ERROR] ✗ Value set {val_index} failed: {error_msg}")
+                    
+                    failed_objectives.append({
+                        "objective_type": objective_type,
+                        "value_set_index": val_index,
+                        "error": error_msg,
+                        "error_type": "preparation_failed"
+                    })
+                    
+                    # Send notification for this failure
+                    notify_error(
+                        f"Failed to prepare '{objective_type}' value set {val_index}",
+                        "workflow_planner.prepare_all_objectives",
+                        {
+                            "objective_type": objective_type,
+                            "value_set_index": val_index,
+                            "total_value_sets": len(values_list),
+                            "error": error_msg
+                        }
+                    )
+                    
+            except Exception as e:
+                # Unexpected exception during preparation
+                error_msg = f"Exception during preparation: {str(e)}"
+                print(f"[PLANNER ERROR] ✗ Value set {val_index} exception: {error_msg}")
+                
+                failed_objectives.append({
+                    "objective_type": objective_type,
+                    "value_set_index": val_index,
+                    "error": error_msg,
+                    "error_type": "exception"
+                })
+                
+                # Send notification for exception
                 notify_error(
-                    error_msg,
+                    f"Exception preparing '{objective_type}' value set {val_index}",
                     "workflow_planner.prepare_all_objectives",
                     {
                         "objective_type": objective_type,
                         "value_set_index": val_index,
-                        "total_value_sets": len(values_list)
+                        "exception": str(e)
                     }
                 )
-                return False, error_msg
-            
-            # Add tracking information
-            prepared_data["value_set_index"] = val_index
-            prepared_objectives.append(prepared_data)
-            
-            print(f"[PLANNER] ✓ Value set {val_index} prepared successfully")
     
-    # Final summary
-    print(f"\n{'='*60}")
-    print(f"[PLANNER SUCCESS] ALL OBJECTIVES PREPARED")
-    print(f"{'='*60}")
-    print(f"  - Objective types: {len(supported_objectives)}")
-    print(f"  - Total value sets: {total_value_sets}")
-    print(f"  - Prepared objectives: {len(prepared_objectives)}")
-    print(f"{'='*60}\n")
-    
-    return True, prepared_objectives
-
-# ============================================================================
-# VALIDATION HELPERS
-# ============================================================================
-
-def validate_parser_results(parser_results: Dict[str, Any]) -> Tuple[bool, str]:
-    """
-    Validate parser results structure before planning.
-    
-    This ensures the planner receives correctly formatted data
-    from the parser module.
-    
-    Args:
-        parser_results: Results from parser.process_objectives_file()
-        
-    Returns:
-        Tuple of (valid: bool, error_message or success_message)
-        
-    Expected structure:
-    {
-        "supported_objectives": [...],
-        "unsupported_objectives": [...]
+    # Build results dictionary
+    results = {
+        "prepared_objectives": prepared_objectives,
+        "failed_objectives": failed_objectives,
+        "total_requested": total_value_sets,
+        "total_prepared": len(prepared_objectives),
+        "total_failed": len(failed_objectives)
     }
-    """
-    print("[PLANNER] Validating parser results...")
     
-    # Check if it's a dictionary
-    if not isinstance(parser_results, dict):
-        error_msg = f"Parser results must be a dict, got: {type(parser_results)}"
-        print(f"[PLANNER ERROR] {error_msg}")
-        return False, error_msg
+    # Print summary
+    print(f"\n{'='*70}")
+    print(f"[PLANNER] PREPARATION COMPLETE")
+    print(f"{'='*70}")
+    print(f"  Total requested:  {results['total_requested']}")
+    print(f"  Successfully prepared: {results['total_prepared']} ✓")
+    print(f"  Failed:           {results['total_failed']} {'✗' if results['total_failed'] > 0 else ''}")
+    print(f"{'='*70}")
     
-    # Check for required keys
-    if "supported_objectives" not in parser_results:
-        error_msg = "Parser results missing 'supported_objectives' key"
-        print(f"[PLANNER ERROR] {error_msg}")
-        return False, error_msg
+    # Print failure details if any
+    if failed_objectives:
+        print(f"\n[PLANNER] Failed Objectives Details:")
+        for failed in failed_objectives:
+            print(f"  ✗ {failed['objective_type']} (set #{failed['value_set_index']})")
+            print(f"    Error: {failed['error']}")
     
-    supported = parser_results["supported_objectives"]
-    
-    # Validate supported_objectives is a list
-    if not isinstance(supported, list):
-        error_msg = f"'supported_objectives' must be a list, got: {type(supported)}"
-        print(f"[PLANNER ERROR] {error_msg}")
-        return False, error_msg
-    
-    # Count total value sets
-    total_value_sets = sum(
-        len(obj.get("values_list", [])) 
-        for obj in supported
-    )
-    
-    success_msg = f"Parser results valid: {len(supported)} objective types, {total_value_sets} total value sets"
-    print(f"[PLANNER] ✓ {success_msg}")
-    
-    return True, success_msg
+    # Determine overall success
+    if results['total_prepared'] == 0:
+        # ALL objectives failed
+        print(f"\n[PLANNER ERROR] All objectives failed to prepare!")
+        return False, results
+    elif results['total_failed'] > 0:
+        # PARTIAL success
+        print(f"\n[PLANNER WARNING] Partial success - some objectives failed")
+        print(f"[PLANNER] Continuing with {results['total_prepared']} successfully prepared objectives")
+        return True, results
+    else:
+        # COMPLETE success
+        print(f"\n[PLANNER SUCCESS] All objectives prepared successfully!")
+        return True, results
 
 def print_preparation_summary(prepared_objectives: List[Dict[str, Any]]) -> None:
     """
     Print a detailed summary of prepared objectives.
     
-    Useful for debugging and verification before execution.
-    
     Args:
         prepared_objectives: List of prepared objectives from prepare_all_objectives()
     """
-    print("\n" + "="*60)
+    print("\n" + "="*70)
     print("PREPARATION SUMMARY")
-    print("="*60)
+    print("="*70)
     
     if not prepared_objectives:
         print("  No objectives prepared")
-        print("="*60 + "\n")
+        print("="*70 + "\n")
         return
     
     # Group by objective type
@@ -358,10 +329,10 @@ def print_preparation_summary(prepared_objectives: List[Dict[str, Any]]) -> None
         for obj in prepared_objectives
     )
     
-    print(f"\n{'─'*60}")
+    print(f"\n{'─'*70}")
     print(f"Total prepared: {len(prepared_objectives)} objectives")
     print(f"Total instructions: {total_instructions}")
-    print(f"{'='*60}\n")
+    print(f"{'='*70}\n")
 
 # ============================================================================
 # MAIN PLANNING FUNCTION
@@ -370,50 +341,75 @@ def print_preparation_summary(prepared_objectives: List[Dict[str, Any]]) -> None
 def plan_workflow(parser_results: Dict[str, Any],
                  actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
     """
-    Main planning function - validates and prepares all objectives.
+    Main planning function - validates and prepares all objectives (RESILIENT).
     
-    This is the primary entry point for the planner module.
-    It orchestrates validation, preparation, and summary.
+    This function is RESILIENT:
+    - Validates parser results
+    - Prepares all objectives (continues on partial failures)
+    - Returns success if at least one objective prepared
+    - Provides detailed results including failures
     
     Args:
         parser_results: Results from parser.process_objectives_file()
         actions_dir: Directory containing instruction JSON files
         
     Returns:
-        Tuple of (success: bool, prepared_objectives or error_message)
+        Tuple of (success: bool, results)
         
+    Results structure on success:
+    {
+        "prepared_objectives": [...],
+        "failed_objectives": [...],
+        "total_requested": 5,
+        "total_prepared": 3,
+        "total_failed": 2
+    }
+    
     Example usage:
-        # In workflow_engine.py:
-        from workflow_module import planner
+        success, results = planner.plan_workflow(parser_results)
         
-        success, prepared = planner.plan_workflow(parser_results)
         if success:
-            # Execute prepared objectives
-            execute_workflow(prepared, corner_templates)
+            # Use prepared objectives
+            prepared = results["prepared_objectives"]
+            
+            # Warn about failures if any
+            if results["failed_objectives"]:
+                print(f"Warning: {results['total_failed']} objectives failed")
+        else:
+            # ALL objectives failed
+            print("Planning failed completely")
     """
     print("\n" + "="*70)
     print("WORKFLOW PLANNER - STARTING PLANNING PHASE")
     print("="*70)
-    
-    # Step 1: Validate parser results
-    valid, msg = validate_parser_results(parser_results)
-    if not valid:
-        return False, msg
-    
-    # Step 2: Prepare all objectives
+
     supported = parser_results["supported_objectives"]
-    success, result = prepare_all_objectives(supported, actions_dir)
+    success, results = prepare_all_objectives(supported, actions_dir)
     
     if not success:
-        return False, result
+        # ALL objectives failed to prepare
+        print("="*70)
+        print("WORKFLOW PLANNER - PLANNING FAILED ✗")
+        print("="*70 + "\n")
+        return False, results
     
-    prepared_objectives = result
+    # Step 3: Print summary of prepared objectives
+    if results["prepared_objectives"]:
+        print_preparation_summary(results["prepared_objectives"])
     
-    # Step 3: Print summary
-    print_preparation_summary(prepared_objectives)
+    # Step 4: Provide warning if partial failure
+    if results["failed_objectives"]:
+        print("\n" + "!"*70)
+        print("WARNING: PARTIAL PLANNING SUCCESS")
+        print("!"*70)
+        print(f"{results['total_prepared']} objectives prepared successfully")
+        print(f"{results['total_failed']} objectives failed to prepare")
+        print(f"Failed objectives have been logged and notifications sent")
+        print("!"*70 + "\n")
     
     print("="*70)
     print("WORKFLOW PLANNER - PLANNING COMPLETE ✓")
+    print(f"Ready to execute {results['total_prepared']} objectives")
     print("="*70 + "\n")
     
-    return True, prepared_objectives
+    return True, results

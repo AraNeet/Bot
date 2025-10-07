@@ -2,19 +2,14 @@
     "edit_copy_instruction": [
         {
             "required": {
-                "advertiser_name": "Acme Corporation",
+                "advertiser_name": "Corporation",
                 "agency_name": "MediaWorks Agency",
                 "order_number": "ORD-2025-001",
                 "start_date": "2025-01-15",
                 "end_date": "2025-02-15",
                 "isci_1": "ACME1234"
             },
-            "optional": {
-                "isci_2": "ACME5678",
-                "rotation_percent_isci_2": "50",
-                "isci_3": "ACME9012",
-                "rotation_percent_isci_3": "30"
-            }
+            "optional": {}
         },
         {
             "required": {

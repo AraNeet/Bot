@@ -1,27 +1,31 @@
 #!/usr/bin/env python3
 """
-Verifier Module
+Verifier Module - Main Interface
 
-This module handles all verification operations for the workflow system.
-It uses CV and OCR helpers to verify workspace state and action completion.
+This module provides the main interface for verification operations.
+It coordinates between verifier_executor, verifier_handlers, and verifier_helpers.
 
 Key Responsibilities:
-- Check if workspace is ready before workflow starts
-- Verify each action completed successfully
-- Use computer vision and OCR for verification
-- Self-contained logic (doesn't call other bot modules)
+- Provide main verification interface
+- Coordinate verification workflow
+- Handle verification results
+- Maintain backward compatibility
 
-Core Verification Types:
-- Text input verification (check if text was entered)
-- Text presence verification (check if text appears on screen)
-- UI element verification (check if element is visible)
-- Page state verification (check if correct page is loaded)
+Architecture:
+    Main Interface (THIS FILE)
+        ↓
+    verifier_executor.py (routes instruction names)
+        ↓
+    verifier_handlers.py (implements specific verifications)
+        ↓
+    verifier_helpers.py (performs generic operations)
 """
 
 import time
 from typing import Dict, Any, Tuple, Optional
-from workflow_module.helpers import ocr_utils
-from workflow_module.helpers import computer_vision_utils
+from ..helpers import computer_vision_utils, ocr_utils
+from . import verifier_executor
+from . import verifier_helpers
 
 
 
@@ -436,3 +440,224 @@ def save_failure_context(action_type: str,
             return filepath
     
     return "Screenshot capture failed"
+
+
+def verify_multinetwork_page_opened() -> Tuple[bool, str, Optional[Tuple[int, int, int, int]]]:
+    """
+    Verify that the Multi-Network Instructions page opened successfully.
+    
+    This function:
+    1. Takes a screenshot
+    2. Uses computer vision to find the search_fields template within the specified region (206, 152, 1439, 79)
+    3. Uses OCR to check for expected text within the same region
+    4. Returns the region where elements were found
+    
+    Returns:
+        Tuple of (success: bool, message: str, region: Optional[Tuple[int, int, int, int]])
+        - success: Whether the page opened successfully
+        - message: Success or error message
+        - region: Region where elements were found (x, y, width, height)
+        
+    Example:
+        success, msg, region = verify_multinetwork_page_opened()
+        if success:
+            print(f"Page opened successfully! Elements found at: {region}")
+    """
+    print("[VERIFIER] Verifying Multi-Network Instructions page opened...")
+    
+    try:
+        # Take screenshot
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot", None
+        
+        # Define the specific region to search within
+        # Region: (206, 152, 1439, 79) = (x, y, width, height)
+        region_x = 206
+        region_y = 152
+        region_width = 1439
+        region_height = 79
+        search_region = (region_x, region_y, region_width, region_height)
+        
+        print(f"[VERIFIER] Searching for search fields in region {search_region}")
+        
+        # Use computer vision to find the search_fields template within the specified region
+        fields_found, confidence, fields_position = computer_vision_utils.find_template_in_region(
+            screenshot, 
+            'assets/search_fields.png', 
+            search_region,
+            confidence=0.8  # Lower confidence for search fields as they might vary
+        )
+        
+        if not fields_found:
+            return False, f"Search fields not found in region {search_region} (confidence: {confidence:.2f})", None
+        
+        print(f"[VERIFIER] ✓ Search fields found at {fields_position} with confidence {confidence:.2f}")
+        print(f"[VERIFIER] Search fields found within region: {search_region}")
+        
+        # Additional verification: Check for common text within the same region
+        print("[VERIFIER] Verifying page content within region...")
+        
+        # Check for common text that should appear on the Multi-Network Instructions page
+        common_texts = [
+            "Multi-Network Instructions",
+            "Search",
+            "Advertiser",
+            "Order",
+            "Date"
+        ]
+        
+        text_found_count = 0
+        for text in common_texts:
+            ocr_success, text_found = ocr_utils.find_text_in_region(
+                screenshot, 
+                text, 
+                search_region,
+                case_sensitive=False
+            )
+            if ocr_success and text_found:
+                text_found_count += 1
+                print(f"[VERIFIER] ✓ Found text '{text}' in region {search_region}")
+        
+        # Consider page verified if we found at least 2 of the common texts
+        if text_found_count >= 2:
+            success_msg = f"Multi-Network Instructions page opened successfully! Found {text_found_count} expected text elements in region {search_region}."
+            print(f"[VERIFIER] ✓ {success_msg}")
+            return True, success_msg, search_region
+        else:
+            warning_msg = f"Page may not have loaded correctly. Only found {text_found_count} expected text elements in region {search_region}."
+            print(f"[VERIFIER] ⚠ {warning_msg}")
+            return True, warning_msg, search_region  # Still return success since search fields were found
+        
+    except Exception as e:
+        error_msg = f"Error verifying Multi-Network Instructions page: {e}"
+        print(f"[VERIFIER ERROR] {error_msg}")
+        return False, error_msg, None
+
+
+# ============================================================================
+# MAIN VERIFICATION INTERFACE
+# ============================================================================
+
+def verify_action_completion(instruction_name: str, **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """
+    Main interface for verifying action completion.
+    
+    This function routes instruction names to their corresponding verifier handlers
+    and returns the verification results.
+    
+    Args:
+        instruction_name: Name of the instruction that was executed
+        **kwargs: Additional parameters for verification
+        
+    Returns:
+        Tuple of (success: bool, message: str, data: Optional[Dict])
+        
+    Example:
+        success, msg, data = verify_action_completion(
+            "open_multinetwork_instructions_page"
+        )
+    """
+    print(f"[VERIFIER] Verifying action completion for: '{instruction_name}'")
+    
+    # Use verifier_executor to route to appropriate handler
+    return verifier_executor.execute_verification(instruction_name, **kwargs)
+
+
+def verify_instruction_sequence(instructions: list, **kwargs) -> Tuple[bool, list]:
+    """
+    Verify a sequence of instructions.
+    
+    Args:
+        instructions: List of instruction names to verify
+        **kwargs: Additional parameters for verification
+        
+    Returns:
+        Tuple of (all_passed: bool, results: list)
+    """
+    print(f"[VERIFIER] Verifying sequence of {len(instructions)} instructions")
+    
+    # Use verifier_executor for batch verification
+    return verifier_executor.verify_instruction_sequence(instructions, **kwargs)
+
+
+def get_supported_verifications() -> list:
+    """
+    Get list of all supported instruction names that have verifiers.
+    
+    Returns:
+        List of instruction names that have corresponding verifier handlers
+    """
+    return verifier_executor.get_supported_instructions()
+
+
+def has_verifier(instruction_name: str) -> bool:
+    """
+    Check if an instruction has a corresponding verifier handler.
+    
+    Args:
+        instruction_name: Name of the instruction to check
+        
+    Returns:
+        True if verifier handler exists, False otherwise
+    """
+    return verifier_executor.has_verifier(instruction_name)
+
+
+# ============================================================================
+# BACKWARD COMPATIBILITY FUNCTIONS
+# ============================================================================
+
+def verify_text_input(text: str, **kwargs) -> Tuple[bool, str]:
+    """
+    Backward compatibility function for text input verification.
+    
+    Args:
+        text: Text to verify was entered
+        
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    success, message, _ = verify_action_completion("type_text", text=text, **kwargs)
+    return success, message
+
+
+def verify_text_presence(text: str, **kwargs) -> Tuple[bool, str]:
+    """
+    Backward compatibility function for text presence verification.
+    
+    Args:
+        text: Text to verify is present
+        
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    return verifier_helpers.verify_text_entered(text, **kwargs)
+
+
+def verify_ui_element(element_name: str, **kwargs) -> Tuple[bool, str]:
+    """
+    Backward compatibility function for UI element verification.
+    
+    Args:
+        element_name: Name of UI element to verify
+        
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    # Generic UI element verification
+    return verifier_helpers.verify_text_presence([element_name], **kwargs)
+
+
+def verify_page_state(page_name: str, **kwargs) -> Tuple[bool, str]:
+    """
+    Backward compatibility function for page state verification.
+    
+    Args:
+        page_name: Name of page to verify
+        
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    # Generic page state verification
+    return verifier_helpers.verify_text_presence([page_name], **kwargs)

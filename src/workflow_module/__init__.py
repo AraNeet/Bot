@@ -9,7 +9,7 @@ Main Components:
 
 """
 
-from .workflow_engine import start_workflows as workflow
+from .workflow_engine import start_workflow as workflow
 
 __all__ = [
     'workflow',

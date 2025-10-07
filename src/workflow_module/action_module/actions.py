@@ -23,12 +23,50 @@ from typing import Tuple
 
 # Configure pyautogui safety settings
 pyautogui.FAILSAFE = True  # Move mouse to corner to abort
-pyautogui.PAUSE = 0.5  # Default pause between actions
+pyautogui.PAUSE = 0.1  # Default pause between actions (reduced to prevent double letters)
 
 
 # ============================================================================
 # KEYBOARD ACTIONS
 # ============================================================================
+
+def type_text_citrix(text: str, interval: float = 0.5) -> Tuple[bool, str]:
+    """
+    Type text character by character with Citrix-optimized delays.
+    
+    This function uses much slower intervals specifically designed for Citrix
+    applications to prevent double letters and keystroke conflicts.
+    
+    Args:
+        text: Text to type
+        interval: Delay between keystrokes in seconds (default: 0.5 for Citrix)
+        
+    Returns:
+        Tuple of (success: bool, message)
+        
+    Example:
+        success, msg = type_text_citrix("Acme Corp", interval=0.5)
+    """
+    try:
+        if not text:
+            return True, "No text to type (empty string)"
+        
+        print(f"[ACTION] Typing text in Citrix mode: '{text}' (interval: {interval}s)")
+        
+        # Type each character individually with longer delays
+        for char in text:
+            pyautogui.write(char)
+            time.sleep(interval)  # Wait between each character
+        
+        success_msg = f"Successfully typed in Citrix mode: '{text}'"
+        print(f"[ACTION SUCCESS] {success_msg}")
+        return True, success_msg
+        
+    except Exception as e:
+        error_msg = f"Failed to type text in Citrix mode: {e}"
+        print(f"[ACTION ERROR] {error_msg}")
+        return False, error_msg
+
 
 def type_text(text: str, interval: float = 0.05) -> Tuple[bool, str]:
     """

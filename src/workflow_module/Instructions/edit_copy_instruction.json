@@ -2,11 +2,6 @@
     "Instructions": {
         "edit_copy_instruction": [
             {
-                "action_type": "open_application",
-                "description": "Open the application",
-                "parameters": {}
-            },
-            {
                 "action_type": "open_multinetwork_instructions_page",
                 "description": "Navigate to Multinetwork Instructions page",
                 "parameters": {}
@@ -104,22 +99,6 @@
                 "description": "Enter ISCI 1 value",
                 "parameters": {
                     "isci_1": ""
-                }
-            },
-            {
-                "action_type": "enter_isci_2_if_provided",
-                "description": "Enter ISCI 2 value if provided in optional fields",
-                "parameters": {
-                    "isci_2": "",
-                    "rotation_percent_isci_2": ""
-                }
-            },
-            {
-                "action_type": "enter_isci_3_if_provided",
-                "description": "Enter ISCI 3 value if provided in optional fields",
-                "parameters": {
-                    "isci_3": "",
-                    "rotation_percent_isci_3": ""
                 }
             },
             {

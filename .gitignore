@@ -1,6 +1,7 @@
 # Environment files
 bot.env
 .env
+screenshots/
 
 # Python
 __pycache__/
