@@ -35,6 +35,7 @@ from typing import Tuple, Dict, Any, Optional
 from . import actions
 from ..helpers import computer_vision_utils, ocr_utils
 import time
+import cv2
 
 
 # ============================================================================
@@ -98,16 +99,17 @@ def open_multinetwork_instructions_page() -> Tuple[bool, str]:
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot"
-
-        # Define region to search for the icon
-        region_x = 93
-        region_y = 52
-        region_width = 84
-        region_height = 66
+        
+        # Define the region for Multi-Network Instructions button in toolbar
+        # Based on typical toolbar layout: (x, y, width, height) format
+        region_x = 93  # Estimated X position in toolbar
+        region_y = 52   # Estimated Y position below menu tabs
+        region_width = 84 # Width to cover the button text and icon
+        region_height = 66 # Height to cover the button
         region = (region_x, region_y, region_width, region_height)
-
+        
         print(f"[ACTION_HANDLER] Searching for multi_network_icon in region {region}")
-
+        
         # Step 1: Use computer vision to find the multi_network_icon
         icon_found, confidence, icon_position = computer_vision_utils.find_template_in_region(
             screenshot, 
@@ -115,10 +117,10 @@ def open_multinetwork_instructions_page() -> Tuple[bool, str]:
             region, 
             confidence=0.9
         )
-
+        
         if not icon_found:
             return False, f"Multi-network icon not found in region {region} (confidence: {confidence:.2f})"
-
+        
         print(f"[ACTION_HANDLER] ✓ Multi-network icon found at {icon_position} with confidence {confidence:.2f}")
         
         # Step 2: Use OCR to check for "Multi-Network Instructions" text in the same region
@@ -127,10 +129,11 @@ def open_multinetwork_instructions_page() -> Tuple[bool, str]:
         # Step 3: Click on the icon position
         if icon_position is None:
             return False, "Icon position is None despite being found"
-
+        
         click_x, click_y = icon_position
         print(f"[ACTION_HANDLER] Clicking on multi-network icon at ({click_x}, {click_y})")
-
+        
+        
         success, msg = actions.click_at_position(click_x, click_y)
         if success:
             actions.move_mouse(500, 500, 0)
@@ -138,9 +141,9 @@ def open_multinetwork_instructions_page() -> Tuple[bool, str]:
             return False, f"Failed to click on multi-network icon: {msg}"
         # Wait a moment for the page to load
         time.sleep(1.0)
-
+        
         return True, "Successfully navigated to Multinetwork Instructions page"
-
+        
     except Exception as e:
         error_msg = f"Error navigating to Multinetwork Instructions page: {e}"
         print(f"[ACTION_HANDLER ERROR] {error_msg}")
@@ -167,146 +170,115 @@ def enter_advertiser_name(advertiser_name: str) -> Tuple[bool, str]:
         Tuple of (success: bool, message: str)
     """
     print(f"[ACTION_HANDLER] Entering advertiser name: '{advertiser_name}'")
-
+    
     try:
         # Take screenshot
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot"
-
-        region_x = 372
+        
+        # Define the region to search for "advertiser" word
+        # Region: (206, 152, 1439, 79) = (x, y, width, height)
+        region_x = 206
         region_y = 152
-        region_width = 166
+        region_width = 1439
         region_height = 79
         search_region = (region_x, region_y, region_width, region_height)
-
+        
         print(f"[ACTION_HANDLER] Searching for 'advertiser' word in region {search_region}")
-
-        ocr_success, text_found = ocr_utils.find_text_in_region(
-            screenshot,
-            "advertiser",
-            search_region,
-            case_sensitive=False
-        )
-
-        if not ocr_success:
-            return False, "OCR search failed"
-
-        if not text_found:
-            return False, f"Word 'advertiser' not found in region {search_region}"
-
-        print(f"[ACTION_HANDLER] ✓ Found 'advertiser' word in region {search_region}")
-
+        
+        # Crop the image to the search region for better OCR accuracy
+        cropped_image = computer_vision_utils.crop_image(screenshot, region_x, region_y, region_width, region_height)
+        if cropped_image is None:
+            return False, "Failed to crop image to search region"
+        
+        print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
+        
+        # Save the cropped image for debugging
+        debug_filename = f"advertiser_search_region_{int(time.time())}.png"
+        cv2.imwrite(debug_filename, cropped_image)
+        print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
+        
+        # # Use OCR to find the "advertiser" word within the cropped region
+        # ocr_success, text_found = ocr_utils.find_text(
+        #     cropped_image,
+        #     "advertiser",
+        #     case_sensitive=False
+        # )
+        
+        # if not ocr_success:
+        #     return False, "OCR search failed"
+        
+        # if not text_found:
+        #     return False, f"Word 'advertiser' not found in region {search_region}"
+        
+        # print(f"[ACTION_HANDLER] ✓ Found 'advertiser' word in region {search_region}")
+        
+        # # Now find the exact position of the "advertiser" text in the cropped image
+        # print(f"[ACTION_HANDLER] Finding exact position of 'advertiser' text in cropped image...")
+        
         success, found, bbox = ocr_utils.find_text_with_position(
-            screenshot,
+            cropped_image,
             "advertiser",
             case_sensitive=False
         )
-
+        
         if not success or not found or bbox is None:
-            return False, "Could not determine exact position of 'advertiser' text"
-
-        text_x, text_y, text_width, text_height = bbox
+            return False, "Could not determine exact position of 'advertiser' text in cropped image"
+        
+        # Convert cropped image coordinates back to full screenshot coordinates
+        cropped_text_x, cropped_text_y, text_width, text_height = bbox
+        text_x = region_x + cropped_text_x  # Add region offset
+        text_y = region_y + cropped_text_y  # Add region offset
+        
         print(f"[ACTION_HANDLER] ✓ 'advertiser' text found at ({text_x}, {text_y}) with size {text_width}x{text_height}")
-
-        field_spacing = 15
-        field_x = text_x
-        field_y = text_y + text_height + field_spacing
-
+        print(f"[ACTION_HANDLER] Cropped coordinates: ({cropped_text_x}, {cropped_text_y}) -> Full coordinates: ({text_x}, {text_y})")
+        
+        # Calculate the input field position 15 pixels below the "advertiser" text
+        field_spacing = 15  # pixels below the text
+        field_x = text_x  # Same horizontal position as the text
+        field_y = text_y + text_height + field_spacing  # 15 pixels below the text
+        
         print(f"[ACTION_HANDLER] Calculated field position: ({field_x}, {field_y}) - 15px below 'advertiser' text")
-
+        
         # Click on the input field
         print(f"[ACTION_HANDLER] Clicking on advertiser input field at ({field_x}, {field_y})")
         click_success, click_msg = actions.click_at_position(field_x, field_y)
-
+        
         if not click_success:
             return False, f"Failed to click on advertiser field: {click_msg}"
-
-        # Clear any existing text in the field (Citrix-specific approach)
+        
+        # Wait a moment for the field to be focused
+        time.sleep(0.5)
+        
+        # Clear any existing text in the field
         print(f"[ACTION_HANDLER] Clearing existing text in field...")
         clear_success, clear_msg = actions.clear_field()
-
+        
         if not clear_success:
             print(f"[ACTION_HANDLER] Warning: Failed to clear field: {clear_msg}")
-
-        # Wait longer for Citrix to process the clear action
-        time.sleep(1.0)
-
-        # Type the advertiser name using Citrix-optimized function
-        print(f"[ACTION_HANDLER] Typing advertiser name: '{advertiser_name}' (Citrix mode)")
-        type_success, type_msg = actions.type_text_citrix(advertiser_name, interval=0.5)
-
+            # Continue anyway, as the field might be empty
+        
+        # Wait a moment after clearing to ensure field is ready
+        time.sleep(0.2)
+        
+        # Type the advertiser name with faster interval to prevent double letters
+        print(f"[ACTION_HANDLER] Typing advertiser name: '{advertiser_name}'")
+        type_success, type_msg = actions.type_text(advertiser_name, interval=0.02)
+        
         if not type_success:
             return False, f"Failed to type advertiser name: {type_msg}"
-
-        # Wait longer for Citrix to process all keystrokes
-        time.sleep(2.0)
-
-        # Verify the text was entered correctly (Citrix validation)
-        print(f"[ACTION_HANDLER] Verifying text entry in Citrix...")
-        verification_success, verification_msg = verify_text_entry(advertiser_name, field_x, field_y)
         
-        if not verification_success:
-            print(f"[ACTION_HANDLER] Warning: Text verification failed: {verification_msg}")
-            # Don't fail the function, just log the warning
-
+        # Wait a moment for the text to be entered
+        time.sleep(0.5)
+        
         print(f"[ACTION_HANDLER] ✓ Successfully entered advertiser name: '{advertiser_name}'")
         return True, f"Successfully entered advertiser name: '{advertiser_name}'"
-
+        
     except Exception as e:
         error_msg = f"Error entering advertiser name: {e}"
         print(f"[ACTION_HANDLER ERROR] {error_msg}")
         return False, error_msg
-
-
-def verify_text_entry(expected_text: str, field_x: int, field_y: int) -> Tuple[bool, str]:
-    """
-    Verify that text was entered correctly in a Citrix field.
-    
-    This function takes a screenshot and uses OCR to verify the entered text
-    matches what was expected, helping detect double letters or other issues.
-    
-    Args:
-        expected_text: The text that should have been entered
-        field_x: X coordinate of the field
-        field_y: Y coordinate of the field
-        
-    Returns:
-        Tuple of (success: bool, message: str)
-    """
-    try:
-        # Take a fresh screenshot
-        screenshot = computer_vision_utils.take_screenshot()
-        if screenshot is None:
-            return False, "Failed to take screenshot for verification"
-        
-        # Define a region around the field to check for text
-        # Use a small region around the clicked position
-        check_region = (field_x - 50, field_y - 10, 200, 30)  # (x, y, width, height)
-        
-        # Extract text from the field region
-        success, extracted_text = ocr_utils.extract_text_from_region(
-            screenshot, 
-            check_region
-        )
-        
-        if not success:
-            return False, f"Failed to extract text from field region: {extracted_text}"
-        
-        # Clean up the extracted text for comparison
-        extracted_clean = extracted_text.strip().lower()
-        expected_clean = expected_text.strip().lower()
-        
-        print(f"[ACTION_HANDLER] Verification - Expected: '{expected_clean}', Found: '{extracted_clean}'")
-        
-        # Check if the text matches (allowing for some OCR variations)
-        if expected_clean in extracted_clean or extracted_clean in expected_clean:
-            return True, f"Text verification successful: '{extracted_clean}'"
-        else:
-            return False, f"Text verification failed - Expected: '{expected_clean}', Found: '{extracted_clean}'"
-            
-    except Exception as e:
-        return False, f"Text verification error: {e}"
 
 
 def verify_advertiser_found(advertiser_name: str) -> Tuple[bool, str]:
@@ -352,6 +324,7 @@ def verify_advertiser_found(advertiser_name: str) -> Tuple[bool, str]:
     # Placeholder
     return True, f"Advertiser '{advertiser_name}' verified in dropdown"
 
+
 def enter_order_id(order_number: str) -> Tuple[bool, str]:
     """
     Enter order ID in the search field.
@@ -387,6 +360,7 @@ def enter_order_id(order_number: str) -> Tuple[bool, str]:
     
     # Placeholder
     return True, f"Entered order ID: '{order_number}'"
+
 
 def verify_order_found(order_number: str) -> Tuple[bool, str]:
     """
@@ -472,6 +446,7 @@ def enter_start_date(start_date: str) -> Tuple[bool, str]:
     # Placeholder
     return True, f"Entered start date: '{start_date}'"
 
+
 def calculate_and_enter_end_date(start_date: str) -> Tuple[bool, str]:
     """
     Calculate end date (start + 31 days) and enter it.
@@ -519,6 +494,7 @@ def calculate_and_enter_end_date(start_date: str) -> Tuple[bool, str]:
     # Placeholder
     return True, f"Calculated and entered end date (start + 31 days)"
 
+
 # ============================================================================
 # BUTTON ACTIONS
 # ============================================================================
@@ -552,6 +528,7 @@ def click_search_button() -> Tuple[bool, str]:
     
     # Placeholder
     return True, "Clicked search button"
+
 
 def wait_for_search_results(timeout: int = 10) -> Tuple[bool, str]:
     """
@@ -591,6 +568,7 @@ def wait_for_search_results(timeout: int = 10) -> Tuple[bool, str]:
     
     # Placeholder
     return True, "Search results loaded successfully"
+
 
 # ============================================================================
 # TABLE INTERACTION ACTIONS
@@ -648,6 +626,7 @@ def find_row_by_deal_number(order_number: str, max_pages: int = 20) -> Tuple[boo
     # Placeholder
     return True, f"Found row with deal number: '{order_number}'"
 
+
 def right_click_row(order_number: str) -> Tuple[bool, str]:
     """
     Right-click on the row containing the specified order number.
@@ -692,6 +671,7 @@ def right_click_row(order_number: str) -> Tuple[bool, str]:
     # Placeholder
     return True, f"Right-clicked on row with deal number: '{order_number}'"
 
+
 def select_edit_multinetwork_instruction() -> Tuple[bool, str]:
     """
     Select 'Edit Multi-network Instruction' from context menu.
@@ -734,6 +714,7 @@ def select_edit_multinetwork_instruction() -> Tuple[bool, str]:
     # Placeholder
     return True, "Selected 'Edit Multi-network Instruction' from context menu"
 
+
 # ============================================================================
 # PAGE LOAD WAITING ACTIONS
 # ============================================================================
@@ -767,6 +748,7 @@ def wait_for_edit_page_load(timeout: int = 10) -> Tuple[bool, str]:
     
     # Placeholder
     return True, "Edit page loaded successfully"
+
 
 def verify_edit_page_opened(order_number: str) -> Tuple[bool, str]:
     """
@@ -805,6 +787,7 @@ def verify_edit_page_opened(order_number: str) -> Tuple[bool, str]:
     
     # Placeholder
     return True, f"Edit page opened for deal: '{order_number}'"
+
 
 # ============================================================================
 # FORM FIELD ACTIONS (ISCI CODES)
@@ -849,6 +832,7 @@ def enter_isci_1(isci_1: str) -> Tuple[bool, str]:
     
     # Placeholder
     return True, f"Entered ISCI 1: '{isci_1}'"
+
 
 def enter_isci_2_if_provided(isci_2: str, rotation_percent_isci_2: str) -> Tuple[bool, str]:
     """
@@ -899,6 +883,7 @@ def enter_isci_2_if_provided(isci_2: str, rotation_percent_isci_2: str) -> Tuple
     
     return True, f"Entered ISCI 2: '{isci_2}' with rotation: '{rotation_percent_isci_2}%'"
 
+
 def enter_isci_3_if_provided(isci_3: str, rotation_percent_isci_3: str) -> Tuple[bool, str]:
     """
     Enter ISCI 3 and rotation percentage if provided in optional fields.
@@ -948,6 +933,7 @@ def enter_isci_3_if_provided(isci_3: str, rotation_percent_isci_3: str) -> Tuple
     
     return True, f"Entered ISCI 3: '{isci_3}' with rotation: '{rotation_percent_isci_3}%'"
 
+
 # ============================================================================
 # SAVE ACTIONS
 # ============================================================================
@@ -981,6 +967,7 @@ def save_instruction() -> Tuple[bool, str]:
     
     # Placeholder
     return True, "Instruction saved successfully"
+
 
 def verify_save_successful(order_number: str) -> Tuple[bool, str]:
     """
@@ -1019,6 +1006,7 @@ def verify_save_successful(order_number: str) -> Tuple[bool, str]:
     
     # Placeholder
     return True, f"Save verified for deal: '{order_number}'"
+
 
 # ============================================================================
 # HELPER FUNCTIONS (UI Element Locators)
@@ -1074,6 +1062,7 @@ def find_element_by_text(text: str, region: Optional[Tuple[int, int, int, int]] 
     # Placeholder
     return False, None
 
+
 def find_field_by_label(label_text: str, offset_x: int = 100, offset_y: int = 0) -> Tuple[bool, Optional[Tuple[int, int]]]:
     """
     Find an input field by locating its label and offsetting.
@@ -1112,6 +1101,7 @@ def find_field_by_label(label_text: str, offset_x: int = 100, offset_y: int = 0)
     # Placeholder
     return False, None
 
+
 def find_button_by_text(button_text: str) -> Tuple[bool, Optional[Tuple[int, int]]]:
     """
     Find a button by its text.
@@ -1133,6 +1123,7 @@ def find_button_by_text(button_text: str) -> Tuple[bool, Optional[Tuple[int, int
     
     # Placeholder
     return False, None
+
 
 # ============================================================================
 # COORDINATE CONFIGURATION (TO BE MEASURED)

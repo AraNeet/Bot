@@ -19,54 +19,17 @@ All action functions follow the same pattern:
 
 import time
 import pyautogui
+import keyboard
 from typing import Tuple
 
-# Configure pyautogui safety settings
-pyautogui.FAILSAFE = True  # Move mouse to corner to abort
-pyautogui.PAUSE = 0.1  # Default pause between actions (reduced to prevent double letters)
+# Configure pyautogui safety settings (for mouse actions only)
+pyautogui.FAILSAFE = True
+pyautogui.PAUSE = 0.5 
 
 
 # ============================================================================
 # KEYBOARD ACTIONS
 # ============================================================================
-
-def type_text_citrix(text: str, interval: float = 0.5) -> Tuple[bool, str]:
-    """
-    Type text character by character with Citrix-optimized delays.
-    
-    This function uses much slower intervals specifically designed for Citrix
-    applications to prevent double letters and keystroke conflicts.
-    
-    Args:
-        text: Text to type
-        interval: Delay between keystrokes in seconds (default: 0.5 for Citrix)
-        
-    Returns:
-        Tuple of (success: bool, message)
-        
-    Example:
-        success, msg = type_text_citrix("Acme Corp", interval=0.5)
-    """
-    try:
-        if not text:
-            return True, "No text to type (empty string)"
-        
-        print(f"[ACTION] Typing text in Citrix mode: '{text}' (interval: {interval}s)")
-        
-        # Type each character individually with longer delays
-        for char in text:
-            pyautogui.write(char)
-            time.sleep(interval)  # Wait between each character
-        
-        success_msg = f"Successfully typed in Citrix mode: '{text}'"
-        print(f"[ACTION SUCCESS] {success_msg}")
-        return True, success_msg
-        
-    except Exception as e:
-        error_msg = f"Failed to type text in Citrix mode: {e}"
-        print(f"[ACTION ERROR] {error_msg}")
-        return False, error_msg
-
 
 def type_text(text: str, interval: float = 0.05) -> Tuple[bool, str]:
     """
@@ -87,7 +50,12 @@ def type_text(text: str, interval: float = 0.05) -> Tuple[bool, str]:
             return True, "No text to type (empty string)"
         
         print(f"[ACTION] Typing text: '{text}' (interval: {interval}s)")
-        pyautogui.write(text, interval=interval)
+        
+        # Use keyboard library for typing
+        for char in text:
+            keyboard.write(char)
+            if interval > 0:
+                time.sleep(interval)
         
         success_msg = f"Successfully typed: '{text}'"
         print(f"[ACTION SUCCESS] {success_msg}")
@@ -115,7 +83,12 @@ def press_key(key: str, presses: int) -> Tuple[bool, str]:
     """
     try:
         print(f"[ACTION] Pressing key: '{key}' ({presses} time(s))")
-        pyautogui.press(key, presses=presses)
+        
+        # Use keyboard library for key presses
+        for _ in range(presses):
+            keyboard.press_and_release(key)
+            if presses > 1:  # Add small delay between multiple presses
+                time.sleep(0.1)
         
         success_msg = f"Successfully pressed '{key}' {presses} time(s)"
         print(f"[ACTION SUCCESS] {success_msg}")
@@ -144,7 +117,9 @@ def keyboard_shortcut(*keys) -> Tuple[bool, str]:
     try:
         shortcut_str = '+'.join(keys)
         print(f"[ACTION] Executing keyboard shortcut: {shortcut_str}")
-        pyautogui.hotkey(*keys)
+        
+        # Use keyboard library for shortcuts
+        keyboard.send('+'.join(keys))
         
         success_msg = f"Successfully executed shortcut: {shortcut_str}"
         print(f"[ACTION SUCCESS] {success_msg}")
@@ -300,12 +275,12 @@ def clear_field(num_backspaces: int = 50) -> Tuple[bool, str]:
     try:
         print(f"[ACTION] Clearing field (Ctrl+A + Delete)")
         
-        # Select all
-        pyautogui.hotkey('ctrl', 'a')
+        # Select all using keyboard library
+        keyboard.send('ctrl+a')
         time.sleep(0.1)
         
-        # Delete
-        pyautogui.press('delete')
+        # Delete using keyboard library
+        keyboard.press_and_release('delete')
         
         success_msg = "Successfully cleared field"
         print(f"[ACTION SUCCESS] {success_msg}")
@@ -353,12 +328,14 @@ def select_dropdown_option(option_text: str,
         print(f"[ACTION] Selecting dropdown option: '{option_text}'")
         
         if search_first:
-            # Type to search in dropdown
-            pyautogui.write(option_text, interval=0.05)
+            # Type to search in dropdown using keyboard library
+            for char in option_text:
+                keyboard.write(char)
+                time.sleep(0.05)
             time.sleep(wait_after_type)
         
-        # Press enter to select
-        pyautogui.press('enter')
+        # Press enter to select using keyboard library
+        keyboard.press_and_release('enter')
         
         success_msg = f"Successfully selected option: '{option_text}'"
         print(f"[ACTION SUCCESS] {success_msg}")

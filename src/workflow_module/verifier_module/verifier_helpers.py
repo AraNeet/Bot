@@ -17,6 +17,7 @@ This module focuses on generic verification operations that handlers can build u
 """
 
 import time
+import cv2
 from typing import Dict, Any, Tuple, Optional, List
 from ..helpers import ocr_utils
 from ..helpers import computer_vision_utils
@@ -362,3 +363,117 @@ def compare_screenshots(screenshot1_path: str, screenshot2_path: str) -> Tuple[b
         
     except Exception as e:
         return False, f"Error comparing screenshots: {e}", 0.0
+
+
+# ============================================================================
+# SCREENSHOT AND IMAGE PROCESSING HELPERS
+# ============================================================================
+
+def take_screenshot_for_verification() -> Optional[Any]:
+    """
+    Take a screenshot for verification purposes.
+    
+    Returns:
+        Screenshot image or None if failed
+    """
+    try:
+        return computer_vision_utils.take_screenshot()
+    except Exception as e:
+        print(f"[VERIFIER_HELPER ERROR] Failed to take screenshot: {e}")
+        return None
+
+
+def crop_image_for_verification(image: Any, 
+                               x: int, 
+                               y: int, 
+                               width: int, 
+                               height: int) -> Optional[Any]:
+    """
+    Crop an image to a specific region for verification.
+    
+    Args:
+        image: Input image
+        x: X coordinate of crop region
+        y: Y coordinate of crop region
+        width: Width of crop region
+        height: Height of crop region
+        
+    Returns:
+        Cropped image or None if failed
+    """
+    try:
+        if image is None:
+            return None
+        
+        # Ensure coordinates are within image bounds
+        img_height, img_width = image.shape[:2]
+        
+        # Clamp coordinates to image bounds
+        x = max(0, min(x, img_width))
+        y = max(0, min(y, img_height))
+        width = max(1, min(width, img_width - x))
+        height = max(1, min(height, img_height - y))
+        
+        # Crop the image
+        cropped = image[y:y+height, x:x+width]
+        
+        if cropped.size == 0:
+            return None
+        
+        return cropped
+        
+    except Exception as e:
+        print(f"[VERIFIER_HELPER ERROR] Failed to crop image: {e}")
+        return None
+
+
+def extract_text_from_cropped_image(cropped_image: Any) -> Tuple[bool, str]:
+    """
+    Extract text from a cropped image using OCR.
+    
+    Args:
+        cropped_image: Cropped image to extract text from
+        
+    Returns:
+        Tuple of (success: bool, extracted_text: str)
+    """
+    try:
+        if cropped_image is None:
+            return False, "No image provided"
+        
+        # Use OCR utils to extract text
+        success, extracted_text = ocr_utils.extract_text(cropped_image)
+        
+        if not success:
+            return False, f"OCR extraction failed: {extracted_text}"
+        
+        return True, extracted_text
+        
+    except Exception as e:
+        return False, f"Error extracting text from cropped image: {e}"
+
+
+def get_detailed_ocr_data(cropped_image: Any) -> Tuple[bool, Any]:
+    """
+    Get detailed OCR data from a cropped image including text, bounding boxes, and confidence scores.
+    
+    Args:
+        cropped_image: Cropped image to extract detailed OCR data from
+        
+    Returns:
+        Tuple of (success: bool, ocr_data: dict or error_message)
+    """
+    try:
+        if cropped_image is None:
+            return False, "No image provided"
+        
+        # Use OCR utils to get detailed text data
+        success, ocr_data = ocr_utils.get_text_data(cropped_image)
+        
+        if not success:
+            return False, f"OCR data extraction failed: {ocr_data}"
+        
+        return True, ocr_data
+        
+    except Exception as e:
+        return False, f"Error getting detailed OCR data from cropped image: {e}"

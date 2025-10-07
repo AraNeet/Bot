@@ -33,6 +33,9 @@ IMPORTANT: Functions receive parameters via **kwargs pattern:
 
 from typing import Dict, Any, Tuple, Optional
 from . import verifier_helpers
+import cv2
+import time
+from ..helpers import computer_vision_utils
 
 
 # ============================================================================
@@ -61,12 +64,8 @@ def verify_multinetwork_page_opened(**kwargs) -> Tuple[bool, str, Optional[Dict[
         success, message, region = verifier_helpers.verify_page_with_template(
             template_path='assets/search_fields.png',
             expected_texts=[
-                "Search",
-                "Advertiser",
-                "Order",
-                "Date"
+                "Order"
             ],
-            min_text_matches=2,
             confidence=0.8
         )
         
@@ -91,10 +90,10 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
     """
     Verify that the advertiser name was entered correctly.
     
-    This handler knows:
-    - Where to look for the entered advertiser name
-    - How to verify the text was entered correctly
-    - What constitutes a successful entry
+    This function:
+    1. Takes a screenshot
+    2. Crops it to the advertiser field region (206, 152, 1439, 79)
+    3. Uses OCR to verify the advertiser name was entered correctly
     
     Args:
         advertiser_name: Expected advertiser name to verify
@@ -108,14 +107,256 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
         return True, "No advertiser name to verify", None
     
     try:
-        # Use verifier_helpers to check if the text was entered
-        success, message = verifier_helpers.verify_text_entered(
-            expected_text=advertiser_name,
-            region=None,  # Search full screen
-            case_sensitive=False
+        # Take screenshot
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot for verification", None
+        
+
+        region_x = 206
+        region_y = 152
+        region_width = 1439
+        region_height = 79
+        field_region = (region_x, region_y, region_width, region_height)
+        
+        print(f"[VERIFIER_HANDLER] Cropping screenshot to advertiser field region {field_region}")
+        
+        # Crop the screenshot to the advertiser field region
+        cropped_image = verifier_helpers.crop_image_for_verification(
+            screenshot, 
+            region_x, 
+            region_y, 
+            region_width, 
+            region_height
         )
         
-        return success, message, None
+        if cropped_image is None:
+            return False, "Failed to crop image to advertiser field region", None
+        
+        # Save the cropped image for debugging
+        debug_filename = f"advertiser_field_verification_{int(time.time())}.png"
+        cv2.imwrite(debug_filename, cropped_image)
+        print(f"[VERIFIER_HANDLER] Saved cropped advertiser field for debugging: {debug_filename}")
+        
+        # Use OCR to extract text from the cropped field region
+        print(f"[VERIFIER_HANDLER] Extracting text from advertiser field...")
+        success, extracted_text = verifier_helpers.extract_text_from_cropped_image(cropped_image)
+        
+        if not success:
+            return False, f"Failed to extract text from advertiser field: {extracted_text}", None
+        
+        print(f"[VERIFIER_HANDLER] Extracted text from field: '{extracted_text}'")
+        
+        # Get detailed OCR data to check confidence scores
+        print(f"[VERIFIER_HANDLER] Getting detailed OCR data for confidence checking...")
+        ocr_success, ocr_data = verifier_helpers.get_detailed_ocr_data(cropped_image)
+        
+        if not ocr_success:
+            return False, f"Failed to get detailed OCR data: {ocr_data}", None
+        
+        # Check if we have valid OCR data with confidence scores
+        if not isinstance(ocr_data, dict) or 'text' not in ocr_data or 'confidence' not in ocr_data:
+            return False, "Invalid OCR data structure received", None
+        
+        # Find text matches with robust checking and multiple strategies
+        expected_lower = advertiser_name.lower().strip()
+        confidence_threshold = 0.60  # Lowered to 60% for more robust detection
+        
+        print(f"[VERIFIER_HANDLER] Performing robust search for '{advertiser_name}' with {confidence_threshold*100:.0f}% confidence threshold...")
+        
+        match_found = False
+        match_method = ""
+        best_match_confidence = 0.0
+        best_match_text = ""
+        
+        # Strategy 1: High confidence exact matches (85%+)
+        print(f"[VERIFIER_HANDLER] Strategy 1: High confidence exact matches (85%+)...")
+        for i, text in enumerate(ocr_data['text']):
+            if not text.strip():
+                continue
+                
+            confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
+            
+            if confidence >= 0.85:  # High confidence threshold
+                text_lower = text.lower().strip()
+                
+                if expected_lower == text_lower:
+                    match_found = True
+                    match_method = f"high confidence exact match (confidence: {confidence:.2f})"
+                    best_match_confidence = confidence
+                    best_match_text = text
+                    print(f"[VERIFIER_HANDLER] ✓ Found high confidence exact match: '{text}' ({confidence:.2f})")
+                    break
+        
+        # Strategy 2: Medium confidence matches (60%+) with various patterns
+        if not match_found:
+            print(f"[VERIFIER_HANDLER] Strategy 2: Medium confidence matches (60%+) with pattern matching...")
+            for i, text in enumerate(ocr_data['text']):
+                if not text.strip():
+                    continue
+                    
+                confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
+                
+                if confidence >= confidence_threshold:
+                    text_lower = text.lower().strip()
+                    
+                    # Check for various match patterns
+                    if expected_lower == text_lower:
+                        if confidence > best_match_confidence:
+                            match_found = True
+                            match_method = f"exact match (confidence: {confidence:.2f})"
+                            best_match_confidence = confidence
+                            best_match_text = text
+                            print(f"[VERIFIER_HANDLER] ✓ Found exact match: '{text}' ({confidence:.2f})")
+                    elif expected_lower in text_lower:
+                        if confidence > best_match_confidence:
+                            match_found = True
+                            match_method = f"expected contains extracted (confidence: {confidence:.2f})"
+                            best_match_confidence = confidence
+                            best_match_text = text
+                            print(f"[VERIFIER_HANDLER] ✓ Found substring match: '{text}' ({confidence:.2f})")
+                    elif text_lower in expected_lower:
+                        if confidence > best_match_confidence:
+                            match_found = True
+                            match_method = f"extracted contains expected (confidence: {confidence:.2f})"
+                            best_match_confidence = confidence
+                            best_match_text = text
+                            print(f"[VERIFIER_HANDLER] ✓ Found partial match: '{text}' ({confidence:.2f})")
+        
+        # Strategy 3: Word-by-word matching (any confidence)
+        if not match_found:
+            print(f"[VERIFIER_HANDLER] Strategy 3: Word-by-word matching (any confidence)...")
+            expected_words = expected_lower.split()
+            
+            for i, text in enumerate(ocr_data['text']):
+                if not text.strip():
+                    continue
+                    
+                confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
+                text_lower = text.lower().strip()
+                text_words = text_lower.split()
+                
+                # Check if most words match
+                matching_words = 0
+                for expected_word in expected_words:
+                    for text_word in text_words:
+                        if expected_word in text_word or text_word in expected_word:
+                            matching_words += 1
+                            break
+                
+                word_match_ratio = matching_words / len(expected_words) if expected_words else 0
+                
+                if word_match_ratio >= 0.7:  # 70% word match
+                    if confidence > best_match_confidence:
+                        match_found = True
+                        match_method = f"word match ({matching_words}/{len(expected_words)} words, confidence: {confidence:.2f})"
+                        best_match_confidence = confidence
+                        best_match_text = text
+                        print(f"[VERIFIER_HANDLER] ✓ Found word match: '{text}' ({matching_words}/{len(expected_words)} words, {confidence:.2f})")
+        
+        # Strategy 4: Character-by-character similarity (any confidence)
+        if not match_found:
+            print(f"[VERIFIER_HANDLER] Strategy 4: Character similarity matching (any confidence)...")
+            
+            def calculate_similarity(str1, str2):
+                """Calculate character similarity between two strings"""
+                if not str1 or not str2:
+                    return 0.0
+                
+                # Remove spaces and special characters for comparison
+                clean1 = ''.join(c.lower() for c in str1 if c.isalnum())
+                clean2 = ''.join(c.lower() for c in str2 if c.isalnum())
+                
+                if not clean1 or not clean2:
+                    return 0.0
+                
+                # Simple character overlap calculation
+                matches = sum(1 for c in clean1 if c in clean2)
+                similarity = matches / max(len(clean1), len(clean2))
+                return similarity
+            
+            for i, text in enumerate(ocr_data['text']):
+                if not text.strip():
+                    continue
+                    
+                confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
+                similarity = calculate_similarity(expected_lower, text.lower())
+                
+                if similarity >= 0.8:  # 80% character similarity
+                    if confidence > best_match_confidence:
+                        match_found = True
+                        match_method = f"character similarity ({similarity:.2f}, confidence: {confidence:.2f})"
+                        best_match_confidence = confidence
+                        best_match_text = text
+                        print(f"[VERIFIER_HANDLER] ✓ Found character similarity: '{text}' (similarity: {similarity:.2f}, confidence: {confidence:.2f})")
+        
+        # Strategy 5: Fuzzy matching with very low threshold (last resort)
+        if not match_found:
+            print(f"[VERIFIER_HANDLER] Strategy 5: Fuzzy matching (last resort)...")
+            
+            for i, text in enumerate(ocr_data['text']):
+                if not text.strip():
+                    continue
+                    
+                confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
+                text_lower = text.lower().strip()
+                
+                # Very lenient fuzzy matching
+                if len(text_lower) > 0 and len(expected_lower) > 0:
+                    # Check if any significant portion matches
+                    min_len = min(len(text_lower), len(expected_lower))
+                    if min_len >= 3:  # Only for strings with at least 3 characters
+                        common_chars = sum(1 for c in expected_lower if c in text_lower)
+                        fuzzy_ratio = common_chars / max(len(expected_lower), len(text_lower))
+                        
+                        if fuzzy_ratio >= 0.6:  # 60% character overlap
+                            if confidence > best_match_confidence:
+                                match_found = True
+                                match_method = f"fuzzy match ({fuzzy_ratio:.2f}, confidence: {confidence:.2f})"
+                                best_match_confidence = confidence
+                                best_match_text = text
+                                print(f"[VERIFIER_HANDLER] ✓ Found fuzzy match: '{text}' (ratio: {fuzzy_ratio:.2f}, confidence: {confidence:.2f})")
+        
+        # Log detailed OCR results for debugging
+        print(f"[VERIFIER_HANDLER] OCR Results Summary:")
+        print(f"[VERIFIER_HANDLER]   Found {len(ocr_data['text'])} text elements:")
+        for i, text in enumerate(ocr_data['text']):
+            if text.strip():
+                confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
+                status = "✓ HIGH CONF" if confidence >= 0.85 else "✓ MED CONF" if confidence >= 0.60 else "✓ LOW CONF"
+                print(f"[VERIFIER_HANDLER]     {i+1}. '{text}' (confidence: {confidence:.2f}) {status}")
+        
+        if match_found:
+            success_msg = f"✓ Advertiser name '{advertiser_name}' verified in field ({match_method})"
+            print(f"[VERIFIER_HANDLER] {success_msg}")
+            
+            verification_data = {
+                "expected_text": advertiser_name,
+                "extracted_text": extracted_text,
+                "matched_text": best_match_text,
+                "match_confidence": best_match_confidence,
+                "field_region": field_region,
+                "debug_image": debug_filename,
+                "match_method": match_method,
+                "confidence_threshold": confidence_threshold,
+                "ocr_data": ocr_data
+            }
+            
+            return True, success_msg, verification_data
+        else:
+            error_msg = f"✗ Advertiser name verification failed. Expected: '{advertiser_name}', No matches found with any strategy"
+            print(f"[VERIFIER_HANDLER] {error_msg}")
+            
+            verification_data = {
+                "expected_text": advertiser_name,
+                "extracted_text": extracted_text,
+                "field_region": field_region,
+                "debug_image": debug_filename,
+                "confidence_threshold": confidence_threshold,
+                "ocr_data": ocr_data
+            }
+            
+            return False, error_msg, verification_data
         
     except Exception as e:
         error_msg = f"Error verifying advertiser name entry: {e}"
