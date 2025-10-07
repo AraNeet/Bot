@@ -60,7 +60,7 @@ def type_text(text: str, interval: float = 0.05) -> Tuple[bool, str]:
         print(f"[ACTION ERROR] {error_msg}")
         return False, error_msg
 
-def press_key(key: str, presses: int = 1) -> Tuple[bool, str]:
+def press_key(key: str, presses: int) -> Tuple[bool, str]:
     """
     Press a specific key one or more times.
     

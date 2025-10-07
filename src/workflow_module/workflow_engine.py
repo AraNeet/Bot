@@ -3,147 +3,123 @@
 Workflow Engine Module - Orchestrates Objective Execution
 
 CLEAR TERMINOLOGY:
-- Objective: What the user wants to accomplish (e.g., "make_file", "edit_copy_instruction")
-- Values: User-provided data (e.g., {"file_name": "test.txt", "text": "Hello"})
-- Instructions: Action steps the bot performs (e.g., open_menu, type_text, save_file)
+- Objective: What the user wants to accomplish (e.g., "edit_copy_instruction")
+- Values: User-provided data (e.g., {"advertiser_name": "Acme Corp"})
+- Instructions: Action steps the bot performs (e.g., type_text, press_key)
 
-This module orchestrates the execution of objectives by:
-1. Loading instruction definitions and values using instruction_loader_helper
-2. Verifying workspace is ready using verifier
-3. Executing each instruction with retry logic
-4. Verifying each action completed successfully
+This module orchestrates the EXECUTION phase of workflows:
+1. Verify workspace is ready
+2. Execute each instruction with retry logic
+3. Verify each action completed successfully
+4. Track results and handle errors
 
-The workflow engine focuses on orchestration and uses verifier for all verification.
+The PLANNING phase (loading & preparing instructions) is now in workflow_planner.py
+
+Responsibilities:
+- Verify workspace readiness before starting
+- Execute instructions via action_executor
+- Verify each action via verifier
+- Implement retry logic for failed actions
+- Track execution progress and results
+- Send error notifications on failures
 """
 
 from typing import Dict, Any, List, Tuple, Optional
-from workflow_module.helpers import instruction_loader
-from src.workflow_module import verifier
+from src.workflow_module import action_executor, verifier
 from src.notification_module import notify_error
-
-
-def prepare_single_objective(objective_type: str, 
-                            objective_values: Dict[str, Any],
-                            actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
-    """
-    Prepare instruction data for a single objective execution.
-    
-    This function:
-    1. Uses instruction_loader_helper to load and prepare all data
-    2. Validates the loaded data
-    3. Returns prepared instructions ready for execution
-    
-    Args:
-        objective_type: The type of objective to prepare (e.g., "make_file")
-        objective_values: User-provided values (e.g., {"file_name": "test.txt"})
-        actions_dir: Directory containing instruction definition JSON files
-        
-    Returns:
-        Tuple of (success: bool, prepared_data or error_message)
-        
-    Success returns:
-    {
-        "objective_type": "edit_copy_instruction",
-        "instructions": [list of instructions with merged parameters],
-        "required_values": {dict of required values},
-        "optional_values": {dict of optional values}
-    }
-    """
-    print(f"\n{'='*50}")
-    print(f"Preparing objective: {objective_type}")
-    print(f"{'='*50}")
-    
-    # Load instruction data using helper
-    print(f"\n[WORKFLOW] Loading instruction data...")
-    success, loaded_data = instruction_loader.load_objective_data(
-        objective_type=objective_type,
-        objective_values=objective_values,
-        actions_dir=actions_dir
-    )
-    
-    if not success:
-        error_msg = f"Failed to load instruction data: {loaded_data}"
-        print(f"[WORKFLOW ERROR] {error_msg}")
-        notify_error(error_msg, "workflow.prepare_single_objective",
-                    {"objective_type": objective_type})
-        return False, error_msg
-    
-    # Extract and validate prepared data
-    instructions = loaded_data.get("instructions", [])
-    required_values = loaded_data.get("required_values", {})
-    optional_values = loaded_data.get("optional_values", {})
-    
-    # Validate instructions list
-    if not instructions:
-        error_msg = f"No instructions found for objective type: {objective_type}"
-        print(f"[WORKFLOW ERROR] {error_msg}")
-        return False, error_msg
-    
-    print(f"\n[WORKFLOW SUCCESS] Instruction data prepared successfully:")
-    print(f"  - Total instructions: {len(instructions)}")
-    print(f"  - Required fields: {len(required_values)}")
-    print(f"  - Optional fields: {len(optional_values)}")
-    
-    return True, loaded_data
-
 
 def execute_single_instruction(instruction: Dict[str, Any],
                                 instruction_index: int,
                                 total_instructions: int,
-                                action_executor = None,
                                 max_retries: int = 3) -> Tuple[bool, str]:
     """
     Execute a single instruction with retry logic and verification.
     
-    Flow:
-    1. Execute action (via action_executor - to be implemented)
-    2. Verify action completed (via verifier)
-    3. If verification fails, retry up to max_retries times
-    4. Return success/failure
+    Execution flow:
+    1. Extract instruction details (action_type, parameters, verification)
+    2. For each attempt (up to max_retries):
+        a. Execute action via action_executor
+        b. Verify action completed via verifier
+        c. If verification fails, save debug screenshot and retry
+    3. If all retries fail, send error notification
     
     Args:
-        instruction: Single instruction dictionary with action_type, parameters, verification
+        instruction: Single instruction dictionary with:
+            - action_type: Type of action to perform
+            - description: Human-readable description
+            - parameters: Action parameters (already filled by planner)
+            - verification: Optional verification config
         instruction_index: Current instruction number (for display)
         total_instructions: Total number of instructions (for display)
-        action_executor: Action executor module (placeholder for now)
         max_retries: Maximum number of retry attempts
         
     Returns:
         Tuple of (success: bool, message)
+        
+    Example instruction:
+    {
+        "action_type": "type_text",
+        "description": "Enter advertiser name",
+        "parameters": {
+            "text": "Acme Corp",
+            "interval": 0.05
+        },
+        "verification": {
+            "type": "text_inputted",
+            "expected_text": "Acme Corp"
+        }
+    }
     """
+    # Extract instruction components
     action_type = instruction.get("action_type")
     description = instruction.get("description", "No description")
     parameters = instruction.get("parameters", {})
     verification_config = instruction.get("verification")
     
     print(f"\n{'─'*60}")
-    print(f"Step {instruction_index}/{total_instructions}: {action_type}")
-    print(f"Description: {description}")
-    print(f"Parameters: {parameters}")
+    print(f"[ENGINE] Step {instruction_index}/{total_instructions}: {action_type}")
+    print(f"[ENGINE] Description: {description}")
+    print(f"[ENGINE] Parameters: {parameters}")
     print(f"{'─'*60}")
     
     # Retry loop
     for attempt in range(1, max_retries + 1):
-        print(f"\n[WORKFLOW] Attempt {attempt}/{max_retries}")
+        print(f"\n[ENGINE] Attempt {attempt}/{max_retries}")
         
         # Step 1: Execute action
-        # TODO: Implement action_executor integration
-        # For now, we'll simulate action execution
-        print(f"[WORKFLOW] Executing action: {action_type}")
-        if action_executor is None:
-            print(f"[WORKFLOW] Action executor not implemented yet - simulating execution")
-            action_success = True  # Simulate success
-        else:
-            # Will implement this later
-            action_success = True
+        print(f"[ENGINE] Executing action via action_executor...")
+        action_success, action_msg = action_executor.execute_action(
+            action_type=action_type,
+            parameters=parameters
+        )
         
         if not action_success:
-            print(f"[WORKFLOW] Action execution failed")
-            continue  # Retry
+            print(f"[ENGINE ERROR] Action execution failed: {action_msg}")
+            
+            # If this was the last attempt, fail
+            if attempt == max_retries:
+                error_msg = f"Action '{action_type}' failed after {max_retries} attempts: {action_msg}"
+                notify_error(
+                    error_msg,
+                    "workflow_engine.execute_single_instruction",
+                    {
+                        "action_type": action_type,
+                        "parameters": parameters,
+                        "attempts": max_retries,
+                        "final_error": action_msg
+                    }
+                )
+                return False, error_msg
+            
+            # Otherwise, retry
+            print(f"[ENGINE] Retrying action...")
+            continue
         
-        # Step 2: Verify action completed
+        print(f"[ENGINE SUCCESS] Action executed: {action_msg}")
+        
+        # Step 2: Verify action completed (if verification configured)
         if verification_config:
-            print(f"[WORKFLOW] Verifying action completion...")
+            print(f"[ENGINE] Verifying action completion...")
             
             verification_success, verification_msg = verifier.verify_action_completed(
                 action_type=action_type,
@@ -152,12 +128,12 @@ def execute_single_instruction(instruction: Dict[str, Any],
             )
             
             if verification_success:
-                print(f"[WORKFLOW SUCCESS] Action verified successfully")
+                print(f"[ENGINE SUCCESS] Action verified: {verification_msg}")
                 return True, f"Action '{action_type}' completed and verified"
             else:
-                print(f"[WORKFLOW] Verification failed: {verification_msg}")
+                print(f"[ENGINE ERROR] Verification failed: {verification_msg}")
                 
-                # Save failure context
+                # Save failure context for debugging
                 screenshot_path = verifier.save_failure_context(
                     action_type=action_type,
                     parameters=parameters,
@@ -165,17 +141,14 @@ def execute_single_instruction(instruction: Dict[str, Any],
                     attempt_number=attempt
                 )
                 
-                print(f"[WORKFLOW] Failure screenshot saved: {screenshot_path}")
+                print(f"[ENGINE] Debug screenshot saved: {screenshot_path}")
                 
                 # Check if this was the last attempt
                 if attempt == max_retries:
-                    error_msg = f"Action '{action_type}' failed verification after {max_retries} attempts: {verification_msg}"
-                    print(f"[WORKFLOW ERROR] {error_msg}")
-                    
-                    # Send error notification
+                    error_msg = f"Action '{action_type}' failed verification after {max_retries} attempts"
                     notify_error(
-                        f"Action failed after {max_retries} attempts",
-                        "workflow.execute_single_instruction",
+                        error_msg,
+                        "workflow_engine.execute_single_instruction",
                         {
                             "action_type": action_type,
                             "parameters": parameters,
@@ -184,48 +157,159 @@ def execute_single_instruction(instruction: Dict[str, Any],
                             "attempts": max_retries
                         }
                     )
-                    
-                    return False, error_msg
+                    return False, f"{error_msg}: {verification_msg}"
                 else:
-                    print(f"[WORKFLOW] Retrying action...")
+                    print(f"[ENGINE] Retrying action after verification failure...")
         else:
-            # No verification configured - assume success
-            print(f"[WORKFLOW] No verification configured - assuming success")
+            # No verification configured - assume success after execution
+            print(f"[ENGINE] No verification configured - assuming success")
             return True, f"Action '{action_type}' executed (no verification)"
     
     # Should not reach here, but just in case
     return False, f"Action '{action_type}' failed after {max_retries} attempts"
 
+# ============================================================================
+# OBJECTIVE EXECUTION
+# ============================================================================
+
+def execute_single_objective(objective: Dict[str, Any],
+                             objective_index: int,
+                             total_objectives: int,
+                             max_retries: int = 3) -> Tuple[bool, Dict[str, Any]]:
+    """
+    Execute all instructions for a single objective.
+    
+    This function:
+    1. Extracts objective details
+    2. Executes each instruction sequentially
+    3. Stops on first failure (fail-fast)
+    4. Returns detailed execution results
+    
+    Args:
+        objective: Prepared objective from planner with structure:
+            {
+                "objective_type": "edit_copy_instruction",
+                "value_set_index": 1,
+                "instructions": [list of instructions]
+            }
+        objective_index: Current objective number (for display)
+        total_objectives: Total number of objectives (for display)
+        max_retries: Maximum retry attempts per instruction
+        
+    Returns:
+        Tuple of (success: bool, result_details)
+        
+    Result details structure:
+    {
+        "objective_type": "edit_copy_instruction",
+        "value_set_index": 1,
+        "status": "SUCCESS" or "FAILED",
+        "instructions_completed": 5,
+        "total_instructions": 10,
+        "failure_reason": "..." (if failed)
+    }
+    """
+    # Extract objective details
+    objective_type = objective.get("objective_type", "unknown")
+    value_set_index = objective.get("value_set_index", objective_index)
+    instructions = objective.get("instructions", [])
+    
+    print(f"\n{'='*60}")
+    print(f"[ENGINE] Executing Objective {objective_index}/{total_objectives}")
+    print(f"[ENGINE] Type: {objective_type}")
+    print(f"[ENGINE] Value set: #{value_set_index}")
+    print(f"[ENGINE] Instructions: {len(instructions)}")
+    print(f"{'='*60}")
+    
+    # Initialize result tracking
+    result = {
+        "objective_type": objective_type,
+        "value_set_index": value_set_index,
+        "status": "IN_PROGRESS",
+        "instructions_completed": 0,
+        "total_instructions": len(instructions),
+        "failure_reason": None
+    }
+    
+    # Execute each instruction
+    for inst_index, instruction in enumerate(instructions, start=1):
+        success, msg = execute_single_instruction(
+            instruction=instruction,
+            instruction_index=inst_index,
+            total_instructions=len(instructions),
+            max_retries=max_retries
+        )
+        
+        if success:
+            result["instructions_completed"] += 1
+            print(f"[ENGINE] ✓ Instruction {inst_index}/{len(instructions)} completed")
+        else:
+            # Instruction failed - stop this objective
+            result["status"] = "FAILED"
+            result["failure_reason"] = msg
+            print(f"[ENGINE ERROR] ✗ Instruction {inst_index}/{len(instructions)} failed")
+            print(f"[ENGINE ERROR] Failure reason: {msg}")
+            print(f"[ENGINE] Stopping objective due to instruction failure")
+            return False, result
+    
+    # All instructions completed successfully
+    result["status"] = "SUCCESS"
+    print(f"\n[ENGINE SUCCESS] ✓ Objective '{objective_type}' (set #{value_set_index}) completed")
+    print(f"[ENGINE SUCCESS] All {len(instructions)} instructions executed successfully")
+    
+    return True, result
+
+# ============================================================================
+# WORKFLOW EXECUTION
+# ============================================================================
 
 def execute_workflow(prepared_objectives: List[Dict[str, Any]],
                     corner_templates: Dict[str, Any],
                     expected_page_text: Optional[str] = None,
-                    action_executor = None,
                     max_retries: int = 3) -> Tuple[bool, Dict[str, Any]]:
     """
     Execute the complete workflow for all prepared objectives.
     
-    Flow:
-    1. Verify workspace is ready
+    Execution flow:
+    1. Verify workspace is ready (maximized + correct page)
     2. For each prepared objective:
-       - For each instruction:
-         - Execute with retry logic
-         - Verify completion
-    3. Track results and return summary
+        - Execute all instructions
+        - Track results
+        - Stop on first failure (fail-fast)
+    3. Return comprehensive execution summary
     
     Args:
-        prepared_objectives: List of prepared objectives from prepare_workflow()
+        prepared_objectives: List of prepared objectives from planner
         corner_templates: Corner templates for workspace verification
         expected_page_text: Text to verify correct page is loaded
-        action_executor: Action executor module (placeholder)
-        max_retries: Maximum retry attempts per action
+        max_retries: Maximum retry attempts per instruction
         
     Returns:
         Tuple of (success: bool, results_summary)
+        
+    Results summary structure:
+    {
+        "total_objectives": 5,
+        "completed_objectives": 3,
+        "failed_objectives": 1,
+        "total_instructions": 50,
+        "completed_instructions": 35,
+        "failed_instructions": 1,
+        "details": [
+            {
+                "objective_type": "edit_copy_instruction",
+                "value_set_index": 1,
+                "status": "SUCCESS",
+                "instructions_completed": 10,
+                "total_instructions": 10
+            },
+            ...
+        ]
+    }
     """
-    print("\n" + "="*60)
+    print("\n" + "="*70)
     print("WORKFLOW ENGINE - STARTING EXECUTION")
-    print("="*60)
+    print("="*70)
     
     # Initialize results tracking
     results = {
@@ -238,8 +322,14 @@ def execute_workflow(prepared_objectives: List[Dict[str, Any]],
         "details": []
     }
     
+    # Count total instructions
+    results["total_instructions"] = sum(
+        len(obj.get("instructions", [])) 
+        for obj in prepared_objectives
+    )
+    
     # Step 1: Verify workspace is ready
-    print("\n[WORKFLOW] Verifying workspace is ready...")
+    print("\n[ENGINE] Verifying workspace is ready...")
     workspace_ready, workspace_msg = verifier.check_workspace_ready(
         corner_templates=corner_templates,
         expected_page_text=expected_page_text
@@ -247,182 +337,233 @@ def execute_workflow(prepared_objectives: List[Dict[str, Any]],
     
     if not workspace_ready:
         error_msg = f"Workspace verification failed: {workspace_msg}"
-        print(f"[WORKFLOW ERROR] {error_msg}")
+        print(f"[ENGINE ERROR] {error_msg}")
         notify_error(
             "Workspace not ready for workflow execution",
-            "workflow.execute_workflow",
+            "workflow_engine.execute_workflow",
             {"error": workspace_msg}
         )
         return False, results
     
-    print(f"[WORKFLOW SUCCESS] {workspace_msg}")
+    print(f"[ENGINE SUCCESS] ✓ {workspace_msg}")
+    print(f"[ENGINE] Workspace is ready - starting execution...")
     
     # Step 2: Execute each prepared objective
-    for obj_index, prepared_obj in enumerate(prepared_objectives, start=1):
-        objective_type = prepared_obj.get("objective_type")
-        value_set_index = prepared_obj.get("value_set_index", obj_index)
-        instructions = prepared_obj.get("instructions", [])
+    for obj_index, objective in enumerate(prepared_objectives, start=1):
+        success, result_details = execute_single_objective(
+            objective=objective,
+            objective_index=obj_index,
+            total_objectives=len(prepared_objectives),
+            max_retries=max_retries
+        )
         
-        results["total_instructions"] += len(instructions)
+        # Update overall statistics
+        completed_insts = result_details.get("instructions_completed", 0)
+        total_insts = result_details.get("total_instructions", 0)
         
-        print(f"\n{'='*60}")
-        print(f"Executing Objective {obj_index}/{len(prepared_objectives)}")
-        print(f"Type: {objective_type}")
-        print(f"Value set: {value_set_index}")
-        print(f"Instructions: {len(instructions)}")
-        print(f"{'='*60}")
+        results["completed_instructions"] += completed_insts
+        results["failed_instructions"] += (total_insts - completed_insts)
         
-        objective_success = True
-        
-        # Execute each instruction
-        for inst_index, instruction in enumerate(instructions, start=1):
-            success, msg = execute_single_instruction(
-                instruction=instruction,
-                instruction_index=inst_index,
-                total_instructions=len(instructions),
-                action_executor=action_executor,
-                max_retries=max_retries
-            )
-            
-            if success:
-                results["completed_instructions"] += 1
-                print(f"[WORKFLOW] Instruction {inst_index}/{len(instructions)} completed")
-            else:
-                results["failed_instructions"] += 1
-                objective_success = False
-                print(f"[WORKFLOW ERROR] Instruction {inst_index}/{len(instructions)} failed: {msg}")
-                
-                # Stop this objective on first failure
-                break
-        
-        # Track objective result
-        if objective_success:
+        if success:
             results["completed_objectives"] += 1
-            status = "SUCCESS"
-            print(f"\n[WORKFLOW SUCCESS] Objective '{objective_type}' completed successfully")
+            print(f"\n[ENGINE] Objective {obj_index}/{len(prepared_objectives)}: SUCCESS ✓")
         else:
             results["failed_objectives"] += 1
-            status = "FAILED"
-            print(f"\n[WORKFLOW ERROR] Objective '{objective_type}' failed")
+            print(f"\n[ENGINE] Objective {obj_index}/{len(prepared_objectives)}: FAILED ✗")
+            
+            # Add failure details
+            result_details["failure_index"] = obj_index
+            
+            # Notify about objective failure
+            notify_error(
+                f"Workflow stopped due to failure in objective '{result_details['objective_type']}'",
+                "workflow_engine.execute_workflow",
+                {
+                    "objective_type": result_details["objective_type"],
+                    "value_set_index": result_details["value_set_index"],
+                    "failure_reason": result_details.get("failure_reason"),
+                    "completed_objectives": results["completed_objectives"],
+                    "failed_objectives": results["failed_objectives"]
+                }
+            )
         
-        results["details"].append({
-            "objective_type": objective_type,
-            "value_set_index": value_set_index,
-            "status": status,
-            "instructions_completed": inst_index - (0 if objective_success else 1),
-            "total_instructions": len(instructions)
-        })
+        # Add detailed result
+        results["details"].append(result_details)
         
         # Stop workflow on objective failure (fail-fast)
-        if not objective_success:
-            error_context = {
-                "objective_type": objective_type,
-                "value_set_index": value_set_index,
-                "completed_objectives": results["completed_objectives"],
-                "failed_objectives": results["failed_objectives"]
-            }
-            notify_error(
-                f"Workflow stopped due to failure in '{objective_type}'",
-                "workflow.execute_workflow",
-                error_context
-            )
-            print(f"\n[WORKFLOW STOPPED] Stopping execution due to objective failure")
+        if not success:
+            print(f"\n[ENGINE] Stopping workflow execution due to objective failure")
             break
     
     # Print final summary
-    print("\n" + "="*60)
-    print("WORKFLOW ENGINE - EXECUTION COMPLETE")
-    print("="*60)
-    print(f"Objectives: {results['completed_objectives']}/{results['total_objectives']} completed")
-    print(f"Instructions: {results['completed_instructions']}/{results['total_instructions']} completed")
-    print(f"Failed objectives: {results['failed_objectives']}")
-    print(f"Failed instructions: {results['failed_instructions']}")
-    print("="*60 + "\n")
+    print_execution_summary(results)
     
     # Determine overall success
     overall_success = results['failed_objectives'] == 0
     
     return overall_success, results
 
+# ============================================================================
+# MAIN ENTRY POINT
+# ============================================================================
 
 def start_workflow(parser_results: Dict[str, Any],
-                                    corner_templates: Dict[str, Any],
-                                    expected_page_text: Optional[str] = None,
-                                    action_executor = None,
-                                    max_retries: int = 3,
-                                    actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
+                  corner_templates: Dict[str, Any],
+                  expected_page_text: Optional[str] = None,
+                  max_retries: int = 3,
+                  actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
     """
-    Start the workflow execution from parser results.
+    Start the complete workflow from parser results.
     
     This is the main entry point that:
-    1. Receives parser results
-    2. Prepares all objectives
+    1. Validates parser results
+    2. Plans workflow (via planner module)
     3. Verifies workspace
-    4. Executes workflow with retry logic
+    4. Executes workflow
+    5. Returns results
     
     Args:
         parser_results: Results from parser.process_objectives_file()
         corner_templates: Corner templates for workspace verification
         expected_page_text: Text to verify correct page is loaded
-        action_executor: Action executor module (placeholder)
-        max_retries: Maximum retry attempts per action
+        max_retries: Maximum retry attempts per instruction
         actions_dir: Directory containing instruction JSON files
         
     Returns:
-        Tuple of (success: bool, workflow_results)
+        Tuple of (success: bool, workflow_results or error_message)
+        
+    Example usage:
+        # In main.py:
+        from src.workflow_module import workflow_engine
+        
+        success, results = workflow_engine.start_workflow(
+            parser_results=parser_results,
+            corner_templates=config['corner_templates'],
+            expected_page_text="Multinetwork Instructions"
+        )
+        
+        if success:
+            print(f"Workflow completed: {results['completed_objectives']} objectives")
+        else:
+            print(f"Workflow failed: {results}")
     """
-
-    supported_objectives = parser_results["supported_objectives"]
+    print("\n" + "="*70)
+    print("WORKFLOW ENGINE - WORKFLOW START")
+    print("="*70)
     
-    # Validate it's a list
-    if not isinstance(supported_objectives, list):
-        error_msg = f"'supported_objectives' must be a list, got: {type(supported_objectives)}"
-        print(f"[WORKFLOW ERROR] {error_msg}")
+    # Import planner (imported here to avoid circular imports)
+    from src.workflow_module import workflow_planner
+    
+    # Step 1: Plan workflow (preparation phase)
+    print("\n[ENGINE] Starting planning phase...")
+    success, result = workflow_planner.plan_workflow(
+        parser_results=parser_results,
+        actions_dir=actions_dir
+    )
+    
+    if not success:
+        error_msg = f"Planning phase failed: {result}"
+        print(f"[ENGINE ERROR] {error_msg}")
         return False, error_msg
     
-    print(f"[WORKFLOW] Validation successful")
-    print(f"[WORKFLOW] Found {len(supported_objectives)} supported objective type(s)")
+    prepared_objectives = result
+    print(f"[ENGINE SUCCESS] ✓ Planning phase complete")
+    print(f"[ENGINE] Prepared {len(prepared_objectives)} objectives for execution")
     
-    # Step 1: Prepare all objectives
-    print("\n" + "="*60)
-    print("WORKFLOW ENGINE - PREPARING OBJECTIVES")
-    print("="*60)
-    
-    prepared_objectives = []
-    
-    for obj_index, objective in enumerate(supported_objectives, start=1):
-        objective_type = objective.get("objective_type")
-        values_list = objective.get("values_list", [])
-        
-        print(f"\n[WORKFLOW] Preparing '{objective_type}' ({len(values_list)} value sets)")
-        
-        for val_index, objective_values in enumerate(values_list, start=1):
-            success, prepared_data = prepare_single_objective(
-                objective_type=objective_type,
-                objective_values=objective_values,
-                actions_dir=actions_dir
-            )
-            
-            if not success:
-                error_msg = f"Failed to prepare '{objective_type}' (value set {val_index}): {prepared_data}"
-                print(f"[WORKFLOW ERROR] {error_msg}")
-                notify_error(error_msg, "workflow.start_workflow_from_parser_results",
-                           {"objective_type": objective_type, "value_set_index": val_index})
-                return False, error_msg
-            
-            # Add value_set_index for tracking
-            prepared_data["value_set_index"] = val_index
-            prepared_objectives.append(prepared_data)
-    
-    print(f"\n[WORKFLOW SUCCESS] All objectives prepared: {len(prepared_objectives)} total")
-    
-    # Step 2: Execute the workflow
-    success, results = execute_workflow(
+    # Step 2: Execute workflow (execution phase)
+    print("\n[ENGINE] Starting execution phase...")
+    success, execution_results = execute_workflow(
         prepared_objectives=prepared_objectives,
         corner_templates=corner_templates,
         expected_page_text=expected_page_text,
-        action_executor=action_executor,
         max_retries=max_retries
     )
     
-    return success, results
+    print("\n" + "="*70)
+    if success:
+        print("WORKFLOW ENGINE - WORKFLOW COMPLETE ✓")
+    else:
+        print("WORKFLOW ENGINE - WORKFLOW FAILED ✗")
+    print("="*70 + "\n")
+    
+    return success, execution_results
+
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
+
+def print_execution_summary(results: Dict[str, Any]) -> None:
+    """
+    Print a detailed summary of workflow execution results.
+    
+    Args:
+        results: Results dictionary from execute_workflow()
+    """
+    print("\n" + "="*70)
+    print("WORKFLOW EXECUTION SUMMARY")
+    print("="*70)
+    
+    # Overall statistics
+    print(f"\nObjectives:")
+    print(f"  Total:     {results['total_objectives']}")
+    print(f"  Completed: {results['completed_objectives']} ✓")
+    print(f"  Failed:    {results['failed_objectives']} {'✗' if results['failed_objectives'] > 0 else ''}")
+    
+    print(f"\nInstructions:")
+    print(f"  Total:     {results['total_instructions']}")
+    print(f"  Completed: {results['completed_instructions']} ✓")
+    print(f"  Failed:    {results['failed_instructions']} {'✗' if results['failed_instructions'] > 0 else ''}")
+    
+    # Detailed breakdown
+    if results['details']:
+        print(f"\nDetailed Results:")
+        for detail in results['details']:
+            obj_type = detail.get('objective_type', 'unknown')
+            val_idx = detail.get('value_set_index', '?')
+            status = detail.get('status', 'UNKNOWN')
+            completed = detail.get('instructions_completed', 0)
+            total = detail.get('total_instructions', 0)
+            
+            status_icon = "✓" if status == "SUCCESS" else "✗"
+            print(f"  {status_icon} {obj_type} (set #{val_idx}): {completed}/{total} instructions")
+            
+            if status == "FAILED":
+                failure_reason = detail.get('failure_reason', 'Unknown error')
+                print(f"     └─ Reason: {failure_reason}")
+    
+    # Final status
+    print(f"\n{'─'*70}")
+    if results['failed_objectives'] == 0:
+        print("Overall Status: SUCCESS ✓")
+    else:
+        print("Overall Status: FAILED ✗")
+    print(f"{'='*70}\n")
+
+def get_execution_statistics(results: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extract key statistics from execution results.
+    
+    Args:
+        results: Results dictionary from execute_workflow()
+        
+    Returns:
+        Dictionary with key statistics
+        
+    Example:
+        stats = get_execution_statistics(results)
+        print(f"Success rate: {stats['success_rate']:.1f}%")
+    """
+    total_obj = results.get('total_objectives', 0)
+    completed_obj = results.get('completed_objectives', 0)
+    total_inst = results.get('total_instructions', 0)
+    completed_inst = results.get('completed_instructions', 0)
+    
+    return {
+        'total_objectives': total_obj,
+        'completed_objectives': completed_obj,
+        'objective_success_rate': (completed_obj / total_obj * 100) if total_obj > 0 else 0,
+        'total_instructions': total_inst,
+        'completed_instructions': completed_inst,
+        'instruction_success_rate': (completed_inst / total_inst * 100) if total_inst > 0 else 0,
+        'overall_success': results.get('failed_objectives', 1) == 0
+    }
