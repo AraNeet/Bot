@@ -134,35 +134,6 @@ def load_image(image_path: str) -> Optional[np.ndarray]:
         print(f"[CV ERROR] Exception loading image: {e}")
         return None
 
-def convert_color(image: np.ndarray, 
-                 conversion_code: int) -> Optional[np.ndarray]:
-    """
-    Convert image between color spaces.
-    
-    Args:
-        image: Input image as numpy array
-        conversion_code: OpenCV color conversion code (e.g., cv2.COLOR_BGR2GRAY)
-        
-    Returns:
-        Converted image, or None if failed
-        
-    Common conversion codes:
-        - cv2.COLOR_BGR2GRAY: Convert to grayscale
-        - cv2.COLOR_BGR2RGB: Convert to RGB
-        - cv2.COLOR_BGR2HSV: Convert to HSV
-        
-    Example:
-        gray_image = convert_color(screenshot, cv2.COLOR_BGR2GRAY)
-    """
-    try:
-        converted = cv2.cvtColor(image, conversion_code)
-        print(f"[CV] Color conversion applied: {image.shape} -> {converted.shape}")
-        return converted
-        
-    except Exception as e:
-        print(f"[CV ERROR] Color conversion failed: {e}")
-        return None
-
 def get_image_dimensions(image: np.ndarray) -> Tuple[int, int]:
     """
     Get the dimensions of an image.
