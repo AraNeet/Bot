@@ -133,11 +133,6 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
         if cropped_image is None:
             return False, "Failed to crop image to advertiser field region", None
         
-        # Save the cropped image for debugging
-        debug_filename = f"advertiser_field_verification_{int(time.time())}.png"
-        cv2.imwrite(debug_filename, cropped_image)
-        print(f"[VERIFIER_HANDLER] Saved cropped advertiser field for debugging: {debug_filename}")
-        
         # Use OCR to extract text from the cropped field region
         print(f"[VERIFIER_HANDLER] Extracting text from advertiser field...")
         success, extracted_text = verifier_helpers.extract_text_from_cropped_image(cropped_image)
@@ -188,144 +183,6 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
                     print(f"[VERIFIER_HANDLER] ✓ Found high confidence exact match: '{text}' ({confidence:.2f})")
                     break
         
-        # Strategy 2: Medium confidence matches (60%+) with various patterns
-        if not match_found:
-            print(f"[VERIFIER_HANDLER] Strategy 2: Medium confidence matches (60%+) with pattern matching...")
-            for i, text in enumerate(ocr_data['text']):
-                if not text.strip():
-                    continue
-                    
-                confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
-                
-                if confidence >= confidence_threshold:
-                    text_lower = text.lower().strip()
-                    
-                    # Check for various match patterns
-                    if expected_lower == text_lower:
-                        if confidence > best_match_confidence:
-                            match_found = True
-                            match_method = f"exact match (confidence: {confidence:.2f})"
-                            best_match_confidence = confidence
-                            best_match_text = text
-                            print(f"[VERIFIER_HANDLER] ✓ Found exact match: '{text}' ({confidence:.2f})")
-                    elif expected_lower in text_lower:
-                        if confidence > best_match_confidence:
-                            match_found = True
-                            match_method = f"expected contains extracted (confidence: {confidence:.2f})"
-                            best_match_confidence = confidence
-                            best_match_text = text
-                            print(f"[VERIFIER_HANDLER] ✓ Found substring match: '{text}' ({confidence:.2f})")
-                    elif text_lower in expected_lower:
-                        if confidence > best_match_confidence:
-                            match_found = True
-                            match_method = f"extracted contains expected (confidence: {confidence:.2f})"
-                            best_match_confidence = confidence
-                            best_match_text = text
-                            print(f"[VERIFIER_HANDLER] ✓ Found partial match: '{text}' ({confidence:.2f})")
-        
-        # Strategy 3: Word-by-word matching (any confidence)
-        if not match_found:
-            print(f"[VERIFIER_HANDLER] Strategy 3: Word-by-word matching (any confidence)...")
-            expected_words = expected_lower.split()
-            
-            for i, text in enumerate(ocr_data['text']):
-                if not text.strip():
-                    continue
-                    
-                confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
-                text_lower = text.lower().strip()
-                text_words = text_lower.split()
-                
-                # Check if most words match
-                matching_words = 0
-                for expected_word in expected_words:
-                    for text_word in text_words:
-                        if expected_word in text_word or text_word in expected_word:
-                            matching_words += 1
-                            break
-                
-                word_match_ratio = matching_words / len(expected_words) if expected_words else 0
-                
-                if word_match_ratio >= 0.7:  # 70% word match
-                    if confidence > best_match_confidence:
-                        match_found = True
-                        match_method = f"word match ({matching_words}/{len(expected_words)} words, confidence: {confidence:.2f})"
-                        best_match_confidence = confidence
-                        best_match_text = text
-                        print(f"[VERIFIER_HANDLER] ✓ Found word match: '{text}' ({matching_words}/{len(expected_words)} words, {confidence:.2f})")
-        
-        # Strategy 4: Character-by-character similarity (any confidence)
-        if not match_found:
-            print(f"[VERIFIER_HANDLER] Strategy 4: Character similarity matching (any confidence)...")
-            
-            def calculate_similarity(str1, str2):
-                """Calculate character similarity between two strings"""
-                if not str1 or not str2:
-                    return 0.0
-                
-                # Remove spaces and special characters for comparison
-                clean1 = ''.join(c.lower() for c in str1 if c.isalnum())
-                clean2 = ''.join(c.lower() for c in str2 if c.isalnum())
-                
-                if not clean1 or not clean2:
-                    return 0.0
-                
-                # Simple character overlap calculation
-                matches = sum(1 for c in clean1 if c in clean2)
-                similarity = matches / max(len(clean1), len(clean2))
-                return similarity
-            
-            for i, text in enumerate(ocr_data['text']):
-                if not text.strip():
-                    continue
-                    
-                confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
-                similarity = calculate_similarity(expected_lower, text.lower())
-                
-                if similarity >= 0.8:  # 80% character similarity
-                    if confidence > best_match_confidence:
-                        match_found = True
-                        match_method = f"character similarity ({similarity:.2f}, confidence: {confidence:.2f})"
-                        best_match_confidence = confidence
-                        best_match_text = text
-                        print(f"[VERIFIER_HANDLER] ✓ Found character similarity: '{text}' (similarity: {similarity:.2f}, confidence: {confidence:.2f})")
-        
-        # Strategy 5: Fuzzy matching with very low threshold (last resort)
-        if not match_found:
-            print(f"[VERIFIER_HANDLER] Strategy 5: Fuzzy matching (last resort)...")
-            
-            for i, text in enumerate(ocr_data['text']):
-                if not text.strip():
-                    continue
-                    
-                confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
-                text_lower = text.lower().strip()
-                
-                # Very lenient fuzzy matching
-                if len(text_lower) > 0 and len(expected_lower) > 0:
-                    # Check if any significant portion matches
-                    min_len = min(len(text_lower), len(expected_lower))
-                    if min_len >= 3:  # Only for strings with at least 3 characters
-                        common_chars = sum(1 for c in expected_lower if c in text_lower)
-                        fuzzy_ratio = common_chars / max(len(expected_lower), len(text_lower))
-                        
-                        if fuzzy_ratio >= 0.6:  # 60% character overlap
-                            if confidence > best_match_confidence:
-                                match_found = True
-                                match_method = f"fuzzy match ({fuzzy_ratio:.2f}, confidence: {confidence:.2f})"
-                                best_match_confidence = confidence
-                                best_match_text = text
-                                print(f"[VERIFIER_HANDLER] ✓ Found fuzzy match: '{text}' (ratio: {fuzzy_ratio:.2f}, confidence: {confidence:.2f})")
-        
-        # Log detailed OCR results for debugging
-        print(f"[VERIFIER_HANDLER] OCR Results Summary:")
-        print(f"[VERIFIER_HANDLER]   Found {len(ocr_data['text'])} text elements:")
-        for i, text in enumerate(ocr_data['text']):
-            if text.strip():
-                confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
-                status = "✓ HIGH CONF" if confidence >= 0.85 else "✓ MED CONF" if confidence >= 0.60 else "✓ LOW CONF"
-                print(f"[VERIFIER_HANDLER]     {i+1}. '{text}' (confidence: {confidence:.2f}) {status}")
-        
         if match_found:
             success_msg = f"✓ Advertiser name '{advertiser_name}' verified in field ({match_method})"
             print(f"[VERIFIER_HANDLER] {success_msg}")
@@ -336,7 +193,6 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
                 "matched_text": best_match_text,
                 "match_confidence": best_match_confidence,
                 "field_region": field_region,
-                "debug_image": debug_filename,
                 "match_method": match_method,
                 "confidence_threshold": confidence_threshold,
                 "ocr_data": ocr_data
@@ -351,7 +207,6 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
                 "expected_text": advertiser_name,
                 "extracted_text": extracted_text,
                 "field_region": field_region,
-                "debug_image": debug_filename,
                 "confidence_threshold": confidence_threshold,
                 "ocr_data": ocr_data
             }
