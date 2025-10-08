@@ -216,11 +216,6 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
         if cropped_image is None:
             return False, "Failed to crop image to advertiser field region", None
         
-        # Save the cropped image for debugging
-        debug_filename = f"advertiser_field_verification_{int(time.time())}.png"
-        cv2.imwrite(debug_filename, cropped_image)
-        print(f"[VERIFIER_HANDLER] Saved cropped advertiser field for debugging: {debug_filename}")
-        
         # Use OCR to extract text from the cropped field region
         print(f"[VERIFIER_HANDLER] Extracting text from advertiser field...")
         success, extracted_text = verifier_helpers.extract_text_from_cropped_image(cropped_image)
@@ -420,7 +415,6 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
                 "matched_text": best_match_text,
                 "match_confidence": best_match_confidence,
                 "field_region": field_region,
-                "debug_image": debug_filename,
                 "match_method": match_method,
                 "confidence_threshold": confidence_threshold,
                 "ocr_data": ocr_data
@@ -435,7 +429,6 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
                 "expected_text": advertiser_name,
                 "extracted_text": extracted_text,
                 "field_region": field_region,
-                "debug_image": debug_filename,
                 "confidence_threshold": confidence_threshold,
                 "ocr_data": ocr_data
             }
