@@ -50,8 +50,9 @@ ACTION_HANDLERS: Dict[str, Any] = {
     "verify_advertiser_found": action_handler.verify_advertiser_found,
     "enter_order_id": action_handler.enter_order_id,
     "verify_order_found": action_handler.verify_order_found,
-    "enter_start_date": action_handler.enter_start_date,
-    "calculate_and_enter_end_date": action_handler.calculate_and_enter_end_date,
+    "enter_agency": action_handler.enter_agency,
+    "enter_begin_date": action_handler.enter_begin_date,
+    "enter_end_date": action_handler.enter_end_date,
     "click_search_button": action_handler.click_search_button,
     "wait_for_search_results": action_handler.wait_for_search_results,
     

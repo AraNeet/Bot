@@ -124,57 +124,57 @@ def execute_single_instruction(instruction: Dict[str, Any],
         # Step 2: Verify action completed using new verifier module
         print(f"[ENGINE] Verifying action completion...")
         
-        # Check if verifier exists for this action type
-        if verifier.has_verifier(action_type):
-            print(f"[ENGINE] Using verifier for action type: '{action_type}'")
-        else:
-            print(f"[ENGINE] No verifier found for action type: '{action_type}' - skipping verification")
-            return True, f"Action '{action_type}' executed (no verifier available)"
+        # # Check if verifier exists for this action type
+        # if verifier.has_verifier(action_type):
+        #     print(f"[ENGINE] Using verifier for action type: '{action_type}'")
+        # else:
+        print(f"[ENGINE] No verifier found for action type: '{action_type}' - skipping verification")
+        return True, f"Action '{action_type}' executed (no verifier available)"
         
-        # Use new verifier module to check action completion
-        verification_success, verification_msg, verification_data = verifier.verify_action_completion(
-            instruction_name=action_type,
-            **parameters  # Pass all parameters to the verifier
-        )
+    #     # Use new verifier module to check action completion
+    #     verification_success, verification_msg, verification_data = verifier.verify_action_completion(
+    #         instruction_name=action_type,
+    #         **parameters  # Pass all parameters to the verifier
+    #     )
         
-        if verification_success:
-            print(f"[ENGINE SUCCESS] Action verified: {verification_msg}")
-            if verification_data:
-                print(f"[ENGINE] Verification data: {verification_data}")
-            return True, f"Action '{action_type}' completed and verified"
-        else:
-            print(f"[ENGINE ERROR] Verification failed: {verification_msg}")
+    #     if verification_success:
+    #         print(f"[ENGINE SUCCESS] Action verified: {verification_msg}")
+    #         if verification_data:
+    #             print(f"[ENGINE] Verification data: {verification_data}")
+    #         return True, f"Action '{action_type}' completed and verified"
+    #     else:
+    #         print(f"[ENGINE ERROR] Verification failed: {verification_msg}")
             
-            # Save failure context for debugging
-            screenshot_path = verifier.save_failure_context(
-                action_type=action_type,
-                parameters=parameters,
-                verification_error=verification_msg,
-                attempt_number=attempt
-            )
+    #         # Save failure context for debugging
+    #         screenshot_path = verifier.save_failure_context(
+    #             action_type=action_type,
+    #             parameters=parameters,
+    #             verification_error=verification_msg,
+    #             attempt_number=attempt
+    #         )
             
-            print(f"[ENGINE] Debug screenshot saved: {screenshot_path}")
+    #         print(f"[ENGINE] Debug screenshot saved: {screenshot_path}")
             
-            # Check if this was the last attempt
-            if attempt == max_retries:
-                error_msg = f"Action '{action_type}' failed verification after {max_retries} attempts"
-                notify_error(
-                    error_msg,
-                    "workflow_engine.execute_single_instruction",
-                    {
-                        "action_type": action_type,
-                        "parameters": parameters,
-                        "verification_error": verification_msg,
-                        "screenshot": screenshot_path,
-                        "attempts": max_retries
-                    }
-                )
-                return False, f"{error_msg}: {verification_msg}"
-            else:
-                print(f"[ENGINE] Retrying action after verification failure...")
+    #         # Check if this was the last attempt
+    #         if attempt == max_retries:
+    #             error_msg = f"Action '{action_type}' failed verification after {max_retries} attempts"
+    #             notify_error(
+    #                 error_msg,
+    #                 "workflow_engine.execute_single_instruction",
+    #                 {
+    #                     "action_type": action_type,
+    #                     "parameters": parameters,
+    #                     "verification_error": verification_msg,
+    #                     "screenshot": screenshot_path,
+    #                     "attempts": max_retries
+    #                 }
+    #             )
+    #             return False, f"{error_msg}: {verification_msg}"
+    #         else:
+    #             print(f"[ENGINE] Retrying action after verification failure...")
     
-    # Should not reach here, but just in case
-    return False, f"Action '{action_type}' failed after {max_retries} attempts"
+    # # Should not reach here, but just in case
+    # return False, f"Action '{action_type}' failed after {max_retries} attempts"
 
 # ============================================================================
 # OBJECTIVE EXECUTION

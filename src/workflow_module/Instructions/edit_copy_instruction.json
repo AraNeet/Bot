@@ -5,6 +5,13 @@
                 "action_type": "open_multinetwork_instructions_page",
                 "description": "Navigate to Multinetwork Instructions page",
                 "parameters": {}
+            },            
+            {
+                "action_type": "enter_order_id",
+                "description": "Enter order ID in search field",
+                "parameters": {
+                    "order_number": ""
+                }
             },
             {
                 "action_type": "enter_advertiser_name",
@@ -14,38 +21,24 @@
                 }
             },
             {
-                "action_type": "verify_advertiser_found",
-                "description": "Verify advertiser name was found in dropdown",
+                "action_type": "enter_agency",
+                "description": "Enter agency name into the field",
                 "parameters": {
-                    "advertiser_name": ""
+                    "agency_name": ""
                 }
             },
             {
-                "action_type": "enter_order_id",
-                "description": "Enter order ID in search field",
+                "action_type": "enter_begin_date",
+                "description": "Enter begin date from input",
                 "parameters": {
-                    "order_number": ""
+                    "begin_date": ""
                 }
             },
             {
-                "action_type": "verify_order_found",
-                "description": "Verify order ID was found",
+                "action_type": "enter_end_date",
+                "description": "Enter end date from input",
                 "parameters": {
-                    "order_number": ""
-                }
-            },
-            {
-                "action_type": "enter_start_date",
-                "description": "Enter start date from input",
-                "parameters": {
-                    "start_date": ""
-                }
-            },
-            {
-                "action_type": "calculate_and_enter_end_date",
-                "description": "Calculate end date (start + 31 days) and enter",
-                "parameters": {
-                    "start_date": ""
+                    "end_date": ""
                 }
             },
             {

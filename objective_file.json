@@ -2,23 +2,12 @@
     "edit_copy_instruction": [
         {
             "required": {
-                "advertiser_name": "Corporation",
-                "agency_name": "MediaWorks Agency",
-                "order_number": "ORD-2025-001",
-                "start_date": "2025-01-15",
-                "end_date": "2025-02-15",
+                "advertiser_name": "Adaptive Health",
+                "agency_name": "Rainstorm Direct LLC",
+                "order_number": "3635198",
+                "begin_date": "9/15/2025",
+                "end_date": "12/14/2025",
                 "isci_1": "ACME1234"
-            },
-            "optional": {}
-        },
-        {
-            "required": {
-                "advertiser_name": "TechCo Industries",
-                "agency_name": "Digital Plus",
-                "order_number": "ORD-2025-002",
-                "start_date": "2025-03-01",
-                "end_date": "2025-03-31",
-                "isci_1": "TECH4567"
             },
             "optional": {}
         }

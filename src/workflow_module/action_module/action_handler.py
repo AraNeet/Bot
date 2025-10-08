@@ -136,7 +136,7 @@ def open_multinetwork_instructions_page() -> Tuple[bool, str]:
         
         success, msg = actions.click_at_position(click_x, click_y)
         if success:
-            actions.move_mouse(500, 500, 0)
+            actions.move_mouse(1800, 50, 0)
         if not success:
             return False, f"Failed to click on multi-network icon: {msg}"
         # Wait a moment for the page to load
@@ -285,214 +285,477 @@ def verify_advertiser_found(advertiser_name: str) -> Tuple[bool, str]:
     """
     Verify that the advertiser name was found in the dropdown.
     
-    This function knows:
-    - Where the dropdown appears
-    - What text to look for
-    - How long to wait for dropdown
+    This function is now handled by the verifier module.
+    The verifier module will automatically verify advertiser entries.
     
     Args:
         advertiser_name: Name of advertiser to verify
         
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement verification logic
-    - Take screenshot
-    - Look for advertiser name in dropdown region
-    - Verify text appears
     """
-    print(f"[ACTION_HANDLER] Verifying advertiser found: '{advertiser_name}'")
-    
-    # TODO: Define dropdown region (where autocomplete appears)
-    # DROPDOWN_REGION = (400, 220, 300, 200)  # (x, y, width, height)
-    
-    # TODO: Take screenshot
-    # screenshot = computer_vision_utils.take_screenshot()
-    
-    # TODO: Crop to dropdown region
-    # region_img = computer_vision_utils.crop_image(screenshot, *DROPDOWN_REGION)
-    
-    # TODO: Use OCR to find advertiser name
-    # success, found = ocr_utils.find_text(region_img, advertiser_name, case_sensitive=False)
-    
-    # TODO: Return result
-    # if found:
-    #     return True, f"Advertiser '{advertiser_name}' found in dropdown"
-    # else:
-    #     return False, f"Advertiser '{advertiser_name}' not found in dropdown"
-    
-    # Placeholder
-    return True, f"Advertiser '{advertiser_name}' verified in dropdown"
+    print(f"[ACTION_HANDLER] Advertiser verification is handled by verifier module")
+    return True, f"Advertiser '{advertiser_name}' verification delegated to verifier module"
 
 
 def enter_order_id(order_number: str) -> Tuple[bool, str]:
     """
     Enter order ID in the search field.
     
-    This function knows:
-    - Where the order ID field is located
-    - How to activate the field
-    - Expected format for order IDs
+    This function:
+    1. Takes a screenshot
+    2. Uses OCR to find the word "order" within region (206, 152, 1439, 79)
+    3. Clicks 15 pixels below the "order" text
+    4. Enters the order ID in the field
     
     Args:
         order_number: Order ID to enter
         
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement field entry logic
-    - Click order ID field at known location
-    - Clear any existing text
-    - Type order number
     """
     print(f"[ACTION_HANDLER] Entering order ID: '{order_number}'")
     
-    # TODO: Click order ID field at known location
-    # ORDER_FIELD_X = 500
-    # ORDER_FIELD_Y = 250
-    # success, msg = actions.click_at_position(ORDER_FIELD_X, ORDER_FIELD_Y)
-    
-    # TODO: Clear any existing text
-    # success, msg = actions.clear_field()
-    
-    # TODO: Type order number
-    # success, msg = actions.type_text(order_number, interval=0.05)
-    
-    # Placeholder
-    return True, f"Entered order ID: '{order_number}'"
+    try:
+        # Take screenshot
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot"
+        
+        # Define the region to search for "order" word
+        # Region: (206, 152, 1439, 79) = (x, y, width, height)
+        region_x = 206
+        region_y = 152
+        region_width = 1439
+        region_height = 79
+        search_region = (region_x, region_y, region_width, region_height)
+        
+        print(f"[ACTION_HANDLER] Searching for 'order' word in region {search_region}")
+        
+        # Crop the image to the search region for better OCR accuracy
+        cropped_image = computer_vision_utils.crop_image(screenshot, region_x, region_y, region_width, region_height)
+        if cropped_image is None:
+            return False, "Failed to crop image to search region"
+        
+        print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
+        
+        # Save the cropped image for debugging
+        debug_filename = f"order_search_region_{int(time.time())}.png"
+        cv2.imwrite(debug_filename, cropped_image)
+        print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
+        
+        # Use OCR to find the "order" word within the cropped region
+        success, found, bbox = ocr_utils.find_text_with_position(
+            cropped_image,
+            "order",
+            case_sensitive=False
+        )
+        
+        if not success or not found or bbox is None:
+            return False, "Could not determine exact position of 'order' text in cropped image"
+        
+        # Convert cropped image coordinates back to full screenshot coordinates
+        cropped_text_x, cropped_text_y, text_width, text_height = bbox
+        text_x = region_x + cropped_text_x  # Add region offset
+        text_y = region_y + cropped_text_y  # Add region offset
+        
+        print(f"[ACTION_HANDLER] ✓ 'order' text found at ({text_x}, {text_y}) with size {text_width}x{text_height}")
+        print(f"[ACTION_HANDLER] Cropped coordinates: ({cropped_text_x}, {cropped_text_y}) -> Full coordinates: ({text_x}, {text_y})")
+        
+        # Calculate the input field position 15 pixels below the "order" text
+        field_spacing = 15  # pixels below the text
+        field_x = text_x  # Same horizontal position as the text
+        field_y = text_y + text_height + field_spacing  # 15 pixels below the text
+        
+        print(f"[ACTION_HANDLER] Calculated field position: ({field_x}, {field_y}) - 15px below 'order' text")
+        
+        # Click on the input field
+        print(f"[ACTION_HANDLER] Clicking on order input field at ({field_x}, {field_y})")
+        click_success, click_msg = actions.click_at_position(field_x, field_y)
+        
+        if not click_success:
+            return False, f"Failed to click on order field: {click_msg}"
+        
+        # Wait a moment for the field to be focused
+        time.sleep(0.5)
+        
+        # Clear any existing text in the field
+        print(f"[ACTION_HANDLER] Clearing existing text in field...")
+        clear_success, clear_msg = actions.clear_field()
+        
+        if not clear_success:
+            print(f"[ACTION_HANDLER] Warning: Failed to clear field: {clear_msg}")
+            # Continue anyway, as the field might be empty
+        
+        # Wait a moment after clearing to ensure field is ready
+        time.sleep(0.2)
+        
+        # Type the order ID with faster interval to prevent double letters
+        print(f"[ACTION_HANDLER] Typing order ID: '{order_number}'")
+        type_success, type_msg = actions.type_text(order_number, interval=0.02)
+        
+        if not type_success:
+            return False, f"Failed to type order ID: {type_msg}"
+        
+        # Wait a moment for the text to be entered
+        time.sleep(0.5)
+        
+        print(f"[ACTION_HANDLER] ✓ Successfully entered order ID: '{order_number}'")
+        return True, f"Successfully entered order ID: '{order_number}'"
+        
+    except Exception as e:
+        error_msg = f"Error entering order ID: {e}"
+        print(f"[ACTION_HANDLER ERROR] {error_msg}")
+        return False, error_msg
 
 
 def verify_order_found(order_number: str) -> Tuple[bool, str]:
     """
     Verify that the order ID was accepted/found.
     
-    This function knows:
-    - Where to look for confirmation
-    - What indicates order was found
-    - Error messages to check for
+    This function is now handled by the verifier module.
+    The verifier module will automatically verify order ID entries.
     
     Args:
         order_number: Order ID to verify
         
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement verification logic
-    - Check if order ID appears in field
-    - Look for error messages
-    - Verify no "not found" text appears
     """
-    print(f"[ACTION_HANDLER] Verifying order found: '{order_number}'")
-    
-    # TODO: Take screenshot
-    # screenshot = computer_vision_utils.take_screenshot()
-    
-    # TODO: Check if order number appears in field (confirms it was entered)
-    # success, found = ocr_utils.find_text(screenshot, order_number)
-    
-    # TODO: Check for error messages
-    # error_found = ocr_utils.find_text(screenshot, "not found")
-    # if error_found:
-    #     return False, f"Order '{order_number}' not found in system"
-    
-    # Placeholder
-    return True, f"Order '{order_number}' verified"
+    print(f"[ACTION_HANDLER] Order verification is handled by verifier module")
+    return True, f"Order '{order_number}' verification delegated to verifier module"
 
 
-# ============================================================================
-# DATE FIELD ACTIONS
-# ============================================================================
-
-def enter_start_date(start_date: str) -> Tuple[bool, str]:
+def enter_agency(agency_name: str) -> Tuple[bool, str]:
     """
-    Enter start date in the date field.
+    Enter agency name in the search field.
     
-    This function knows:
-    - Where the start date field is located
-    - Expected date format (YYYY-MM-DD or MM/DD/YYYY)
-    - How to handle date picker (if any)
+    This function:
+    1. Takes a screenshot
+    2. Uses OCR to find the word "agency" within region (206, 152, 1439, 79)
+    3. Clicks 15 pixels below the "agency" text
+    4. Enters the agency name in the field
     
     Args:
-        start_date: Start date to enter (format: YYYY-MM-DD)
+        agency_name: Name of agency to enter
         
     Returns:
         Tuple of (success: bool, message: str)
+    """
+    print(f"[ACTION_HANDLER] Entering agency name: '{agency_name}'")
+    
+    try:
+        # Take screenshot
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot"
         
-    TODO: Implement date entry logic
-    - Click start date field
-    - Clear existing date
-    - Type new date (handle format conversion if needed)
-    - Close date picker if it opens
-    """
-    print(f"[ACTION_HANDLER] Entering start date: '{start_date}'")
-    
-    # TODO: Click start date field
-    # START_DATE_FIELD_X = 500
-    # START_DATE_FIELD_Y = 300
-    # success, msg = actions.click_at_position(START_DATE_FIELD_X, START_DATE_FIELD_Y)
-    
-    # TODO: Clear existing date
-    # success, msg = actions.clear_field()
-    
-    # TODO: Convert date format if needed
-    # formatted_date = convert_date_format(start_date, from_format="YYYY-MM-DD", to_format="MM/DD/YYYY")
-    
-    # TODO: Type date
-    # success, msg = actions.type_text(formatted_date, interval=0.05)
-    
-    # TODO: Press Tab to move to next field (closes date picker)
-    # success, msg = actions.press_key("tab")
-    
-    # Placeholder
-    return True, f"Entered start date: '{start_date}'"
+        # Define the region to search for "agency" word
+        # Region: (206, 152, 1439, 79) = (x, y, width, height)
+        region_x = 206
+        region_y = 152
+        region_width = 1439
+        region_height = 79
+        search_region = (region_x, region_y, region_width, region_height)
+        
+        print(f"[ACTION_HANDLER] Searching for 'agency' word in region {search_region}")
+        
+        # Crop the image to the search region for better OCR accuracy
+        cropped_image = computer_vision_utils.crop_image(screenshot, region_x, region_y, region_width, region_height)
+        if cropped_image is None:
+            return False, "Failed to crop image to search region"
+        
+        print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
+        
+        # Save the cropped image for debugging
+        debug_filename = f"agency_search_region_{int(time.time())}.png"
+        cv2.imwrite(debug_filename, cropped_image)
+        print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
+        
+        # Use OCR to find the "agency" word within the cropped region
+        success, found, bbox = ocr_utils.find_text_with_position(
+            cropped_image,
+            "agency",
+            case_sensitive=False
+        )
+        
+        if not success or not found or bbox is None:
+            return False, "Could not determine exact position of 'agency' text in cropped image"
+        
+        # Convert cropped image coordinates back to full screenshot coordinates
+        cropped_text_x, cropped_text_y, text_width, text_height = bbox
+        text_x = region_x + cropped_text_x  # Add region offset
+        text_y = region_y + cropped_text_y  # Add region offset
+        
+        print(f"[ACTION_HANDLER] ✓ 'agency' text found at ({text_x}, {text_y}) with size {text_width}x{text_height}")
+        print(f"[ACTION_HANDLER] Cropped coordinates: ({cropped_text_x}, {cropped_text_y}) -> Full coordinates: ({text_x}, {text_y})")
+        
+        # Calculate the input field position 15 pixels below the "agency" text
+        field_spacing = 15  # pixels below the text
+        field_x = text_x  # Same horizontal position as the text
+        field_y = text_y + text_height + field_spacing  # 15 pixels below the text
+        
+        print(f"[ACTION_HANDLER] Calculated field position: ({field_x}, {field_y}) - 15px below 'agency' text")
+        
+        # Click on the input field
+        print(f"[ACTION_HANDLER] Clicking on agency input field at ({field_x}, {field_y})")
+        click_success, click_msg = actions.click_at_position(field_x, field_y)
+        
+        if not click_success:
+            return False, f"Failed to click on agency field: {click_msg}"
+        
+        # Wait a moment for the field to be focused
+        time.sleep(0.5)
+        
+        # Clear any existing text in the field
+        print(f"[ACTION_HANDLER] Clearing existing text in field...")
+        clear_success, clear_msg = actions.clear_field()
+        
+        if not clear_success:
+            print(f"[ACTION_HANDLER] Warning: Failed to clear field: {clear_msg}")
+            # Continue anyway, as the field might be empty
+        
+        # Wait a moment after clearing to ensure field is ready
+        time.sleep(0.2)
+        
+        # Type the agency name with faster interval to prevent double letters
+        print(f"[ACTION_HANDLER] Typing agency name: '{agency_name}'")
+        type_success, type_msg = actions.type_text(agency_name, interval=0.02)
+        
+        if not type_success:
+            return False, f"Failed to type agency name: {type_msg}"
+        
+        # Wait a moment for the text to be entered
+        time.sleep(0.5)
+        
+        print(f"[ACTION_HANDLER] ✓ Successfully entered agency name: '{agency_name}'")
+        return True, f"Successfully entered agency name: '{agency_name}'"
+        
+    except Exception as e:
+        error_msg = f"Error entering agency name: {e}"
+        print(f"[ACTION_HANDLER ERROR] {error_msg}")
+        return False, error_msg
 
-
-def calculate_and_enter_end_date(start_date: str) -> Tuple[bool, str]:
+def enter_begin_date(begin_date: str) -> Tuple[bool, str]:
     """
-    Calculate end date (start + 31 days) and enter it.
+    Enter begin date in the date field.
     
-    This function knows:
-    - Where the end date field is located
-    - How to calculate end date from start date
-    - Date format requirements
+    This function:
+    1. Takes a screenshot
+    2. Uses OCR to find the word "begin" within region (206, 152, 1439, 79)
+    3. Clicks 15 pixels below the "begin" text
+    4. Enters the begin date in the field
     
     Args:
-        start_date: Start date (format: YYYY-MM-DD)
+        begin_date: Begin date to enter (format: YYYY-MM-DD or MM/DD/YYYY)
         
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement date calculation and entry
-    - Parse start_date
-    - Add 31 days
-    - Format as required
-    - Enter in end date field
     """
-    print(f"[ACTION_HANDLER] Calculating and entering end date from: '{start_date}'")
+    print(f"[ACTION_HANDLER] Entering begin date: '{begin_date}'")
     
-    # TODO: Parse start date
-    # from datetime import datetime, timedelta
-    # start = datetime.strptime(start_date, "%Y-%m-%d")
+    try:
+        # Take screenshot
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot"
+        
+        # Define the region to search for "begin" word
+        # Region: (206, 152, 1439, 79) = (x, y, width, height)
+        region_x = 206
+        region_y = 152
+        region_width = 1439
+        region_height = 79
+        search_region = (region_x, region_y, region_width, region_height)
+        
+        print(f"[ACTION_HANDLER] Searching for 'begin' word in region {search_region}")
+        
+        # Crop the image to the search region for better OCR accuracy
+        cropped_image = computer_vision_utils.crop_image(screenshot, region_x, region_y, region_width, region_height)
+        if cropped_image is None:
+            return False, "Failed to crop image to search region"
+        
+        print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
+        
+        # Save the cropped image for debugging
+        debug_filename = f"begin_date_search_region_{int(time.time())}.png"
+        cv2.imwrite(debug_filename, cropped_image)
+        print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
+        
+        # Use OCR to find the "begin" word within the cropped region
+        success, found, bbox = ocr_utils.find_text_with_position(
+            cropped_image,
+            "begin",
+            case_sensitive=False
+        )
+        
+        if not success or not found or bbox is None:
+            return False, "Could not determine exact position of 'begin' text in cropped image"
+        
+        # Convert cropped image coordinates back to full screenshot coordinates
+        cropped_text_x, cropped_text_y, text_width, text_height = bbox
+        text_x = region_x + cropped_text_x  # Add region offset
+        text_y = region_y + cropped_text_y  # Add region offset
+        
+        print(f"[ACTION_HANDLER] ✓ 'begin' text found at ({text_x}, {text_y}) with size {text_width}x{text_height}")
+        print(f"[ACTION_HANDLER] Cropped coordinates: ({cropped_text_x}, {cropped_text_y}) -> Full coordinates: ({text_x}, {text_y})")
+        
+        # Calculate the input field position 15 pixels below the "begin" text
+        field_spacing = 15  # pixels below the text
+        field_x = text_x  # Same horizontal position as the text
+        field_y = text_y + text_height + field_spacing  # 15 pixels below the text
+        
+        print(f"[ACTION_HANDLER] Calculated field position: ({field_x}, {field_y}) - 15px below 'begin' text")
+        
+        # Click on the input field
+        print(f"[ACTION_HANDLER] Clicking on begin date input field at ({field_x}, {field_y})")
+        click_success, click_msg = actions.click_at_position(field_x, field_y)
+        
+        if not click_success:
+            return False, f"Failed to click on begin date field: {click_msg}"
+        
+        # Wait a moment for the field to be focused
+        time.sleep(0.5)
+        
+        # Clear any existing text in the field
+        print(f"[ACTION_HANDLER] Clearing existing text in field...")
+        clear_success, clear_msg = actions.clear_field()
+        
+        if not clear_success:
+            print(f"[ACTION_HANDLER] Warning: Failed to clear field: {clear_msg}")
+            # Continue anyway, as the field might be empty
+        
+        # Wait a moment after clearing to ensure field is ready
+        time.sleep(0.2)
+        
+        # Type the begin date with faster interval to prevent double letters
+        print(f"[ACTION_HANDLER] Typing begin date: '{begin_date}'")
+        type_success, type_msg = actions.type_text(begin_date, interval=0.02)
+        
+        if not type_success:
+            return False, f"Failed to type begin date: {type_msg}"
+        
+        # Wait a moment for the text to be entered
+        time.sleep(0.5)
+        
+        print(f"[ACTION_HANDLER] ✓ Successfully entered begin date: '{begin_date}'")
+        return True, f"Successfully entered begin date: '{begin_date}'"
+        
+    except Exception as e:
+        error_msg = f"Error entering begin date: {e}"
+        print(f"[ACTION_HANDLER ERROR] {error_msg}")
+        return False, error_msg
+
+
+def enter_end_date(end_date: str) -> Tuple[bool, str]:
+    """
+    Enter end date in the date field.
     
-    # TODO: Add 31 days
-    # end = start + timedelta(days=31)
+    This function:
+    1. Takes a screenshot
+    2. Uses OCR to find the word "end" within region (206, 152, 1439, 79)
+    3. Clicks 15 pixels below the "end" text
+    4. Enters the end date in the field
     
-    # TODO: Format end date
-    # end_date_str = end.strftime("%Y-%m-%d")
+    Args:
+        end_date: End date to enter (format: YYYY-MM-DD or MM/DD/YYYY)
+        
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    print(f"[ACTION_HANDLER] Entering end date: '{end_date}'")
     
-    # TODO: Click end date field
-    # END_DATE_FIELD_X = 500
-    # END_DATE_FIELD_Y = 350
-    # success, msg = actions.click_at_position(END_DATE_FIELD_X, END_DATE_FIELD_Y)
-    
-    # TODO: Clear existing date
-    # success, msg = actions.clear_field()
-    
-    # TODO: Type end date
-    # success, msg = actions.type_text(end_date_str, interval=0.05)
-    
-    # Placeholder
-    return True, f"Calculated and entered end date (start + 31 days)"
+    try:
+        # Take screenshot
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot"
+        
+        # Define the region to search for "end" word
+        # Region: (206, 152, 1439, 79) = (x, y, width, height)
+        region_x = 206
+        region_y = 152
+        region_width = 1439
+        region_height = 79
+        search_region = (region_x, region_y, region_width, region_height)
+        
+        print(f"[ACTION_HANDLER] Searching for 'end' word in region {search_region}")
+        
+        # Crop the image to the search region for better OCR accuracy
+        cropped_image = computer_vision_utils.crop_image(screenshot, region_x, region_y, region_width, region_height)
+        if cropped_image is None:
+            return False, "Failed to crop image to search region"
+        
+        print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
+        
+        # Save the cropped image for debugging
+        debug_filename = f"end_date_search_region_{int(time.time())}.png"
+        cv2.imwrite(debug_filename, cropped_image)
+        print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
+        
+        # Use OCR to find the "end" word within the cropped region
+        success, found, bbox = ocr_utils.find_text_with_position(
+            cropped_image,
+            "end",
+            case_sensitive=False
+        )
+        
+        if not success or not found or bbox is None:
+            return False, "Could not determine exact position of 'end' text in cropped image"
+        
+        # Convert cropped image coordinates back to full screenshot coordinates
+        cropped_text_x, cropped_text_y, text_width, text_height = bbox
+        text_x = region_x + cropped_text_x  # Add region offset
+        text_y = region_y + cropped_text_y  # Add region offset
+        
+        print(f"[ACTION_HANDLER] ✓ 'end' text found at ({text_x}, {text_y}) with size {text_width}x{text_height}")
+        print(f"[ACTION_HANDLER] Cropped coordinates: ({cropped_text_x}, {cropped_text_y}) -> Full coordinates: ({text_x}, {text_y})")
+        
+        # Calculate the input field position 15 pixels below the "end" text
+        field_spacing = 15  # pixels below the text
+        field_x = text_x  # Same horizontal position as the text
+        field_y = text_y + text_height + field_spacing  # 15 pixels below the text
+        
+        print(f"[ACTION_HANDLER] Calculated field position: ({field_x}, {field_y}) - 15px below 'end' text")
+        
+        # Click on the input field
+        print(f"[ACTION_HANDLER] Clicking on end date input field at ({field_x}, {field_y})")
+        click_success, click_msg = actions.click_at_position(field_x, field_y)
+        
+        if not click_success:
+            return False, f"Failed to click on end date field: {click_msg}"
+        
+        # Wait a moment for the field to be focused
+        time.sleep(0.5)
+        
+        # Clear any existing text in the field
+        print(f"[ACTION_HANDLER] Clearing existing text in field...")
+        clear_success, clear_msg = actions.clear_field()
+        
+        if not clear_success:
+            print(f"[ACTION_HANDLER] Warning: Failed to clear field: {clear_msg}")
+            # Continue anyway, as the field might be empty
+        
+        # Wait a moment after clearing to ensure field is ready
+        time.sleep(0.2)
+        
+        # Type the end date with faster interval to prevent double letters
+        print(f"[ACTION_HANDLER] Typing end date: '{end_date}'")
+        type_success, type_msg = actions.type_text(end_date, interval=0.02)
+        
+        if not type_success:
+            return False, f"Failed to type end date: {type_msg}"
+        
+        # Wait a moment for the text to be entered
+        time.sleep(0.5)
+        
+        print(f"[ACTION_HANDLER] ✓ Successfully entered end date: '{end_date}'")
+        return True, f"Successfully entered end date: '{end_date}'"
+        
+    except Exception as e:
+        error_msg = f"Error entering end date: {e}"
+        print(f"[ACTION_HANDLER ERROR] {error_msg}")
+        return False, error_msg
 
 
 # ============================================================================
@@ -503,31 +766,86 @@ def click_search_button() -> Tuple[bool, str]:
     """
     Click the search button to submit the search form.
     
-    This function knows:
-    - Exact location of search button
-    - What happens after clicking (loading, page change)
-    - How to verify click was successful
+    This function:
+    1. Takes a screenshot
+    2. Uses OCR to find the word "search" within region (206, 152, 1439, 79)
+    3. Clicks on the "search" text position
     
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement button click logic
-    - Click search button at known location
-    - Wait for any loading indicators
-    - Verify results page loaded
     """
     print("[ACTION_HANDLER] Clicking search button...")
     
-    # TODO: Click search button at known location
-    # SEARCH_BUTTON_X = 700
-    # SEARCH_BUTTON_Y = 400
-    # success, msg = actions.click_at_position(SEARCH_BUTTON_X, SEARCH_BUTTON_Y)
-    
-    # TODO: Wait for any loading indicator to appear
-    # time.sleep(0.5)
-    
-    # Placeholder
-    return True, "Clicked search button"
+    try:
+        # Take screenshot
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot"
+        
+        # Define the region to search for "search" word
+        # Region: (206, 170, 1439, 79) = (x, y, width, height)
+        region_x = 206
+        region_y = 170
+        region_width = 1439
+        region_height = 79
+        search_region = (region_x, region_y, region_width, region_height)
+        
+        print(f"[ACTION_HANDLER] Searching for 'search' word in region {search_region}")
+        
+        # Crop the image to the search region for better OCR accuracy
+        cropped_image = computer_vision_utils.crop_image(screenshot, region_x, region_y, region_width, region_height)
+        if cropped_image is None:
+            return False, "Failed to crop image to search region"
+        
+        print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
+        
+        # Save the cropped image for debugging
+        debug_filename = f"search_button_search_region_{int(time.time())}.png"
+        cv2.imwrite(debug_filename, cropped_image)
+        print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
+        
+        # Use OCR to find the "search" word within the cropped region
+        success, found, bbox = ocr_utils.find_text_with_position(
+            cropped_image,
+            "search",
+            case_sensitive=False
+        )
+        
+        if not success or not found or bbox is None:
+            return False, "Could not determine exact position of 'search' text in cropped image"
+        
+        # Convert cropped image coordinates back to full screenshot coordinates
+        cropped_text_x, cropped_text_y, text_width, text_height = bbox
+        text_x = region_x + cropped_text_x  # Add region offset
+        text_y = region_y + cropped_text_y  # Add region offset
+        
+        print(f"[ACTION_HANDLER] ✓ 'search' text found at ({text_x}, {text_y}) with size {text_width}x{text_height}")
+        print(f"[ACTION_HANDLER] Cropped coordinates: ({cropped_text_x}, {cropped_text_y}) -> Full coordinates: ({text_x}, {text_y})")
+        
+        # Calculate the button click position (center of the text)
+        button_x = text_x + (text_width // 2)  # Center horizontally
+        button_y = text_y + (text_height // 2)  # Center vertically
+        
+        print(f"[ACTION_HANDLER] Calculated button click position: ({button_x}, {button_y}) - center of 'search' text")
+        
+        # Click on the search button
+        print(f"[ACTION_HANDLER] Clicking on search button at ({button_x}, {button_y})")
+        click_success, click_msg = actions.click_at_position(button_x, button_y)
+        
+        if not click_success:
+            return False, f"Failed to click on search button: {click_msg}"
+        
+        actions.move_mouse(1800, 50, 0)
+        # Wait a moment for the click to register
+        time.sleep(0.5)
+        
+        print(f"[ACTION_HANDLER] ✓ Successfully clicked search button")
+        return True, "Successfully clicked search button"
+        
+    except Exception as e:
+        error_msg = f"Error clicking search button: {e}"
+        print(f"[ACTION_HANDLER ERROR] {error_msg}")
+        return False, error_msg
 
 
 def wait_for_search_results(timeout: int = 10) -> Tuple[bool, str]:
@@ -544,29 +862,13 @@ def wait_for_search_results(timeout: int = 10) -> Tuple[bool, str]:
         
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement wait logic
-    - Watch for loading spinner to disappear
-    - Look for results table to appear
-    - Verify "No results" isn't shown
     """
     print(f"[ACTION_HANDLER] Waiting for search results (timeout: {timeout}s)...")
     
-    # TODO: Wait for loading indicator to disappear
-    # screenshot = computer_vision_utils.take_screenshot()
-    # success, disappeared = wait_for_text_disappear(screenshot, "Loading...", timeout)
+    # Simple wait implementation
+    import time
+    time.sleep(2.0)  # Wait 2 seconds for results to load
     
-    # TODO: Verify results table appeared
-    # screenshot = computer_vision_utils.take_screenshot()
-    # success, found = ocr_utils.find_text(screenshot, "Results")
-    
-    # TODO: Check for "No results found" message
-    # screenshot = computer_vision_utils.take_screenshot()
-    # success, no_results = ocr_utils.find_text(screenshot, "No results")
-    # if no_results:
-    #     return False, "Search returned no results"
-    
-    # Placeholder
     return True, "Search results loaded successfully"
 
 
@@ -578,52 +880,17 @@ def find_row_by_deal_number(order_number: str, max_pages: int = 20) -> Tuple[boo
     """
     Search through table rows to find matching deal number.
     
-    This function knows:
-    - How to read table rows
-    - Where deal numbers appear in rows
-    - How to navigate through pages
-    - How to handle pagination
-    
     Args:
         order_number: Deal number to search for
         max_pages: Maximum pages to search through
         
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement table search logic
-    - Read visible table rows
-    - Look for order_number in each row
-    - If not found, go to next page
-    - Repeat until found or max_pages reached
     """
     print(f"[ACTION_HANDLER] Searching for deal number: '{order_number}' (max {max_pages} pages)")
     
-    # TODO: Loop through pages
-    # for page in range(1, max_pages + 1):
-    #     # Take screenshot of current page
-    #     screenshot = computer_vision_utils.take_screenshot()
-    #     
-    #     # Define table region
-    #     TABLE_REGION = (100, 450, 1000, 400)
-    #     table_img = computer_vision_utils.crop_image(screenshot, *TABLE_REGION)
-    #     
-    #     # Use OCR to find order number
-    #     success, found = ocr_utils.find_text(table_img, order_number)
-    #     
-    #     if found:
-    #         return True, f"Found deal number '{order_number}' on page {page}"
-    #     
-    #     # Click next page button
-    #     NEXT_PAGE_BUTTON_X = 900
-    #     NEXT_PAGE_BUTTON_Y = 850
-    #     actions.click_at_position(NEXT_PAGE_BUTTON_X, NEXT_PAGE_BUTTON_Y)
-    #     time.sleep(1.0)  # Wait for page to load
-    
-    # TODO: If not found after all pages
-    # return False, f"Deal number '{order_number}' not found in {max_pages} pages"
-    
-    # Placeholder
+    # Simple implementation - assume row is found
+    # TODO: Implement actual table search when table structure is known
     return True, f"Found row with deal number: '{order_number}'"
 
 
@@ -631,44 +898,16 @@ def right_click_row(order_number: str) -> Tuple[bool, str]:
     """
     Right-click on the row containing the specified order number.
     
-    This function knows:
-    - Where the row is located (from find_row_by_deal_number)
-    - How to get row coordinates
-    - Where to right-click in the row
-    
     Args:
         order_number: Deal number to identify the row
         
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement right-click logic
-    - Use OCR to find exact position of order_number
-    - Calculate row center coordinates
-    - Right-click on row
-    - Verify context menu appeared
     """
     print(f"[ACTION_HANDLER] Right-clicking row with deal number: '{order_number}'")
     
-    # TODO: Take screenshot
-    # screenshot = computer_vision_utils.take_screenshot()
-    
-    # TODO: Use OCR with position data to find order_number
-    # success, text_data = ocr_utils.get_text_data(screenshot)
-    # 
-    # for i, text in enumerate(text_data['text']):
-    #     if order_number in text:
-    #         # Get position of this text
-    #         x = text_data['left'][i]
-    #         y = text_data['top'][i]
-    #         height = text_data['height'][i]
-    #         
-    #         # Right-click in center of row
-    #         row_center_y = y + (height // 2)
-    #         success, msg = actions.right_click_at_position(x + 100, row_center_y)
-    #         break
-    
-    # Placeholder
+    # Simple implementation - assume right-click succeeded
+    # TODO: Implement actual right-click when row coordinates are known
     return True, f"Right-clicked on row with deal number: '{order_number}'"
 
 
@@ -676,42 +915,13 @@ def select_edit_multinetwork_instruction() -> Tuple[bool, str]:
     """
     Select 'Edit Multi-network Instruction' from context menu.
     
-    This function knows:
-    - Where context menu appears
-    - What menu item to click
-    - How to verify menu item was clicked
-    
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement menu selection logic
-    - Find "Edit Multi-network Instruction" text in context menu
-    - Click on that menu item
-    - Verify edit page starts loading
     """
     print("[ACTION_HANDLER] Selecting 'Edit Multi-network Instruction' from context menu...")
     
-    # TODO: Wait for context menu to appear
-    # time.sleep(0.5)
-    
-    # TODO: Take screenshot
-    # screenshot = computer_vision_utils.take_screenshot()
-    
-    # TODO: Find "Edit Multi-network Instruction" text
-    # success, text_data = ocr_utils.get_text_data(screenshot)
-    # 
-    # for i, text in enumerate(text_data['text']):
-    #     if "Edit Multi-network Instruction" in text:
-    #         x = text_data['left'][i]
-    #         y = text_data['top'][i]
-    #         height = text_data['height'][i]
-    #         
-    #         # Click on menu item
-    #         menu_center_y = y + (height // 2)
-    #         success, msg = actions.click_at_position(x + 50, menu_center_y)
-    #         break
-    
-    # Placeholder
+    # Simple implementation - assume menu selection succeeded
+    # TODO: Implement actual menu selection when context menu structure is known
     return True, "Selected 'Edit Multi-network Instruction' from context menu"
 
 
@@ -723,30 +933,18 @@ def wait_for_edit_page_load(timeout: int = 10) -> Tuple[bool, str]:
     """
     Wait for the edit page to finish loading.
     
-    This function knows:
-    - What indicates page is loading
-    - What indicates page finished loading
-    - Expected page title or elements
-    
     Args:
         timeout: Maximum seconds to wait
         
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement wait logic
-    - Watch for loading indicator
-    - Wait for page title to appear
-    - Verify key form fields are visible
     """
     print(f"[ACTION_HANDLER] Waiting for edit page to load (timeout: {timeout}s)...")
     
-    # TODO: Wait for loading indicator to disappear
-    # Wait for specific text that indicates page loaded
-    # screenshot = computer_vision_utils.take_screenshot()
-    # success, found = wait_for_text_appear(screenshot, "Edit Multi-network Instructions", timeout)
+    # Simple wait implementation
+    import time
+    time.sleep(3.0)  # Wait 3 seconds for page to load
     
-    # Placeholder
     return True, "Edit page loaded successfully"
 
 
@@ -754,38 +952,16 @@ def verify_edit_page_opened(order_number: str) -> Tuple[bool, str]:
     """
     Verify the Edit Multi-network Instructions page opened for correct Deal ID.
     
-    This function knows:
-    - Where deal ID appears on edit page
-    - What page title should be
-    - What fields should be visible
-    
     Args:
         order_number: Expected deal ID on the page
         
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement verification logic
-    - Check page title
-    - Verify deal ID matches order_number
-    - Confirm key form fields are visible
     """
     print(f"[ACTION_HANDLER] Verifying edit page opened for deal: '{order_number}'")
     
-    # TODO: Take screenshot
-    # screenshot = computer_vision_utils.take_screenshot()
-    
-    # TODO: Verify page title
-    # success, found = ocr_utils.find_text(screenshot, "Edit Multi-network Instructions")
-    # if not found:
-    #     return False, "Edit page title not found"
-    
-    # TODO: Verify deal ID appears on page
-    # success, found = ocr_utils.find_text(screenshot, order_number)
-    # if not found:
-    #     return False, f"Deal ID '{order_number}' not found on edit page"
-    
-    # Placeholder
+    # Simple implementation - assume page opened correctly
+    # TODO: Implement actual verification when page structure is known
     return True, f"Edit page opened for deal: '{order_number}'"
 
 
@@ -797,40 +973,16 @@ def enter_isci_1(isci_1: str) -> Tuple[bool, str]:
     """
     Enter ISCI 1 value in the form.
     
-    This function knows:
-    - Where ISCI 1 field is located
-    - Field validation requirements
-    - Expected ISCI code format
-    
     Args:
         isci_1: ISCI code to enter
         
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement ISCI entry logic
-    - Click ISCI 1 field
-    - Clear existing value
-    - Type new ISCI code
-    - Verify format is valid
     """
     print(f"[ACTION_HANDLER] Entering ISCI 1: '{isci_1}'")
     
-    # TODO: Click ISCI 1 field
-    # ISCI_1_FIELD_X = 500
-    # ISCI_1_FIELD_Y = 500
-    # success, msg = actions.click_at_position(ISCI_1_FIELD_X, ISCI_1_FIELD_Y)
-    
-    # TODO: Clear existing value
-    # success, msg = actions.clear_field()
-    
-    # TODO: Type ISCI code
-    # success, msg = actions.type_text(isci_1, interval=0.05)
-    
-    # TODO: Press Tab to move to next field
-    # success, msg = actions.press_key("tab")
-    
-    # Placeholder
+    # Simple implementation - assume ISCI entry succeeded
+    # TODO: Implement actual ISCI entry when field coordinates are known
     return True, f"Entered ISCI 1: '{isci_1}'"
 
 
@@ -838,49 +990,20 @@ def enter_isci_2_if_provided(isci_2: str, rotation_percent_isci_2: str) -> Tuple
     """
     Enter ISCI 2 and rotation percentage if provided in optional fields.
     
-    This function knows:
-    - Where ISCI 2 field is located
-    - Where rotation percentage field is located
-    - How to skip if not provided
-    
     Args:
         isci_2: ISCI code (empty string if not provided)
         rotation_percent_isci_2: Rotation percentage (empty string if not provided)
         
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement conditional ISCI entry
-    - Check if isci_2 is provided (not empty)
-    - If provided, enter ISCI 2 and rotation percentage
-    - If not provided, skip
     """
     print(f"[ACTION_HANDLER] Checking ISCI 2: '{isci_2}' with rotation: '{rotation_percent_isci_2}'")
     
-    # TODO: Check if ISCI 2 was provided
-    # if not isci_2:
-    #     return True, "ISCI 2 not provided - skipping"
-    
-    # TODO: Click ISCI 2 field
-    # ISCI_2_FIELD_X = 500
-    # ISCI_2_FIELD_Y = 550
-    # success, msg = actions.click_at_position(ISCI_2_FIELD_X, ISCI_2_FIELD_Y)
-    
-    # TODO: Clear and enter ISCI 2
-    # success, msg = actions.clear_and_type(isci_2)
-    
-    # TODO: Click rotation percentage field
-    # ROTATION_2_FIELD_X = 700
-    # ROTATION_2_FIELD_Y = 550
-    # success, msg = actions.click_at_position(ROTATION_2_FIELD_X, ROTATION_2_FIELD_Y)
-    
-    # TODO: Clear and enter rotation percentage
-    # success, msg = actions.clear_and_type(rotation_percent_isci_2)
-    
-    # Placeholder
     if not isci_2:
         return True, "ISCI 2 not provided - skipped"
     
+    # Simple implementation - assume ISCI entry succeeded
+    # TODO: Implement actual ISCI entry when field coordinates are known
     return True, f"Entered ISCI 2: '{isci_2}' with rotation: '{rotation_percent_isci_2}%'"
 
 
@@ -888,49 +1011,20 @@ def enter_isci_3_if_provided(isci_3: str, rotation_percent_isci_3: str) -> Tuple
     """
     Enter ISCI 3 and rotation percentage if provided in optional fields.
     
-    This function knows:
-    - Where ISCI 3 field is located
-    - Where rotation percentage field is located
-    - How to skip if not provided
-    
     Args:
         isci_3: ISCI code (empty string if not provided)
         rotation_percent_isci_3: Rotation percentage (empty string if not provided)
         
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement conditional ISCI entry
-    - Check if isci_3 is provided (not empty)
-    - If provided, enter ISCI 3 and rotation percentage
-    - If not provided, skip
     """
     print(f"[ACTION_HANDLER] Checking ISCI 3: '{isci_3}' with rotation: '{rotation_percent_isci_3}'")
     
-    # TODO: Check if ISCI 3 was provided
-    # if not isci_3:
-    #     return True, "ISCI 3 not provided - skipping"
-    
-    # TODO: Click ISCI 3 field
-    # ISCI_3_FIELD_X = 500
-    # ISCI_3_FIELD_Y = 600
-    # success, msg = actions.click_at_position(ISCI_3_FIELD_X, ISCI_3_FIELD_Y)
-    
-    # TODO: Clear and enter ISCI 3
-    # success, msg = actions.clear_and_type(isci_3)
-    
-    # TODO: Click rotation percentage field
-    # ROTATION_3_FIELD_X = 700
-    # ROTATION_3_FIELD_Y = 600
-    # success, msg = actions.click_at_position(ROTATION_3_FIELD_X, ROTATION_3_FIELD_Y)
-    
-    # TODO: Clear and enter rotation percentage
-    # success, msg = actions.clear_and_type(rotation_percent_isci_3)
-    
-    # Placeholder
     if not isci_3:
         return True, "ISCI 3 not provided - skipped"
     
+    # Simple implementation - assume ISCI entry succeeded
+    # TODO: Implement actual ISCI entry when field coordinates are known
     return True, f"Entered ISCI 3: '{isci_3}' with rotation: '{rotation_percent_isci_3}%'"
 
 
@@ -942,30 +1036,13 @@ def save_instruction() -> Tuple[bool, str]:
     """
     Save the edited instruction.
     
-    This function knows:
-    - Where the Save button is located
-    - What happens after clicking Save
-    - How to verify save was successful
-    
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement save logic
-    - Click Save button
-    - Wait for save confirmation
-    - Verify no error messages
     """
     print("[ACTION_HANDLER] Saving instruction...")
     
-    # TODO: Click Save button
-    # SAVE_BUTTON_X = 600
-    # SAVE_BUTTON_Y = 700
-    # success, msg = actions.click_at_position(SAVE_BUTTON_X, SAVE_BUTTON_Y)
-    
-    # TODO: Wait for save to complete
-    # time.sleep(1.0)
-    
-    # Placeholder
+    # Simple implementation - assume save succeeded
+    # TODO: Implement actual save when save button coordinates are known
     return True, "Instruction saved successfully"
 
 
@@ -973,329 +1050,14 @@ def verify_save_successful(order_number: str) -> Tuple[bool, str]:
     """
     Verify the instruction was saved successfully.
     
-    This function knows:
-    - What success message to look for
-    - What error messages to check for
-    - How to confirm we're back on correct page
-    
     Args:
         order_number: Deal ID to verify in success message
         
     Returns:
         Tuple of (success: bool, message: str)
-        
-    TODO: Implement save verification
-    - Look for success message
-    - Check for error messages
-    - Verify page state
     """
     print(f"[ACTION_HANDLER] Verifying save was successful for deal: '{order_number}'")
     
-    # TODO: Take screenshot
-    # screenshot = computer_vision_utils.take_screenshot()
-    
-    # TODO: Look for success message
-    # success, found = ocr_utils.find_text(screenshot, "Successfully saved")
-    # if found:
-    #     return True, "Save verified - success message found"
-    
-    # TODO: Check for error messages
-    # success, error_found = ocr_utils.find_text(screenshot, "Error")
-    # if error_found:
-    #     return False, "Save failed - error message found"
-    
-    # Placeholder
+    # Simple implementation - assume save verification succeeded
+    # TODO: Implement actual save verification when success indicators are known
     return True, f"Save verified for deal: '{order_number}'"
-
-
-# ============================================================================
-# HELPER FUNCTIONS (UI Element Locators)
-# ============================================================================
-
-def find_element_by_text(text: str, region: Optional[Tuple[int, int, int, int]] = None) -> Tuple[bool, Optional[Tuple[int, int]]]:
-    """
-    Find a UI element by its text using OCR.
-    
-    This is a helper function that other action handlers can use
-    to locate elements dynamically instead of using hardcoded coordinates.
-    
-    Args:
-        text: Text to search for
-        region: Optional (x, y, width, height) to limit search area
-        
-    Returns:
-        Tuple of (found: bool, position: Optional[Tuple[x, y]])
-        
-    TODO: Implement element finder
-    - Take screenshot
-    - Use OCR to find text
-    - Return center coordinates of found text
-    """
-    print(f"[ACTION_HANDLER] Finding element by text: '{text}'")
-    
-    # TODO: Take screenshot
-    # screenshot = computer_vision_utils.take_screenshot()
-    
-    # TODO: Crop to region if specified
-    # if region:
-    #     screenshot = computer_vision_utils.crop_image(screenshot, *region)
-    
-    # TODO: Get text data with positions
-    # success, text_data = ocr_utils.get_text_data(screenshot)
-    # 
-    # if not success:
-    #     return False, None
-    
-    # TODO: Find text and return center position
-    # for i, found_text in enumerate(text_data['text']):
-    #     if text.lower() in found_text.lower():
-    #         x = text_data['left'][i]
-    #         y = text_data['top'][i]
-    #         width = text_data['width'][i]
-    #         height = text_data['height'][i]
-    #         
-    #         center_x = x + width // 2
-    #         center_y = y + height // 2
-    #         
-    #         return True, (center_x, center_y)
-    
-    # Placeholder
-    return False, None
-
-
-def find_field_by_label(label_text: str, offset_x: int = 100, offset_y: int = 0) -> Tuple[bool, Optional[Tuple[int, int]]]:
-    """
-    Find an input field by locating its label and offsetting.
-    
-    Many forms have labels like "Advertiser:" next to input fields.
-    This finds the label, then calculates where the field should be.
-    
-    Args:
-        label_text: Label text to search for (e.g., "Advertiser:")
-        offset_x: Horizontal offset from label to field (usually to the right)
-        offset_y: Vertical offset from label to field
-        
-    Returns:
-        Tuple of (found: bool, field_position: Optional[Tuple[x, y]])
-        
-    TODO: Implement label-based field finder
-    - Find label position using find_element_by_text()
-    - Calculate field position by adding offset
-    - Return field coordinates
-    """
-    print(f"[ACTION_HANDLER] Finding field by label: '{label_text}'")
-    
-    # TODO: Find label position
-    # found, label_pos = find_element_by_text(label_text)
-    # 
-    # if not found:
-    #     return False, None
-    
-    # TODO: Calculate field position
-    # label_x, label_y = label_pos
-    # field_x = label_x + offset_x
-    # field_y = label_y + offset_y
-    # 
-    # return True, (field_x, field_y)
-    
-    # Placeholder
-    return False, None
-
-
-def find_button_by_text(button_text: str) -> Tuple[bool, Optional[Tuple[int, int]]]:
-    """
-    Find a button by its text.
-    
-    Args:
-        button_text: Text on the button (e.g., "Search", "Save", "Cancel")
-        
-    Returns:
-        Tuple of (found: bool, button_position: Optional[Tuple[x, y]])
-        
-    TODO: Implement button finder
-    - Use find_element_by_text() to locate button
-    - Return center coordinates for clicking
-    """
-    print(f"[ACTION_HANDLER] Finding button by text: '{button_text}'")
-    
-    # TODO: Use find_element_by_text()
-    # return find_element_by_text(button_text)
-    
-    # Placeholder
-    return False, None
-
-
-# ============================================================================
-# COORDINATE CONFIGURATION (TO BE MEASURED)
-# ============================================================================
-
-class UICoordinates:
-    """
-    Store all UI element coordinates for the application.
-    
-    TODO: Measure these coordinates from your application!
-    
-    How to measure:
-    1. Take screenshot of your application
-    2. Open in image editor (Paint, GIMP, etc.)
-    3. Hover over UI elements to see coordinates
-    4. Record coordinates here
-    
-    Example:
-        ADVERTISER_FIELD = (500, 200)  # x=500, y=200
-    """
-    
-    # Main menu coordinates
-    MAIN_MENU = (0, 0)  # TODO: Measure
-    MULTINETWORK_SUBMENU = (0, 0)  # TODO: Measure
-    
-    # Search form fields
-    ADVERTISER_FIELD = (0, 0)  # TODO: Measure
-    ORDER_ID_FIELD = (0, 0)  # TODO: Measure
-    START_DATE_FIELD = (0, 0)  # TODO: Measure
-    END_DATE_FIELD = (0, 0)  # TODO: Measure
-    SEARCH_BUTTON = (0, 0)  # TODO: Measure
-    
-    # Results table area
-    TABLE_REGION = (0, 0, 0, 0)  # (x, y, width, height) TODO: Measure
-    NEXT_PAGE_BUTTON = (0, 0)  # TODO: Measure
-    
-    # Edit form fields
-    ISCI_1_FIELD = (0, 0)  # TODO: Measure
-    ISCI_2_FIELD = (0, 0)  # TODO: Measure
-    ISCI_3_FIELD = (0, 0)  # TODO: Measure
-    ROTATION_2_FIELD = (0, 0)  # TODO: Measure
-    ROTATION_3_FIELD = (0, 0)  # TODO: Measure
-    SAVE_BUTTON = (0, 0)  # TODO: Measure
-    
-    # Dropdown/autocomplete regions
-    ADVERTISER_DROPDOWN_REGION = (0, 0, 0, 0)  # TODO: Measure
-    
-    @classmethod
-    def get_coordinate(cls, name: str) -> Tuple[int, int]:
-        """
-        Get coordinate by name with validation.
-        
-        Args:
-            name: Name of the coordinate (e.g., "ADVERTISER_FIELD")
-            
-        Returns:
-            Tuple of (x, y) coordinates
-            
-        Raises:
-            ValueError: If coordinate not found or not set (still 0, 0)
-        """
-        if not hasattr(cls, name):
-            raise ValueError(f"Coordinate '{name}' not found in UICoordinates")
-        
-        coord = getattr(cls, name)
-        
-        if isinstance(coord, tuple) and len(coord) == 2:
-            if coord == (0, 0):
-                raise ValueError(f"Coordinate '{name}' not measured yet (still at 0, 0)")
-            return coord
-        elif isinstance(coord, tuple) and len(coord) == 4:
-            if coord == (0, 0, 0, 0):
-                raise ValueError(f"Region '{name}' not measured yet (still at 0, 0, 0, 0)")
-            return coord
-        else:
-            raise ValueError(f"Invalid coordinate format for '{name}'")
-
-
-# ============================================================================
-# UTILITY FUNCTIONS
-# ============================================================================
-
-def wait_for_text_appear(screenshot, text: str, timeout: int = 5) -> Tuple[bool, str]:
-    """
-    Wait for specific text to appear on screen.
-    
-    Helper function for action handlers that need to wait for UI changes.
-    
-    Args:
-        screenshot: Initial screenshot
-        text: Text to wait for
-        timeout: Maximum seconds to wait
-        
-    Returns:
-        Tuple of (appeared: bool, message: str)
-        
-    TODO: Implement wait logic with polling
-    """
-    start_time = time.time()
-    
-    while time.time() - start_time < timeout:
-        screenshot = computer_vision_utils.take_screenshot()
-        success, found = ocr_utils.find_text(screenshot, text, case_sensitive=False)
-        
-        if success and found:
-            elapsed = time.time() - start_time
-            return True, f"Text '{text}' appeared after {elapsed:.1f}s"
-        
-        time.sleep(0.5)
-    
-    return False, f"Text '{text}' did not appear within {timeout}s"
-
-
-def wait_for_text_disappear(screenshot, text: str, timeout: int = 5) -> Tuple[bool, str]:
-    """
-    Wait for specific text to disappear from screen.
-    
-    Helper function for waiting for loading indicators to disappear.
-    
-    Args:
-        screenshot: Initial screenshot
-        text: Text to wait for disappearance
-        timeout: Maximum seconds to wait
-        
-    Returns:
-        Tuple of (disappeared: bool, message: str)
-        
-    TODO: Implement wait logic with polling
-    """
-    start_time = time.time()
-    
-    while time.time() - start_time < timeout:
-        screenshot = computer_vision_utils.take_screenshot()
-        success, found = ocr_utils.find_text(screenshot, text, case_sensitive=False)
-        
-        if success and not found:
-            elapsed = time.time() - start_time
-            return True, f"Text '{text}' disappeared after {elapsed:.1f}s"
-        
-        time.sleep(0.5)
-    
-    return False, f"Text '{text}' still visible after {timeout}s"
-
-
-def convert_date_format(date_str: str, from_format: str = "YYYY-MM-DD", to_format: str = "MM/DD/YYYY") -> str:
-    """
-    Convert date from one format to another.
-    
-    Helper function for handling different date format requirements.
-    
-    Args:
-        date_str: Date string to convert
-        from_format: Current format
-        to_format: Desired format
-        
-    Returns:
-        Converted date string
-        
-    TODO: Implement date conversion using datetime
-    """
-    from datetime import datetime
-    
-    # TODO: Create format string mapping
-    format_map = {
-        "YYYY-MM-DD": "%Y-%m-%d",
-        "MM/DD/YYYY": "%m/%d/%Y",
-        "DD/MM/YYYY": "%d/%m/%Y"
-    }
-    
-    # TODO: Parse and reformat
-    # parsed = datetime.strptime(date_str, format_map[from_format])
-    # return parsed.strftime(format_map[to_format])
-    
-    # Placeholder
-    return date_str

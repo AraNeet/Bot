@@ -42,8 +42,9 @@ VERIFIER_HANDLERS = {
     # Search field actions
     "enter_advertiser_name": verifier_handlers.verify_advertiser_name_entered,
     "enter_order_id": verifier_handlers.verify_order_id_entered,
-    "enter_start_date": verifier_handlers.verify_start_date_entered,
-    "calculate_and_enter_end_date": verifier_handlers.verify_end_date_entered,
+    "enter_agency": verifier_handlers.verify_agency_name_entered,
+    "enter_begin_date": verifier_handlers.verify_begin_date_entered,
+    "enter_end_date": verifier_handlers.verify_end_date_entered,
     
     # Button actions
     "click_search_button": verifier_handlers.verify_search_button_clicked,
@@ -144,17 +145,6 @@ def execute_verification(instruction_name: str, **kwargs) -> Tuple[bool, str, Op
             print(f"[VERIFIER_EXECUTOR ERROR] Failed to send error notification: {notify_error}")
         
         return False, error_msg, None
-
-
-def get_supported_instructions() -> list:
-    """
-    Get list of all supported instruction names that have verifiers.
-    
-    Returns:
-        List of instruction names that have corresponding verifier handlers
-    """
-    return list(VERIFIER_HANDLERS.keys())
-
 
 def has_verifier(instruction_name: str) -> bool:
     """

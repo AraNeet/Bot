@@ -581,28 +581,6 @@ def verify_instruction_sequence(instructions: list, **kwargs) -> Tuple[bool, lis
     return verifier_executor.verify_instruction_sequence(instructions, **kwargs)
 
 
-def get_supported_verifications() -> list:
-    """
-    Get list of all supported instruction names that have verifiers.
-    
-    Returns:
-        List of instruction names that have corresponding verifier handlers
-    """
-    return verifier_executor.get_supported_instructions()
-
-
-def has_verifier(instruction_name: str) -> bool:
-    """
-    Check if an instruction has a corresponding verifier handler.
-    
-    Args:
-        instruction_name: Name of the instruction to check
-        
-    Returns:
-        True if verifier handler exists, False otherwise
-    """
-    return verifier_executor.has_verifier(instruction_name)
-
 
 # ============================================================================
 # BACKWARD COMPATIBILITY FUNCTIONS
