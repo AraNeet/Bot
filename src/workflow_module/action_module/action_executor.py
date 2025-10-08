@@ -49,28 +49,28 @@ ACTION_HANDLERS: Dict[str, Any] = {
     "enter_advertiser_name": action_handler.enter_advertiser_name,
     "verify_advertiser_found": action_handler.verify_advertiser_found,
     "enter_order_id": action_handler.enter_order_id,
-    "verify_order_found": action_handler.verify_order_found,
     "enter_agency": action_handler.enter_agency,
     "enter_begin_date": action_handler.enter_begin_date,
     "enter_end_date": action_handler.enter_end_date,
     "click_search_button": action_handler.click_search_button,
     "wait_for_search_results": action_handler.wait_for_search_results,
     
-    # Table interaction
-    "find_row_by_deal_number": action_handler.find_row_by_deal_number,
-    "right_click_row": action_handler.right_click_row,
-    "select_edit_multinetwork_instruction": action_handler.select_edit_multinetwork_instruction,
+    # Not implemented
+    # # Table interaction
+    # "find_row_by_deal_number": action_handler.find_row_by_deal_number,
+    # "right_click_row": action_handler.right_click_row,
+    # "select_edit_multinetwork_instruction": action_handler.select_edit_multinetwork_instruction,
     
-    # Edit page actions
-    "wait_for_edit_page_load": action_handler.wait_for_edit_page_load,
-    "verify_edit_page_opened": action_handler.verify_edit_page_opened,
-    "enter_isci_1": action_handler.enter_isci_1,
-    "enter_isci_2_if_provided": action_handler.enter_isci_2_if_provided,
-    "enter_isci_3_if_provided": action_handler.enter_isci_3_if_provided,
+    # # Edit page actions
+    # "wait_for_edit_page_load": action_handler.wait_for_edit_page_load,
+    # "verify_edit_page_opened": action_handler.verify_edit_page_opened,
+    # "enter_isci_1": action_handler.enter_isci_1,
+    # "enter_isci_2_if_provided": action_handler.enter_isci_2_if_provided,
+    # "enter_isci_3_if_provided": action_handler.enter_isci_3_if_provided,
     
-    # Save actions
-    "save_instruction": action_handler.save_instruction,
-    "verify_save_successful": action_handler.verify_save_successful,
+    # # Save actions
+    # "save_instruction": action_handler.save_instruction,
+    # "verify_save_successful": action_handler.verify_save_successful,
 }
 
 

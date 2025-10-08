@@ -57,8 +57,7 @@
                 "action_type": "find_row_by_deal_number",
                 "description": "Search through table rows to find matching deal number",
                 "parameters": {
-                    "order_number": "",
-                    "max_pages": 20
+                    "order_number": ""
                 }
             },
             {

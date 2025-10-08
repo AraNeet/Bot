@@ -408,24 +408,6 @@ def enter_order_id(order_number: str) -> Tuple[bool, str]:
         print(f"[ACTION_HANDLER ERROR] {error_msg}")
         return False, error_msg
 
-
-def verify_order_found(order_number: str) -> Tuple[bool, str]:
-    """
-    Verify that the order ID was accepted/found.
-    
-    This function is now handled by the verifier module.
-    The verifier module will automatically verify order ID entries.
-    
-    Args:
-        order_number: Order ID to verify
-        
-    Returns:
-        Tuple of (success: bool, message: str)
-    """
-    print(f"[ACTION_HANDLER] Order verification is handled by verifier module")
-    return True, f"Order '{order_number}' verification delegated to verifier module"
-
-
 def enter_agency(agency_name: str) -> Tuple[bool, str]:
     """
     Enter agency name in the search field.

@@ -131,6 +131,9 @@ def execute_single_instruction(instruction: Dict[str, Any],
         print(f"[ENGINE] No verifier found for action type: '{action_type}' - skipping verification")
         return True, f"Action '{action_type}' executed (no verifier available)"
         
+# ============================================================================
+# VERIFICATION Isnt working fully yet due to the verifier module not being fully implemented
+# ============================================================================
     #     # Use new verifier module to check action completion
     #     verification_success, verification_msg, verification_data = verifier.verify_action_completion(
     #         instruction_name=action_type,
