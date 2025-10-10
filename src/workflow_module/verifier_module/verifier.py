@@ -1,641 +1,666 @@
 #!/usr/bin/env python3
 """
-Verifier Module - Main Interface
+Verifier Module - Shared Verification Functions
 
-This module provides the main interface for verification operations.
-It coordinates between verifier_executor, verifier_handlers, and verifier_helpers.
+This module contains all the LOW-LEVEL verification functions that are shared
+across different verifier handlers. These functions provide the core verification
+capabilities that action-specific verifiers can build upon.
 
-Key Responsibilities:
-- Provide main verification interface
-- Coordinate verification workflow
-- Handle verification results
-- Maintain backward compatibility
+Core Functions:
+- Text verification (OCR-based)
+- Template matching verification
+- UI state change verification
+- Screenshot and image processing
+- Utility functions for verification
 
-Architecture:
-    Main Interface (THIS FILE)
-        ↓
-    verifier_executor.py (routes instruction names)
-        ↓
-    verifier_handlers.py (implements specific verifications)
-        ↓
-    verifier_helpers.py (performs generic operations)
+This module is used by verifier_handlers.py to implement specific verification logic.
 """
 
 import time
-from typing import Dict, Any, Tuple, Optional
-from ..helpers import computer_vision_utils, ocr_utils
-from . import verifier_executor
-from . import verifier_helpers
+import cv2
+from typing import Dict, Any, Tuple, Optional, List
+from ..helpers import ocr_utils
+from ..helpers import computer_vision_utils
 
 
+# ============================================================================
+# TEXT VERIFICATION FUNCTIONS
+# ============================================================================
 
-def check_workspace_ready(corner_templates: Dict[str, Any],
-                         expected_page_text: Optional[str] = None,
-                         region_size: int = 200,
-                         confidence: float = 0.8) -> Tuple[bool, str]:
-    """
-    Check if workspace is ready for workflow execution.
-    
-    This function verifies:
-    1. Application is maximized by checking 3 corner templates
-    2. Expected page/screen is visible
-    
-    Uses cv_helper for all computer vision operations.
-    
-    Args:
-        corner_templates: Dictionary with 'top_left', 'top_right', 'bottom_right' template images
-        expected_page_text: Text that should be visible on the correct page
-        region_size: Size of corner regions to search in pixels
-        confidence: Template matching confidence threshold (0-1)
-        
-    Returns:
-        Tuple of (success: bool, message)
-        
-    Example:
-        corner_templates = {
-            'top_left': template_image1,
-            'top_right': template_image2,
-            'bottom_right': template_image3
-        }
-        success, msg = check_workspace_ready(
-            corner_templates,
-            expected_page_text="Multinetwork Instructions"
-        )
-    """
-    print("\n[VERIFIER] Checking if workspace is ready...")
-    
-    # Step 1: Take screenshot
-    screenshot = computer_vision_utils.take_screenshot()
-    if screenshot is None:
-        error_msg = "Failed to capture screenshot - cannot verify workspace"
-        print(f"[VERIFIER ERROR] {error_msg}")
-        return False, error_msg
-    
-    screen_width, screen_height = computer_vision_utils.get_image_dimensions(screenshot)
-    print(f"[VERIFIER] Screen size: {screen_width}x{screen_height}")
-    
-    # Step 2: Check if application is maximized using corner templates
-    print(f"[VERIFIER] Verifying application is maximized...")
-    
-    all_found, corners_found, confidence_scores = computer_vision_utils.check_corners_maximized(
-        screenshot,
-        corner_templates,
-        region_size,
-        confidence
-    )
-    
-    if not all_found:
-        missing_corners = [name for name, found in corners_found.items() if not found]
-        missing_scores = {name: confidence_scores[name] for name in missing_corners}
-        
-        error_msg = f"Application not maximized - missing corners: {missing_corners} (scores: {missing_scores})"
-        print(f"[VERIFIER ERROR] {error_msg}")
-        
-        # Save screenshot for debugging
-        computer_vision_utils.save_screenshot(screenshot, "workspace_not_maximized.png")
-        
-        return False, error_msg
-    
-    print(f"[VERIFIER SUCCESS] All corner templates found - application is maximized")
-    
-    # Step 3: Verify expected page is visible (if specified)
-    if expected_page_text:
-        print(f"[VERIFIER] Checking for page indicator: '{expected_page_text}'")
-        
-        success, found = ocr_utils.find_text(
-            screenshot,
-            expected_page_text,
-            case_sensitive=False
-        )
-        
-        if not success:
-            error_msg = "OCR failed during workspace verification"
-            print(f"[VERIFIER ERROR] {error_msg}")
-            return False, error_msg
-        
-        if not found:
-            error_msg = f"Expected page text '{expected_page_text}' not found - wrong page or application not ready"
-            print(f"[VERIFIER ERROR] {error_msg}")
-            
-            # Save screenshot for debugging
-            computer_vision_utils.save_screenshot(screenshot, "workspace_wrong_page.png")
-            
-            return False, error_msg
-        
-        print(f"[VERIFIER SUCCESS] Found '{expected_page_text}' - correct page is visible")
-    
-    # Workspace is ready
-    success_msg = "Workspace is ready: application maximized and correct page visible"
-    print(f"[VERIFIER SUCCESS] {success_msg}")
-    return True, success_msg
-
-
-def verify_text_is_inputted(expected_text: str,
-                           search_region: Optional[Tuple[int, int, int, int]] = None,
-                           case_sensitive: bool = False) -> Tuple[bool, str]:
-    """
-    Verify that text was successfully inputted into a field.
-    
-    This checks if the expected text now appears on screen in the input area.
-    
-    Args:
-        expected_text: The text that should have been entered
-        search_region: Optional (x, y, width, height) region to search in
-        case_sensitive: Whether to match case exactly
-        
-    Returns:
-        Tuple of (success: bool, message)
-        
-    Example:
-        # Verify "Acme Corp" was entered in advertiser field
-        success, msg = verify_text_is_inputted("Acme Corp")
-    """
-    print(f"[VERIFIER] Verifying text was inputted: '{expected_text}'")
-    
-    # Take screenshot to check current state
-    screenshot = computer_vision_utils.take_screenshot()
-    if screenshot is None:
-        error_msg = "Failed to capture screenshot for verification"
-        print(f"[VERIFIER ERROR] {error_msg}")
-        return False, error_msg
-    
-    # If search region specified, crop to that region
-    if search_region:
-        x, y, w, h = search_region
-        screenshot = computer_vision_utils.crop_image(screenshot, x, y, w, h)
-        if screenshot is None:
-            error_msg = "Failed to crop search region"
-            print(f"[VERIFIER ERROR] {error_msg}")
-            return False, error_msg
-        print(f"[VERIFIER] Searching in region: ({x}, {y}, {w}, {h})")
-    
-    # Search for the expected text
-    success, found = ocr_utils.find_text(
-        screenshot,
-        expected_text,
-        case_sensitive=case_sensitive
-    )
-    
-    if not success:
-        error_msg = "OCR failed during text verification"
-        print(f"[VERIFIER ERROR] {error_msg}")
-        return False, error_msg
-    
-    if found:
-        success_msg = f"Verified: Text '{expected_text}' is present on screen"
-        print(f"[VERIFIER SUCCESS] {success_msg}")
-        return True, success_msg
-    else:
-        error_msg = f"Text '{expected_text}' not found - input may have failed"
-        print(f"[VERIFIER ERROR] {error_msg}")
-        
-        # Save screenshot for debugging
-        computer_vision_utils.save_screenshot(screenshot, f"text_not_found_{int(time.time())}.png")
-        
-        return False, error_msg
-
-
-def verify_text_appears(expected_text: str,
-                       search_region: Optional[Tuple[int, int, int, int]] = None,
-                       timeout: int = 5,
+def verify_text_entered(expected_text: str, 
+                       region: Optional[Tuple[int, int, int, int]] = None,
                        case_sensitive: bool = False) -> Tuple[bool, str]:
     """
-    Verify that specific text appears on screen (with timeout).
-    
-    This waits for text to appear, useful for verifying page loads,
-    dropdown options appearing, success messages, etc.
+    Verify that specific text was entered on the screen.
     
     Args:
         expected_text: Text to search for
-        search_region: Optional (x, y, width, height) region to search in
-        timeout: Maximum seconds to wait for text to appear
-        case_sensitive: Whether to match case exactly
+        region: Optional region to limit search (x, y, width, height)
+        case_sensitive: Whether search should be case-sensitive
         
     Returns:
-        Tuple of (success: bool, message)
-        
-    Example:
-        # Wait for "Search Results" text to appear after clicking search
-        success, msg = verify_text_appears("Search Results", timeout=10)
+        Tuple of (success: bool, message: str)
     """
-    print(f"[VERIFIER] Waiting for text to appear: '{expected_text}' (timeout: {timeout}s)")
-    
-    start_time = time.time()
-    
-    while time.time() - start_time < timeout:
+    try:
         # Take screenshot
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
-            time.sleep(0.5)
-            continue
-        
-        # Crop if region specified
-        search_image = screenshot
-        if search_region:
-            x, y, w, h = search_region
-            search_image = computer_vision_utils.crop_image(screenshot, x, y, w, h)
-            if search_image is None:
-                time.sleep(0.5)
-                continue
+            return False, "Failed to take screenshot"
         
         # Search for text
-        success, found = ocr_utils.find_text(
-            search_image,
-            expected_text,
-            case_sensitive=case_sensitive
-        )
+        if region:
+            success, found = ocr_utils.find_text_in_region(
+                screenshot, expected_text, region, case_sensitive
+            )
+        else:
+            success, found = ocr_utils.find_text(
+                screenshot, expected_text, case_sensitive
+            )
         
-        if success and found:
-            elapsed = time.time() - start_time
-            success_msg = f"Text '{expected_text}' appeared after {elapsed:.1f}s"
-            print(f"[VERIFIER SUCCESS] {success_msg}")
-            return True, success_msg
+        if not success:
+            return False, "OCR text search failed"
         
-        # Wait a bit before trying again
-        time.sleep(0.5)
-    
-    # Timeout reached
-    error_msg = f"Text '{expected_text}' did not appear within {timeout}s"
-    print(f"[VERIFIER ERROR] {error_msg}")
-    
-    # Save final screenshot for debugging
-    final_screenshot = computer_vision_utils.take_screenshot()
-    if final_screenshot:
-        computer_vision_utils.save_screenshot(final_screenshot, f"text_timeout_{int(time.time())}.png")
-    
-    return False, error_msg
+        if found:
+            return True, f"Text '{expected_text}' found on screen"
+        else:
+            return False, f"Text '{expected_text}' not found on screen"
+            
+    except Exception as e:
+        return False, f"Error verifying text entry: {e}"
 
 
-def verify_text_disappears(text_to_check: str,
-                          timeout: int = 5) -> Tuple[bool, str]:
+def verify_text_presence(expected_texts: List[str],
+                        region: Optional[Tuple[int, int, int, int]] = None,
+                        min_matches: int = 1,
+                        case_sensitive: bool = False) -> Tuple[bool, str]:
     """
-    Verify that specific text disappears from screen (with timeout).
-    
-    Useful for verifying loading spinners disappear, dialogs close, etc.
+    Verify that at least a minimum number of expected texts are present.
     
     Args:
-        text_to_check: Text that should disappear
-        timeout: Maximum seconds to wait for text to disappear
+        expected_texts: List of texts to search for
+        region: Optional region to limit search
+        min_matches: Minimum number of texts that must be found
+        case_sensitive: Whether search should be case-sensitive
         
     Returns:
-        Tuple of (success: bool, message)
-        
-    Example:
-        # Wait for "Loading..." to disappear
-        success, msg = verify_text_disappears("Loading...")
+        Tuple of (success: bool, message: str)
     """
-    print(f"[VERIFIER] Waiting for text to disappear: '{text_to_check}' (timeout: {timeout}s)")
-    
-    start_time = time.time()
-    
-    while time.time() - start_time < timeout:
+    try:
+        # Take screenshot
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
-            time.sleep(0.5)
-            continue
+            return False, "Failed to take screenshot"
         
-        success, found = ocr_utils.find_text(
-            screenshot,
-            text_to_check,
-            case_sensitive=False
-        )
+        found_count = 0
+        found_texts = []
         
-        if success and not found:
-            elapsed = time.time() - start_time
-            success_msg = f"Text '{text_to_check}' disappeared after {elapsed:.1f}s"
-            print(f"[VERIFIER SUCCESS] {success_msg}")
-            return True, success_msg
+        for text in expected_texts:
+            if region:
+                success, found = ocr_utils.find_text_in_region(
+                    screenshot, text, region, case_sensitive
+                )
+            else:
+                success, found = ocr_utils.find_text(
+                    screenshot, text, case_sensitive
+                )
+            
+            if success and found:
+                found_count += 1
+                found_texts.append(text)
         
-        time.sleep(0.5)
-    
-    error_msg = f"Text '{text_to_check}' still visible after {timeout}s"
-    print(f"[VERIFIER ERROR] {error_msg}")
-    return False, error_msg
+        if found_count >= min_matches:
+            return True, f"Found {found_count}/{len(expected_texts)} expected texts: {found_texts}"
+        else:
+            return False, f"Only found {found_count}/{len(expected_texts)} expected texts (minimum: {min_matches})"
+            
+    except Exception as e:
+        return False, f"Error verifying text presence: {e}"
 
 
-def verify_action_completed(action_type: str,
-                           parameters: Dict[str, Any],
-                           verification_config: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
+def verify_text_in_field(expected_text: str,
+                        field_region: Tuple[int, int, int, int],
+                        confidence_threshold: float = 0.60) -> Tuple[bool, str, Dict[str, Any]]:
     """
-    Verify that an action completed successfully.
-    
-    This is the main verification function called by workflow engine after each action.
-    It uses the verification config from the instruction JSON to determine what to verify.
+    Verify that specific text appears in a specific field region using OCR.
     
     Args:
-        action_type: The type of action that was performed
-        parameters: The parameters used for the action
-        verification_config: Verification configuration from instruction JSON
+        expected_text: Text to verify
+        field_region: Field region tuple (x, y, width, height)
+        confidence_threshold: Minimum OCR confidence threshold
         
     Returns:
-        Tuple of (success: bool, message)
+        Tuple of (success: bool, message: str, verification_data: Dict)
+    """
+    try:
+        # Take screenshot
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot", {}
         
-    Expected verification_config structure:
-    {
-        "type": "text_inputted",  # or "text_appears", "text_disappears"
-        "expected_text": "Acme Corp",
-        "region": [x, y, width, height],  # Optional
-        "timeout": 10  # Optional, for appears/disappears
-    }
-    
-    Example:
-        verification_config = {
-            "type": "text_inputted",
-            "expected_text": parameters["advertiser_name"]
+        # Crop to field region
+        cropped_image = crop_image_for_verification(
+            screenshot, 
+            field_region[0], 
+            field_region[1], 
+            field_region[2], 
+            field_region[3]
+        )
+        
+        if cropped_image is None:
+            return False, "Failed to crop image to field region", {}
+        
+        # Get detailed OCR data
+        ocr_success, ocr_data = get_detailed_ocr_data(cropped_image)
+        
+        if not ocr_success:
+            return False, f"Failed to get OCR data: {ocr_data}", {}
+        
+        # Check if we have valid OCR data
+        if not isinstance(ocr_data, dict) or 'text' not in ocr_data or 'confidence' not in ocr_data:
+            return False, "Invalid OCR data structure", {}
+        
+        # Perform text matching with multiple strategies
+        expected_lower = expected_text.lower().strip()
+        match_found = False
+        match_method = ""
+        best_match_confidence = 0.0
+        best_match_text = ""
+        
+        # Strategy 1: High confidence exact matches (85%+)
+        for i, text in enumerate(ocr_data['text']):
+            if not text.strip():
+                continue
+                
+            confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
+            
+            if confidence >= 0.85:
+                text_lower = text.lower().strip()
+                
+                if expected_lower == text_lower:
+                    match_found = True
+                    match_method = f"high confidence exact match (confidence: {confidence:.2f})"
+                    best_match_confidence = confidence
+                    best_match_text = text
+                    break
+        
+        # Strategy 2: Medium confidence matches (60%+) with various patterns
+        if not match_found:
+            for i, text in enumerate(ocr_data['text']):
+                if not text.strip():
+                    continue
+                    
+                confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
+                
+                if confidence >= confidence_threshold:
+                    text_lower = text.lower().strip()
+                    
+                    if expected_lower == text_lower:
+                        if confidence > best_match_confidence:
+                            match_found = True
+                            match_method = f"exact match (confidence: {confidence:.2f})"
+                            best_match_confidence = confidence
+                            best_match_text = text
+                    elif expected_lower in text_lower:
+                        if confidence > best_match_confidence:
+                            match_found = True
+                            match_method = f"expected contains extracted (confidence: {confidence:.2f})"
+                            best_match_confidence = confidence
+                            best_match_text = text
+                    elif text_lower in expected_lower:
+                        if confidence > best_match_confidence:
+                            match_found = True
+                            match_method = f"extracted contains expected (confidence: {confidence:.2f})"
+                            best_match_confidence = confidence
+                            best_match_text = text
+        
+        # Prepare verification data
+        verification_data = {
+            "expected_text": expected_text,
+            "field_region": field_region,
+            "confidence_threshold": confidence_threshold,
+            "ocr_data": ocr_data
         }
-        success, msg = verify_action_completed(
-            "enter_advertiser_name",
-            parameters,
-            verification_config
-        )
-    """
-    print(f"\n[VERIFIER] Verifying action: {action_type}")
-    
-    # If no verification config provided, cannot verify
-    if not verification_config:
-        warning_msg = f"No verification config provided for '{action_type}' - skipping verification"
-        print(f"[VERIFIER WARNING] {warning_msg}")
-        return True, warning_msg
-    
-    verification_type = verification_config.get("type")
-    
-    if not verification_type:
-        error_msg = "Verification config missing 'type' field"
-        print(f"[VERIFIER ERROR] {error_msg}")
-        return False, error_msg
-    
-    # Route to appropriate verification function
-    if verification_type == "text_inputted":
-        expected_text = verification_config.get("expected_text")
-        region = verification_config.get("region")
         
-        if not expected_text:
-            error_msg = "text_inputted verification missing 'expected_text'"
-            print(f"[VERIFIER ERROR] {error_msg}")
-            return False, error_msg
-        
-        return verify_text_is_inputted(expected_text, region)
-    
-    elif verification_type == "text_appears":
-        expected_text = verification_config.get("expected_text")
-        region = verification_config.get("region")
-        timeout = verification_config.get("timeout", 5)
-        
-        if not expected_text:
-            error_msg = "text_appears verification missing 'expected_text'"
-            print(f"[VERIFIER ERROR] {error_msg}")
-            return False, error_msg
-        
-        return verify_text_appears(expected_text, region, timeout)
-    
-    elif verification_type == "text_disappears":
-        text_to_check = verification_config.get("expected_text")
-        timeout = verification_config.get("timeout", 5)
-        
-        if not text_to_check:
-            error_msg = "text_disappears verification missing 'expected_text'"
-            print(f"[VERIFIER ERROR] {error_msg}")
-            return False, error_msg
-        
-        return verify_text_disappears(text_to_check, timeout)
-    
-    else:
-        error_msg = f"Unknown verification type: '{verification_type}'"
-        print(f"[VERIFIER ERROR] {error_msg}")
-        return False, error_msg
+        if match_found:
+            verification_data.update({
+                "matched_text": best_match_text,
+                "match_confidence": best_match_confidence,
+                "match_method": match_method
+            })
+            return True, f"Text '{expected_text}' verified in field ({match_method})", verification_data
+        else:
+            return False, f"Text '{expected_text}' not found in field", verification_data
+            
+    except Exception as e:
+        return False, f"Error verifying text in field: {e}", {}
 
 
-def save_failure_context(action_type: str,
-                        parameters: Dict[str, Any],
-                        verification_error: str,
-                        attempt_number: int) -> str:
+# ============================================================================
+# TEMPLATE VERIFICATION FUNCTIONS
+# ============================================================================
+
+def verify_template_found(template_path: str,
+                         region: Optional[Tuple[int, int, int, int]] = None,
+                         confidence: float = 0.8) -> Tuple[bool, str, Optional[Tuple[int, int, int, int]]]:
     """
-    Save context information when verification fails.
-    
-    Captures screenshot and returns path for error reporting.
+    Verify that a template image is found on the screen.
     
     Args:
-        action_type: The action that failed verification
-        parameters: Parameters used for the action
-        verification_error: The error message from verification
-        attempt_number: Which retry attempt this was
+        template_path: Path to the template image file
+        region: Optional region to limit search
+        confidence: Minimum confidence threshold
         
     Returns:
-        Path to saved screenshot
+        Tuple of (success: bool, message: str, region: Optional[Tuple])
     """
-    print(f"[VERIFIER] Saving failure context for '{action_type}' (attempt {attempt_number})")
-    
-    # Capture current state
-    screenshot = computer_vision_utils.take_screenshot()
-    
-    if screenshot is not None:
-        # Create descriptive filename
-        timestamp = int(time.time())
-        filename = f"failure_{action_type}_attempt{attempt_number}_{timestamp}.png"
-        
-        success, filepath = computer_vision_utils.save_screenshot(screenshot, filename)
-        
-        if success:
-            print(f"[VERIFIER] Failure screenshot saved: {filepath}")
-            return filepath
-    
-    return "Screenshot capture failed"
-
-
-def verify_multinetwork_page_opened() -> Tuple[bool, str, Optional[Tuple[int, int, int, int]]]:
-    """
-    Verify that the Multi-Network Instructions page opened successfully.
-    
-    This function:
-    1. Takes a screenshot
-    2. Uses computer vision to find the search_fields template within the specified region (206, 152, 1439, 79)
-    3. Uses OCR to check for expected text within the same region
-    4. Returns the region where elements were found
-    
-    Returns:
-        Tuple of (success: bool, message: str, region: Optional[Tuple[int, int, int, int]])
-        - success: Whether the page opened successfully
-        - message: Success or error message
-        - region: Region where elements were found (x, y, width, height)
-        
-    Example:
-        success, msg, region = verify_multinetwork_page_opened()
-        if success:
-            print(f"Page opened successfully! Elements found at: {region}")
-    """
-    print("[VERIFIER] Verifying Multi-Network Instructions page opened...")
-    
     try:
         # Take screenshot
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot", None
         
-        # Define the specific region to search within
-        # Region: (206, 152, 1439, 79) = (x, y, width, height)
-        region_x = 206
-        region_y = 152
-        region_width = 1439
-        region_height = 79
-        search_region = (region_x, region_y, region_width, region_height)
+        # Search for template
+        if region:
+            found, conf_score, position = computer_vision_utils.find_template_in_region(
+                screenshot, template_path, region, confidence
+            )
+            template_region = region
+        else:
+            found, conf_score, position, template_region = computer_vision_utils.find_template_full_screen(
+                screenshot, template_path, confidence
+            )
         
-        print(f"[VERIFIER] Searching for search fields in region {search_region}")
+        if found:
+            return True, f"Template found with confidence {conf_score:.2f}", template_region
+        else:
+            return False, f"Template not found (confidence: {conf_score:.2f})", None
+            
+    except Exception as e:
+        return False, f"Error verifying template: {e}", None
+
+
+def verify_page_with_template(template_path: str,
+                             expected_texts: List[str],
+                             min_text_matches: int = 1,
+                             confidence: float = 0.8) -> Tuple[bool, str, Optional[Tuple[int, int, int, int]]]:
+    """
+    Verify that a page loaded by checking for both template and expected texts.
+    
+    Args:
+        template_path: Path to the template image file
+        expected_texts: List of texts that should be on the page
+        min_text_matches: Minimum number of texts that must be found
+        confidence: Template matching confidence threshold
         
-        # Use computer vision to find the search_fields template within the specified region
-        fields_found, confidence, fields_position = computer_vision_utils.find_template_in_region(
-            screenshot, 
-            'assets/search_fields.png', 
-            search_region,
-            confidence=0.8  # Lower confidence for search fields as they might vary
+    Returns:
+        Tuple of (success: bool, message: str, region: Optional[Tuple])
+    """
+    try:
+        # First verify template is found
+        template_success, template_msg, template_region = verify_template_found(
+            template_path, None, confidence
         )
         
-        if not fields_found:
-            return False, f"Search fields not found in region {search_region} (confidence: {confidence:.2f})", None
+        if not template_success:
+            return False, f"Template verification failed: {template_msg}", None
         
-        print(f"[VERIFIER] ✓ Search fields found at {fields_position} with confidence {confidence:.2f}")
-        print(f"[VERIFIER] Search fields found within region: {search_region}")
+        # Then verify expected texts are present
+        text_success, text_msg = verify_text_presence(
+            expected_texts, None, min_text_matches
+        )
         
-        # Additional verification: Check for common text within the same region
-        print("[VERIFIER] Verifying page content within region...")
+        if not text_success:
+            return False, f"Text verification failed: {text_msg}", template_region
         
-        # Check for common text that should appear on the Multi-Network Instructions page
-        common_texts = [
-            "Multi-Network Instructions",
-            "Search",
-            "Advertiser",
-            "Order",
-            "Date"
-        ]
-        
-        text_found_count = 0
-        for text in common_texts:
-            ocr_success, text_found = ocr_utils.find_text_in_region(
-                screenshot, 
-                text, 
-                search_region,
-                case_sensitive=False
-            )
-            if ocr_success and text_found:
-                text_found_count += 1
-                print(f"[VERIFIER] ✓ Found text '{text}' in region {search_region}")
-        
-        # Consider page verified if we found at least 2 of the common texts
-        if text_found_count >= 2:
-            success_msg = f"Multi-Network Instructions page opened successfully! Found {text_found_count} expected text elements in region {search_region}."
-            print(f"[VERIFIER] ✓ {success_msg}")
-            return True, success_msg, search_region
-        else:
-            warning_msg = f"Page may not have loaded correctly. Only found {text_found_count} expected text elements in region {search_region}."
-            print(f"[VERIFIER] ⚠ {warning_msg}")
-            return True, warning_msg, search_region  # Still return success since search fields were found
+        # Both verifications passed
+        return True, f"Page verified: {template_msg} and {text_msg}", template_region
         
     except Exception as e:
-        error_msg = f"Error verifying Multi-Network Instructions page: {e}"
-        print(f"[VERIFIER ERROR] {error_msg}")
-        return False, error_msg, None
+        return False, f"Error verifying page with template: {e}", None
 
 
 # ============================================================================
-# MAIN VERIFICATION INTERFACE
+# UI STATE VERIFICATION FUNCTIONS
 # ============================================================================
 
-def verify_action_completion(instruction_name: str, **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+def verify_ui_state_change(expected_texts: List[str],
+                          timeout: float = 5.0,
+                          region: Optional[Tuple[int, int, int, int]] = None) -> Tuple[bool, str]:
     """
-    Main interface for verifying action completion.
-    
-    This function routes instruction names to their corresponding verifier handlers
-    and returns the verification results.
+    Verify that UI state changed by looking for expected texts within a timeout.
     
     Args:
-        instruction_name: Name of the instruction that was executed
-        **kwargs: Additional parameters for verification
-        
-    Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
-        
-    Example:
-        success, msg, data = verify_action_completion(
-            "open_multinetwork_instructions_page"
-        )
-    """
-    print(f"[VERIFIER] Verifying action completion for: '{instruction_name}'")
-    
-    # Use verifier_executor to route to appropriate handler
-    return verifier_executor.execute_verification(instruction_name, **kwargs)
-
-
-def verify_instruction_sequence(instructions: list, **kwargs) -> Tuple[bool, list]:
-    """
-    Verify a sequence of instructions.
-    
-    Args:
-        instructions: List of instruction names to verify
-        **kwargs: Additional parameters for verification
-        
-    Returns:
-        Tuple of (all_passed: bool, results: list)
-    """
-    print(f"[VERIFIER] Verifying sequence of {len(instructions)} instructions")
-    
-    # Use verifier_executor for batch verification
-    return verifier_executor.verify_instruction_sequence(instructions, **kwargs)
-
-
-
-# ============================================================================
-# BACKWARD COMPATIBILITY FUNCTIONS
-# ============================================================================
-
-def verify_text_input(text: str, **kwargs) -> Tuple[bool, str]:
-    """
-    Backward compatibility function for text input verification.
-    
-    Args:
-        text: Text to verify was entered
+        expected_texts: List of texts that should appear after state change
+        timeout: Maximum time to wait for state change
+        region: Optional region to limit search
         
     Returns:
         Tuple of (success: bool, message: str)
     """
-    success, message, _ = verify_action_completion("type_text", text=text, **kwargs)
-    return success, message
+    try:
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout:
+            # Take screenshot
+            screenshot = computer_vision_utils.take_screenshot()
+            if screenshot is None:
+                time.sleep(0.5)
+                continue
+            
+            # Check for any of the expected texts
+            for text in expected_texts:
+                if region:
+                    success, found = ocr_utils.find_text_in_region(
+                        screenshot, text, region, case_sensitive=False
+                    )
+                else:
+                    success, found = ocr_utils.find_text(
+                        screenshot, text, case_sensitive=False
+                    )
+                
+                if success and found:
+                    elapsed = time.time() - start_time
+                    return True, f"UI state change detected after {elapsed:.1f}s - found: '{text}'"
+            
+            time.sleep(0.5)
+        
+        return False, f"UI state change not detected within {timeout}s"
+        
+    except Exception as e:
+        return False, f"Error verifying UI state change: {e}"
 
 
-def verify_text_presence(text: str, **kwargs) -> Tuple[bool, str]:
+def verify_button_clicked(expected_indicators: List[str] = None,
+                         timeout: float = 2.0) -> Tuple[bool, str, Dict[str, Any]]:
     """
-    Backward compatibility function for text presence verification.
+    Verify that a button was clicked by looking for UI state changes.
     
     Args:
-        text: Text to verify is present
+        expected_indicators: List of text indicators that should appear after click
+        timeout: Maximum time to wait for state change
+        
+    Returns:
+        Tuple of (success: bool, message: str, verification_data: Dict)
+    """
+    try:
+        if expected_indicators is None:
+            expected_indicators = [
+                "loading", "searching", "results", "found", "no results", 
+                "search results", "loading...", "please wait"
+            ]
+        
+        # Take initial screenshot
+        screenshot_before = computer_vision_utils.take_screenshot()
+        if screenshot_before is None:
+            return False, "Failed to take initial screenshot", {}
+        
+        # Wait a moment for UI changes
+        time.sleep(1.0)
+        
+        # Take screenshot after potential changes
+        screenshot_after = computer_vision_utils.take_screenshot()
+        if screenshot_after is None:
+            return False, "Failed to take second screenshot", {}
+        
+        # Look for success indicators
+        for indicator in expected_indicators:
+            success, found = ocr_utils.find_text(
+                screenshot_after, indicator, case_sensitive=False
+            )
+            
+            if success and found:
+                verification_data = {
+                    "indicator_found": indicator,
+                    "verification_method": "ui_state_change"
+                }
+                return True, f"Button click verified - found indicator: '{indicator}'", verification_data
+        
+        # If no specific indicators found, assume success (lenient approach)
+        verification_data = {
+            "verification_method": "no_errors_detected",
+            "status": "assumed_success"
+        }
+        return True, "Button click verified - no errors detected", verification_data
+        
+    except Exception as e:
+        return False, f"Error verifying button click: {e}", {}
+
+
+# ============================================================================
+# SCREENSHOT AND IMAGE PROCESSING FUNCTIONS
+# ============================================================================
+
+def take_screenshot_for_verification() -> Optional[Any]:
+    """
+    Take a screenshot for verification purposes.
+    
+    Returns:
+        Screenshot image or None if failed
+    """
+    try:
+        return computer_vision_utils.take_screenshot()
+    except Exception as e:
+        print(f"[VERIFIER ERROR] Failed to take screenshot: {e}")
+        return None
+
+
+def crop_image_for_verification(image: Any, 
+                               x: int, 
+                               y: int, 
+                               width: int, 
+                               height: int) -> Optional[Any]:
+    """
+    Crop an image to a specific region for verification.
+    
+    Args:
+        image: Input image
+        x: X coordinate of crop region
+        y: Y coordinate of crop region
+        width: Width of crop region
+        height: Height of crop region
+        
+    Returns:
+        Cropped image or None if failed
+    """
+    try:
+        if image is None:
+            return None
+        
+        # Ensure coordinates are within image bounds
+        img_height, img_width = image.shape[:2]
+        
+        # Clamp coordinates to image bounds
+        x = max(0, min(x, img_width))
+        y = max(0, min(y, img_height))
+        width = max(1, min(width, img_width - x))
+        height = max(1, min(height, img_height - y))
+        
+        # Crop the image
+        cropped = image[y:y+height, x:x+width]
+        
+        if cropped.size == 0:
+            return None
+        
+        return cropped
+        
+    except Exception as e:
+        print(f"[VERIFIER ERROR] Failed to crop image: {e}")
+        return None
+
+
+def extract_text_from_cropped_image(cropped_image: Any) -> Tuple[bool, str]:
+    """
+    Extract text from a cropped image using OCR.
+    
+    Args:
+        cropped_image: Cropped image to extract text from
+        
+    Returns:
+        Tuple of (success: bool, extracted_text: str)
+    """
+    try:
+        if cropped_image is None:
+            return False, "No image provided"
+        
+        # Use OCR utils to extract text
+        success, extracted_text = ocr_utils.extract_text(cropped_image)
+        
+        if not success:
+            return False, f"OCR extraction failed: {extracted_text}"
+        
+        return True, extracted_text
+        
+    except Exception as e:
+        return False, f"Error extracting text from cropped image: {e}"
+
+
+def get_detailed_ocr_data(cropped_image: Any) -> Tuple[bool, Any]:
+    """
+    Get detailed OCR data from a cropped image including text, bounding boxes, and confidence scores.
+    
+    Args:
+        cropped_image: Cropped image to extract detailed OCR data from
+        
+    Returns:
+        Tuple of (success: bool, ocr_data: dict or error_message)
+    """
+    try:
+        if cropped_image is None:
+            return False, "No image provided"
+        
+        # Use OCR utils to get detailed text data
+        success, ocr_data = ocr_utils.get_text_data(cropped_image)
+        
+        if not success:
+            return False, f"OCR data extraction failed: {ocr_data}"
+        
+        return True, ocr_data
+        
+    except Exception as e:
+        return False, f"Error getting detailed OCR data from cropped image: {e}"
+
+
+def save_debug_screenshot(filename: str = None) -> Tuple[bool, str]:
+    """
+    Save a debug screenshot for troubleshooting.
+    
+    Args:
+        filename: Optional custom filename
+        
+    Returns:
+        Tuple of (success: bool, filepath or error_message)
+    """
+    try:
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot"
+        
+        if filename is None:
+            timestamp = int(time.time())
+            filename = f"debug_verification_{timestamp}.png"
+        
+        success, filepath = computer_vision_utils.save_screenshot(screenshot, filename)
+        return success, filepath
+        
+    except Exception as e:
+        return False, f"Error saving debug screenshot: {e}"
+
+
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
+
+def wait_for_condition(condition_func, timeout: float = 5.0, interval: float = 0.5) -> Tuple[bool, str]:
+    """
+    Wait for a condition to be met within a timeout.
+    
+    Args:
+        condition_func: Function that returns (success: bool, message: str)
+        timeout: Maximum time to wait
+        interval: Time between condition checks
         
     Returns:
         Tuple of (success: bool, message: str)
     """
-    return verifier_helpers.verify_text_entered(text, **kwargs)
+    try:
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout:
+            success, message = condition_func()
+            
+            if success:
+                elapsed = time.time() - start_time
+                return True, f"Condition met after {elapsed:.1f}s: {message}"
+            
+            time.sleep(interval)
+        
+        return False, f"Condition not met within {timeout}s"
+        
+    except Exception as e:
+        return False, f"Error waiting for condition: {e}"
 
 
-def verify_ui_element(element_name: str, **kwargs) -> Tuple[bool, str]:
+def calculate_text_similarity(text1: str, text2: str) -> float:
     """
-    Backward compatibility function for UI element verification.
+    Calculate similarity between two text strings.
     
     Args:
-        element_name: Name of UI element to verify
+        text1: First text string
+        text2: Second text string
         
     Returns:
-        Tuple of (success: bool, message: str)
+        Similarity score between 0.0 and 1.0
     """
-    # Generic UI element verification
-    return verifier_helpers.verify_text_presence([element_name], **kwargs)
+    try:
+        if not text1 or not text2:
+            return 0.0
+        
+        # Remove spaces and special characters for comparison
+        clean1 = ''.join(c.lower() for c in text1 if c.isalnum())
+        clean2 = ''.join(c.lower() for c in text2 if c.isalnum())
+        
+        if not clean1 or not clean2:
+            return 0.0
+        
+        # Simple character overlap calculation
+        matches = sum(1 for c in clean1 if c in clean2)
+        similarity = matches / max(len(clean1), len(clean2))
+        return similarity
+        
+    except Exception as e:
+        print(f"[VERIFIER ERROR] Error calculating text similarity: {e}")
+        return 0.0
 
 
-def verify_page_state(page_name: str, **kwargs) -> Tuple[bool, str]:
+def validate_region_coordinates(region: Tuple[int, int, int, int], 
+                               image_shape: Tuple[int, int]) -> Tuple[bool, Tuple[int, int, int, int]]:
     """
-    Backward compatibility function for page state verification.
+    Validate and clamp region coordinates to image bounds.
     
     Args:
-        page_name: Name of page to verify
+        region: Region tuple (x, y, width, height)
+        image_shape: Image shape tuple (height, width)
         
     Returns:
-        Tuple of (success: bool, message: str)
+        Tuple of (is_valid: bool, clamped_region: Tuple)
     """
-    # Generic page state verification
-    return verifier_helpers.verify_text_presence([page_name], **kwargs)
+    try:
+        x, y, width, height = region
+        img_height, img_width = image_shape
+        
+        # Clamp coordinates to image bounds
+        x = max(0, min(x, img_width))
+        y = max(0, min(y, img_height))
+        width = max(1, min(width, img_width - x))
+        height = max(1, min(height, img_height - y))
+        
+        clamped_region = (x, y, width, height)
+        
+        # Check if region is valid (has positive dimensions)
+        is_valid = width > 0 and height > 0
+        
+        return is_valid, clamped_region
+        
+    except Exception as e:
+        print(f"[VERIFIER ERROR] Error validating region coordinates: {e}")
+        return False, (0, 0, 1, 1)

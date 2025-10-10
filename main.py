@@ -55,14 +55,14 @@ def main():
         print(f"Parser Error: {results}")
         exit(1)
 
-    # print(f"Parser Results: {results}")
-    # print("\nSupported objectives ready to pass to workflow module.")
+    print(f"Parser Results: {results}")
+    print("\nSupported objectives ready to pass to workflow module.")
 
-    # time.sleep(5)
-    # success, results = workflow(results)
-    # if not success:
-    #     print(f"Workflow Error: {results}")
-    #     exit(1)
+    time.sleep(5)
+    success, results = workflow(results)
+    if not success:
+        print(f"Workflow Error: {results}")
+        exit(1)
 
 
 if __name__ == "__main__":
