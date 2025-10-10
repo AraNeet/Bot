@@ -44,10 +44,10 @@ def main():
         None (exits with status code 0 for success, 1 for failure)
     """
 
-    # success = initialize_system()
-    # if not success:
-    #     print("Failed startup sequence.")
-    #     exit(1)
+    success = initialize_system()
+    if not success:
+        print("Failed startup sequence.")
+        exit(1)
 
     # Parser instruction file. and return supported
     success, results = process_objectives_file("objective_file.json")
@@ -55,14 +55,14 @@ def main():
         print(f"Parser Error: {results}")
         exit(1)
 
-    print(f"Parser Results: {results}")
-    print("\nSupported objectives ready to pass to workflow module.")
+    # print(f"Parser Results: {results}")
+    # print("\nSupported objectives ready to pass to workflow module.")
 
-    time.sleep(5)
-    success, results = workflow(results)
-    if not success:
-        print(f"Workflow Error: {results}")
-        exit(1)
+    # time.sleep(5)
+    # success, results = workflow(results)
+    # if not success:
+    #     print(f"Workflow Error: {results}")
+    #     exit(1)
 
 
 if __name__ == "__main__":

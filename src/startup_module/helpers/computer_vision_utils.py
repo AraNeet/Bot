@@ -190,7 +190,7 @@ def load_template_config(config_file_path: str = "template.json") -> Optional[Di
     try:
         with open(config_file_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
-            templates = config.get('templates', {})
+            templates = config.get('corners_templates', {})
             print(f"Template paths loaded from {config_file_path}")
             return templates
 

@@ -1,0 +1,7 @@
+{
+    "corners_templates": {
+        "top_left": "assets/multi_network_Icon.png",
+        "top_right": "assets/windows_options.png",
+        "bottom_right": "assets/bottom_right.png"
+    }
+}

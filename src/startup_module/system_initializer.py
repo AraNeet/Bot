@@ -68,7 +68,7 @@ def initialize_system() -> bool:
         return False
 
     # Load templates
-    corner_templates = computer_vision_utils.load_templates("assets/template_paths.json")
+    corner_templates = computer_vision_utils.load_templates("config/template_paths.json")
 
     # If the templates aren't loaded the program closed
     if not corner_templates:

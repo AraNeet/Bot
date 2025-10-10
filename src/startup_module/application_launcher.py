@@ -38,27 +38,30 @@ def ensure_application_open(app_name: str, app_path: str, process_name: str, max
         else:
             print("Failed to get application window handle")
             return False, None
+    else:
+        print("Application is not open")
+        return False, None
 
     # Step 1.1: Iteratively try to open
     print("Step 1.1: Application not open, attempting to open...")
     
-    attempts = 0
-    while attempts < max_retries:
-        attempts += 1
-        print(f"Opening attempt {attempts}/{max_retries}")
+    # attempts = 0
+    # while attempts < max_retries:
+    #     attempts += 1
+    #     print(f"Opening attempt {attempts}/{max_retries}")
         
-        success = window_utils.open_application(app_path)
-        if success:
-            window = window_utils.get_window_handle(app_name)
-            if window:
-                print("[SUCCESS] Application successfully opened")
-                return True, window
-            else:
-                print("Failed to get application window handle after opening")
-        time.sleep(0.3)
+    #     success = window_utils.open_application(app_path)
+    #     if success:
+    #         window = window_utils.get_window_handle(app_name)
+    #         if window:
+    #             print("[SUCCESS] Application successfully opened")
+    #             return True, window
+    #         else:
+    #             print("Failed to get application window handle after opening")
+    #     time.sleep(0.3)
     
-    print("[FAILED] Failed to open application")
-    return False, None
+    # print("[FAILED] Failed to open application")
+    # return False, None
 
 def maximize_application(window: pygetwindow.Window) -> bool:
     """
