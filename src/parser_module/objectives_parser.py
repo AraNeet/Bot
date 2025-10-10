@@ -3,33 +3,24 @@
 """
 Objectives Parser Module
 
-This module handles parsing of JSON objectives files and validates them against
-supported objective types. It separates supported from unsupported objectives.
+Simple parser that loads objectives, checks if they're supported, validates required values,
+and returns supported objectives with their values.
 
-TERMINOLOGY:
-- Objective Type: What you want to accomplish (e.g., "make_file", "send_email")
-- Values: User-provided data for an objective (e.g., {"file_name": "test.txt"})
-- Instructions: Action steps the bot performs (e.g., "open_menu", "type_text")
+Functions:
+1. load_objectives_config() - Load configuration from JSON
+2. read_objectives_file() - Read objectives from JSON file  
+3. check_objective_requirements() - Validate required values
+4. parse_objectives() - Main function that orchestrates the process
 """
 
 import json
 import os
-from enum import Enum
 from typing import Dict, Any, Tuple, List, Optional
 from src.notification_module import notify_error
 
-class ObjectiveType(Enum):
-    """Enumeration of supported objective types."""
-    EDIT_COPY_INSTRUCTION = "edit_copy_instruction"
-    DO_NOT_AIR_INSTRUCTION = "do_not_air_instruction"
-    OPEN_MULTINETWORK_INSTRUCTIONS_PAGE = "open_multinetwork_instructions_page"
-
-# Global variable to store objectives configuration
-_objectives_config = None
-
 def load_objectives_config(config_file_path: str = "objectives_config.json") -> Tuple[bool, Any]:
     """
-    Load objectives configuration from JSON file.
+    Function 1: Load objectives configuration from JSON file.
     
     Args:
         config_file_path: Path to the objectives configuration file
@@ -37,17 +28,13 @@ def load_objectives_config(config_file_path: str = "objectives_config.json") -> 
     Returns:
         Tuple of (success: bool, config or error_message)
     """
-    global _objectives_config
-    
     try:
-        # Check if file exists
         if not os.path.exists(config_file_path):
             return False, f"Objectives config file not found: {config_file_path}"
         
-        # Load JSON data
         with open(config_file_path, 'r', encoding='utf-8') as file:
-            _objectives_config = json.load(file)
-            return True, _objectives_config
+            config = json.load(file)
+            return True, config
         
     except json.JSONDecodeError as e:
         error_msg = f"Invalid JSON in objectives config file: {e}"
@@ -58,299 +45,153 @@ def load_objectives_config(config_file_path: str = "objectives_config.json") -> 
         notify_error(error_msg, "load_objectives_config")
         return False, error_msg
 
-def get_objective_config(objective_type: str) -> Optional[Dict[str, Any]]:
+def read_objectives_file(objectives_file_path: str) -> Tuple[bool, Any]:
     """
-    Get configuration for a specific objective type.
+    Function 2: Read objectives from JSON file.
     
     Args:
-        objective_type: The objective type to get config for
-        
-    Returns:
-        Configuration dict or None if not found
-    """
-    global _objectives_config
-    
-    if _objectives_config is None:
-        # Try to load config if not already loaded
-        success, config = load_objectives_config()
-        if not success:
-            return None
-    
-    objectives = _objectives_config.get("objectives", {})
-    return objectives.get(objective_type)
-
-def validate_objective_values(objective_type: str, values: Dict[str, Any]) -> Tuple[bool, List[str]]:
-    """
-    Validate objective values against the configuration schema.
-    
-    Args:
-        objective_type: The type of objective being validated
-        values: The values to validate
-        
-    Returns:
-        Tuple of (is_valid: bool, error_messages: List[str])
-    """
-    config = get_objective_config(objective_type)
-    if config is None:
-        return False, [f"Unknown objective type: {objective_type}"]
-    
-    errors = []
-    
-    # Check required fields
-    required_fields = config.get("required_fields", {})
-    for field_name, field_config in required_fields.items():
-        if field_name not in values:
-            errors.append(f"Missing required field: {field_name}")
-        elif values[field_name] is None or values[field_name] == "":
-            errors.append(f"Required field '{field_name}' cannot be empty")
-    
-    # Check optional fields (validate type if provided)
-    optional_fields = config.get("optional_fields", {})
-    for field_name, field_config in optional_fields.items():
-        if field_name in values:
-            value = values[field_name]
-            expected_type = field_config.get("type")
-            
-            # Type validation
-            if expected_type == "string" and not isinstance(value, str):
-                errors.append(f"Field '{field_name}' must be a string")
-            elif expected_type == "number" and not isinstance(value, (int, float)):
-                errors.append(f"Field '{field_name}' must be a number")
-            
-            # Range validation for numbers
-            if expected_type == "number" and isinstance(value, (int, float)):
-                min_val = field_config.get("min")
-                max_val = field_config.get("max")
-                if min_val is not None and value < min_val:
-                    errors.append(f"Field '{field_name}' must be >= {min_val}")
-                if max_val is not None and value > max_val:
-                    errors.append(f"Field '{field_name}' must be <= {max_val}")
-    
-    # Check for unknown fields
-    all_known_fields = set(required_fields.keys()) | set(optional_fields.keys())
-    unknown_fields = set(values.keys()) - all_known_fields
-    if unknown_fields:
-        errors.append(f"Unknown fields: {', '.join(unknown_fields)}")
-    
-    return len(errors) == 0, errors
-
-def load_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
-    """
-    Load objectives from a JSON file.
-    
-    Args:
-        objectives_file_path: Path to the JSON objectives file
+        objectives_file_path: Path to the objectives JSON file
         
     Returns:
         Tuple of (success: bool, objectives or error_message)
-        
-    Example file structure:
-    {
-        "make_file": [
-            {
-                "file_name": "Report.txt",
-                "text": "Q4 Sales Report"
-            }
-        ]
-    }
     """
     try:
-        # Check if file exists
         if not os.path.exists(objectives_file_path):
             return False, f"Objectives file not found: {objectives_file_path}"
         
-        # Load JSON data
         with open(objectives_file_path, 'r', encoding='utf-8') as file:
             objectives = json.load(file)
             return True, objectives
         
     except json.JSONDecodeError as e:
         error_msg = f"Invalid JSON in objectives file: {e}"
-        notify_error(error_msg, "load_objectives")
+        notify_error(error_msg, "read_objectives_file")
         return False, error_msg
     except Exception as e:
         error_msg = f"Error loading objectives file: {e}"
-        notify_error(error_msg, "load_objectives")
+        notify_error(error_msg, "read_objectives_file")
         return False, error_msg
 
-
-def _merge_objective_values(values: Dict[str, Any]) -> Dict[str, Any]:
-    """Merge required and optional values from objective instance."""
-    if "required" in values and "optional" in values:
-        return {**values.get("required", {}), **values.get("optional", {})}
-    return values
-
-def _check_required_fields(objective_type: str, merged_values: Dict[str, Any]) -> List[str]:
-    """Check for missing required fields and return list of missing fields."""
-    config = get_objective_config(objective_type)
-    if not config:
-        return []
+def check_objective_requirements(objective_type: str, values: Dict[str, Any], config: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    """
+    Function 3: Check if objective has all required values.
     
-    required_fields = config.get("required_fields", {})
+    Args:
+        objective_type: The type of objective to check
+        values: The values to validate
+        config: The objectives configuration
+        
+    Returns:
+        Tuple of (has_all_required: bool, missing_fields: List[str])
+    """
+    if config is None:
+        return False, ["Configuration not provided"]
+    
+    objectives = config.get("objectives", {})
+    objective_config = objectives.get(objective_type)
+    
+    if objective_config is None:
+        return False, [f"Objective type '{objective_type}' not supported"]
+    
+    required_fields = objective_config.get("required_fields", {})
     missing_fields = []
     
     for field_name in required_fields.keys():
-        if field_name not in merged_values or merged_values[field_name] in [None, ""]:
+        if field_name not in values or values[field_name] in [None, ""]:
             missing_fields.append(field_name)
     
-    return missing_fields
+    return len(missing_fields) == 0, missing_fields
 
-def _validate_objective_instance(objective_type: str, values: Dict[str, Any], instance_index: int) -> Tuple[bool, Dict[str, Any], List[str]]:
-    """Validate a single objective instance and return validation results."""
-    if not isinstance(values, dict):
-        error_msg = f"Invalid values format for {objective_type}[{instance_index}]: must be a dictionary"
-        return False, {}, [error_msg]
-    
-    # Merge required and optional values
-    merged_values = _merge_objective_values(values)
-    
-    # Check for missing required fields
-    missing_required = _check_required_fields(objective_type, merged_values)
-    
-    if missing_required:
-        error_msg = f"Missing required fields for {objective_type}[{instance_index}]: {', '.join(missing_required)}"
-        return False, merged_values, [error_msg]
-    
-    # Validate the merged values
-    is_valid, errors = validate_objective_values(objective_type, merged_values)
-    
-    if not is_valid:
-        error_msg = f"Validation errors for {objective_type}[{instance_index}]: {'; '.join(errors)}"
-        return False, merged_values, [error_msg]
-    
-    return True, merged_values, []
-
-def _process_supported_objective(objective_type: str, values_list: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[str]]:
-    """Process a supported objective type and return validated values and errors."""
-    validated_values_list = []
-    validation_errors = []
-    
-    print(f"\n📋 Objective: {objective_type}")
-    print(f"   Total instances: {len(values_list)}")
-    
-    for i, values in enumerate(values_list):
-        print(f"\n   Instance {i+1}:")
-        
-        is_valid, merged_values, errors = _validate_objective_instance(objective_type, values, i)
-        
-        if is_valid:
-            validated_values_list.append(merged_values)
-            print(f"      ✅ Validation: PASSED")
-        else:
-            validation_errors.extend(errors)
-            print(f"      ❌ Validation: FAILED")
-            for error in errors:
-                print(f"         - {error}")
-    
-    # Check if any instances failed validation
-    if validation_errors:
-        print(f"\n   ⚠️  {objective_type}: {len(validated_values_list)}/{len(values_list)} instances valid")
-        # Send email notification for missing required values
-        _send_missing_values_email(objective_type, validation_errors)
-        return [], validation_errors  # Return empty list to fail the entire objective
-    
-    print(f"\n   ✅ {objective_type}: All {len(values_list)} instances valid")
-    return validated_values_list, []
-
-def _send_missing_values_email(objective_type: str, errors: List[str]) -> None:
-    """Send email notification when required values are missing."""
-    try:
-        error_message = f"Missing required values for {objective_type}: {'; '.join(errors)}"
-        error_details = {
-            "objective_type": objective_type,
-            "missing_fields": errors,
-            "error_type": "missing_required_values"
-        }
-        
-        notify_error(error_message, "parse_objectives", error_details)
-        print(f"      📧 Email notification sent for missing required values")
-        
-    except Exception as e:
-        print(f"      ⚠️  Failed to send email notification: {e}")
-
-def parse_objectives(objectives: Dict[str, Any]) -> Tuple[bool, Any]:
+def parse_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
     """
-    Parse objectives and validate required fields. Errors out if any required values are missing.
+    Function 4: Main function that orchestrates the parsing process.
     
     Args:
-        objectives: Dictionary containing objective data
+        objectives_file_path: Path to the objectives JSON file
         
     Returns:
-        Tuple of (success: bool, parsing_results or error_message)
+        Tuple of (success: bool, supported_objectives or error_message)
     """
+    # Step 1: Load configuration
+    success, config = load_objectives_config()
+    if not success:
+        return False, f"Failed to load configuration: {config}"
+    
+    # Step 2: Read objectives file
+    success, objectives = read_objectives_file(objectives_file_path)
+    if not success:
+        return False, f"Failed to read objectives file: {objectives}"
+    
     if not isinstance(objectives, dict):
         return False, "Objectives must be a dictionary"
     
-    # Load objectives configuration if not already loaded
-    if _objectives_config is None:
-        success, config = load_objectives_config()
-        if not success:
-            return False, f"Failed to load objectives configuration: {config}"
+    supported_objectives = []
     
-    supported = []
-    unsupported = []
-    all_validation_errors = []
+    print("\n" + "="*50)
+    print("OBJECTIVE VALIDATION")
+    print("="*50)
     
-    print("\n" + "="*60)
-    print("OBJECTIVE VALIDATION REPORT")
-    print("="*60)
-    
-    # Process each objective type in the file
+    # Step 3: Check each objective
     for objective_type, values_list in objectives.items():
         if not isinstance(values_list, list):
             continue
         
-        # Check if objective type is supported
-        is_supported = any(obj.value == objective_type for obj in ObjectiveType)
+        print(f"\n📋 Checking: {objective_type}")
         
-        if is_supported:
-            validated_values, validation_errors = _process_supported_objective(objective_type, values_list)
+        # Check if objective type is supported
+        objectives_config = config.get("objectives", {})
+        if objective_type not in objectives_config:
+            print(f"   ❌ Not supported")
+            notify_error(f"Unsupported objective type: {objective_type}", "parse_objectives")
+            continue
+        
+        # Check each instance
+        valid_instances = []
+        for i, values in enumerate(values_list):
+            if not isinstance(values, dict):
+                print(f"   ❌ Instance {i+1}: Invalid format")
+                continue
             
-            if validation_errors:
-                # If any validation errors, fail the entire objective
-                all_validation_errors.extend(validation_errors)
-                print(f"\n❌ {objective_type}: FAILED - Missing required values")
-                return False, f"Missing required values for {objective_type}: {'; '.join(validation_errors)}"
+            # Merge required and optional values
+            if "required" in values and "optional" in values:
+                merged_values = {**values.get("required", {}), **values.get("optional", {})}
+            else:
+                merged_values = values
             
-            supported.append({
+            # Check requirements
+            has_all_required, missing_fields = check_objective_requirements(objective_type, merged_values, config)
+            
+            if has_all_required:
+                valid_instances.append(merged_values)
+                print(f"   ✅ Instance {i+1}: Valid")
+            else:
+                print(f"   ❌ Instance {i+1}: Missing {', '.join(missing_fields)}")
+                # Send error notification
+                error_message = f"Missing required fields for {objective_type}[{i}]: {', '.join(missing_fields)}"
+                error_details = {
+                    "objective_type": objective_type,
+                    "instance": i,
+                    "missing_fields": missing_fields
+                }
+                notify_error(error_message, "parse_objectives", error_details)
+                return False, f"Missing required values: {error_message}"
+        
+        if valid_instances:
+            supported_objectives.append({
                 "objective_type": objective_type,
-                "values_list": validated_values
+                "values_list": valid_instances
             })
-                
-        else:
-            unsupported.append({
-                "objective_type": objective_type,
-                "values_list": values_list
-            })
-            print(f"\n❌ Unsupported objective: {objective_type}")
-            print(f"   Instances: {len(values_list)}")
-            notify_error(
-                f"Unsupported objective type: {objective_type}", 
-                "parser.parse_objectives", 
-                {"objective_type": objective_type}
-            )
+            print(f"   ✅ {objective_type}: {len(valid_instances)} valid instances")
     
-    # Final summary
-    print("\n" + "="*60)
-    print("FINAL SUMMARY")
-    print("="*60)
-    print(f"Supported objectives: {len(supported)}")
-    print(f"Unsupported objectives: {len(unsupported)}")
+    print("\n" + "="*50)
+    print("SUMMARY")
+    print("="*50)
+    print(f"Supported objectives: {len(supported_objectives)}")
     
-    if not supported:
-        notify_error(
-            "There were no supported objectives given",
-            "parse_objectives",
-            {"supported_objectives": supported, "unsupported_objectives": unsupported}
-        )
-        return False, "No supported objectives found"
-
+    if not supported_objectives:
+        return False, "No valid objectives found"
+    
     print("✅ All objectives validated successfully!")
-    print("="*60)
-
-    results = {
-        "supported": supported,
-        "unsupported": unsupported
-    }
+    print("="*50)
     
-    return True, results
+    return True, supported_objectives

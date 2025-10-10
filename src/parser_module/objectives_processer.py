@@ -15,45 +15,34 @@ import json
 import os
 from enum import Enum
 from typing import Dict, Any, Tuple
-from .objectives_parser import parse_objectives, load_objectives
+from .objectives_parser import parse_objectives
 
 def process_objectives_file(objectives_file_path: str) -> Tuple[bool, Any]:
     """
     Complete processing pipeline for an objectives file.
     
-    This function:
-    1. Loads the objectives file
-    2. Parses and validates objective types
-    3. Separates supported from unsupported objectives
+    This function uses the simplified parser that:
+    1. Loads configuration
+    2. Reads objectives file
+    3. Checks requirements
+    4. Returns supported objectives
     
     Args:
         objectives_file_path: Path to the JSON objectives file
         
     Returns:
-        Tuple of (success: bool, results or error_message)
-        
-    Results structure:
-    {
-        "supported_objectives": [...],  # Ready for workflow execution
-        "unsupported_objectives": [...]  # Need implementation
-    }
+        Tuple of (success: bool, supported_objectives or error_message)
     """
-    # Load objectives
-    success, objectives = load_objectives(objectives_file_path)
-    if not success:
-        return False, None
+    # Parse objectives using simplified parser
+    success, supported_objectives = parse_objectives(objectives_file_path)
     
-    # Parse objectives
-    success, parsing_results = parse_objectives(objectives)
     if not success:
-        return False, parsing_results
-    
-    # Note: Detailed reporting is now handled by parse_objectives function
+        return False, supported_objectives
     
     # Return results for workflow module
     results = {
-        "supported_objectives": parsing_results["supported"],
-        "unsupported_objectives": parsing_results["unsupported"]
+        "supported_objectives": supported_objectives,
+        "unsupported_objectives": []  # Simplified parser doesn't track unsupported
     }
     
     return True, results
