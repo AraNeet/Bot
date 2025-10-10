@@ -48,20 +48,7 @@ def process_objectives_file(objectives_file_path: str) -> Tuple[bool, Any]:
     if not success:
         return False, parsing_results
     
-    # Display summary
-    if parsing_results['supported']:
-        print("\nSupported Objectives:")
-        for obj in parsing_results['supported']:
-            objective_type = obj['objective_type']
-            values_count = len(obj['values_list'])
-            print(f"  - {objective_type}: {values_count} value set(s)")
-    
-    if parsing_results['unsupported']:
-        print("\nUnsupported Objectives:")
-        for obj in parsing_results['unsupported']:
-            objective_type = obj['objective_type']
-            values_count = len(obj['values_list'])
-            print(f"  - {objective_type}: {values_count} value set(s)")
+    # Note: Detailed reporting is now handled by parse_objectives function
     
     # Return results for workflow module
     results = {
