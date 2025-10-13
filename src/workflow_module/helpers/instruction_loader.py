@@ -136,7 +136,7 @@ def extract_and_organize_values(objective_values: Dict[str, Any]) -> Tuple[bool,
         objective_values: Single value set from objectives file
         
     Returns:
-        Tuple of (required_values, optional_values)
+        Tuple of (success: bool, required_values, optional_values)
         
     Example input (new format):
     {
@@ -159,12 +159,14 @@ def extract_and_organize_values(objective_values: Dict[str, Any]) -> Tuple[bool,
     
     Returns (new format):
     (
+        True,
         {"advertiser_name": "Acme Corp", "agency_name": "MediaWorks", "order_number": "ORD-001"},
         {"isci_2": "ACME5678", "rotation_percent_isci_2": "50"}
     )
     
     Returns (legacy format):
     (
+        True,
         {"file_name": "Report.txt", "text": "Content"},
         {}
     )
@@ -172,16 +174,41 @@ def extract_and_organize_values(objective_values: Dict[str, Any]) -> Tuple[bool,
     required_values: dict[str, Any] = {}
     optional_values: dict[str, Any] = {}
 
-    if not objective_values.get("required") :
-        print("Required value are missing")
-        return False, {}, {}
-    print("Getting required values")
-    required_values = objective_values.get("required", {})
-    if objective_values.get("optional"):
-        print("Optional values found")
+    # Check if we have the new format with required/optional keys
+    if "required" in objective_values and "optional" in objective_values:
+        print("[LOADER] Detected new format with required/optional keys")
+        required_values = objective_values.get("required", {})
         optional_values = objective_values.get("optional", {})
+        
+        # Check if required values are actually present and not empty
+        if not required_values:
+            print("[LOADER ERROR] Required values are empty")
+            return False, {}, {}
+        
+        print(f"[LOADER] Found {len(required_values)} required values")
+        if optional_values:
+            print(f"[LOADER] Found {len(optional_values)} optional values")
+        
+        return True, required_values, optional_values
     
-    return True, required_values, optional_values
+    # Check if we have the legacy format (flat structure)
+    elif "required" not in objective_values and "optional" not in objective_values:
+        print("[LOADER] Detected legacy format (flat structure)")
+        # Treat all values as required in legacy format
+        required_values = objective_values.copy()
+        optional_values = {}
+        
+        if not required_values:
+            print("[LOADER ERROR] No values found in legacy format")
+            return False, {}, {}
+        
+        print(f"[LOADER] Found {len(required_values)} values (legacy format)")
+        return True, required_values, optional_values
+    
+    # Invalid format - missing required key
+    else:
+        print("[LOADER ERROR] Invalid format - missing 'required' key")
+        return False, {}, {}
 
 def merge_values_into_instructions(instructions_list: List[Dict[str, Any]],
                                    required_values: Dict[str, Any],

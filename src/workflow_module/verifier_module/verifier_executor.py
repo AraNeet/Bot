@@ -1,40 +1,46 @@
 #!/usr/bin/env python3
 """
-Verifier Executor Module - Direct Router
+Verifier Executor Module - Router for Action Verification
 
-This module routes instruction names DIRECTLY to verifier handler functions.
-No wrapper functions - just pure routing.
+This module routes action types to their corresponding verifier handler functions.
+It acts as the central dispatcher that determines which verifier to use based on
+what the workflow needs to be checked.
 
 Architecture:
-    Instruction Name (e.g., "open_multinetwork_instructions_page")
+    Action Type (e.g., "enter_advertiser_name")
         ↓
-    verifier_executor.py (THIS FILE - routes directly)
+    verifier_executor.py (THIS FILE - routes to appropriate verifier)
         ↓
-    verifier_handlers.py (implements the verification, uses verifier_helpers.py internally)
+    verifier_handlers.py (implements the verification, uses verifier.py internally)
+        ↓
+    verifier.py (performs generic verification operations)
 
 Key Design:
-- NO wrapper functions
-- NO access to verifier_helpers.py from here
-- ONLY routes to verifier_handlers.py
-- verifier_handlers.py is responsible for calling verifier_helpers.py
+- Routes action types to verifier handler functions
+- Extracts parameters from action context
+- Calls verifier handler function with parameters
+- Returns standardized results
+- Handles errors and fallbacks gracefully
 
 Responsibilities:
-- Map instruction name to verifier handler function
-- Extract parameters from instruction
+- Map action type to verifier handler function
+- Extract parameters from action context
 - Call verifier handler function with parameters
-- Return results
+- Return standardized results
+- Handle errors and provide fallbacks
 """
 
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
 from . import verifier_handlers
 from src.notification_module import notify_error
+import time
 
 
 # ============================================================================
-# VERIFIER HANDLER REGISTRY - DIRECT MAPPING
+# VERIFIER HANDLER REGISTRY - ACTION TYPE MAPPING
 # ============================================================================
 
-# Map instruction names to their corresponding verifier handler functions
+# Map action types to their corresponding verifier handler functions
 VERIFIER_HANDLERS = {
     # Navigation actions
     "open_multinetwork_instructions_page": verifier_handlers.verify_multinetwork_page_opened,
@@ -73,14 +79,14 @@ VERIFIER_HANDLERS = {
 # VERIFIER EXECUTION FUNCTIONS
 # ============================================================================
 
-def execute_verification(instruction_name: str, **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+def verify_action_completion(action_type: str, **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
-    Execute verification for a specific instruction.
+    Verify that an action completed successfully.
     
-    This function routes instruction names to their corresponding verifier handlers.
+    This function routes action types to their corresponding verifier handlers.
     
     Args:
-        instruction_name: Name of the instruction that was executed
+        action_type: Type of action that was executed
         **kwargs: Additional parameters for the verification (e.g., expected values)
         
     Returns:
@@ -90,26 +96,27 @@ def execute_verification(instruction_name: str, **kwargs) -> Tuple[bool, str, Op
         - data: Optional additional data (e.g., found regions, coordinates)
         
     Example:
-        success, msg, data = execute_verification(
-            "open_multinetwork_instructions_page"
+        success, msg, data = verify_action_completion(
+            "enter_advertiser_name",
+            advertiser_name="Acme Corp"
         )
         
         if success:
             print(f"Verification passed: {msg}")
-            if data and 'region' in data:
-                print(f"Found region: {data['region']}")
+            if data and 'matched_text' in data:
+                print(f"Found text: {data['matched_text']}")
     """
-    print(f"[VERIFIER_EXECUTOR] Executing verification for: '{instruction_name}'")
+    print(f"[VERIFIER_EXECUTOR] Verifying action completion: '{action_type}'")
     
     try:
-        # Check if we have a verifier handler for this instruction
-        if instruction_name not in VERIFIER_HANDLERS:
-            warning_msg = f"No verifier handler found for instruction: '{instruction_name}'"
+        # Check if we have a verifier handler for this action type
+        if action_type not in VERIFIER_HANDLERS:
+            warning_msg = f"No verifier handler found for action type: '{action_type}'"
             print(f"[VERIFIER_EXECUTOR] ⚠ {warning_msg}")
             return True, warning_msg, None  # Return success to not block workflow
         
         # Get the verifier handler function
-        verifier_handler = VERIFIER_HANDLERS[instruction_name]
+        verifier_handler = VERIFIER_HANDLERS[action_type]
         
         print(f"[VERIFIER_EXECUTOR] Calling verifier handler: {verifier_handler.__name__}")
         
@@ -135,60 +142,111 @@ def execute_verification(instruction_name: str, **kwargs) -> Tuple[bool, str, Op
             return True, str(result), None
             
     except Exception as e:
-        error_msg = f"Error executing verification for '{instruction_name}': {e}"
+        error_msg = f"Error verifying action completion for '{action_type}': {e}"
         print(f"[VERIFIER_EXECUTOR ERROR] {error_msg}")
         
         # Send error notification
         try:
             notify_error(f"Verifier Error: {error_msg}")
-        except Exception as notify_error:
-            print(f"[VERIFIER_EXECUTOR ERROR] Failed to send error notification: {notify_error}")
+        except Exception as notify_exception:
+            print(f"[VERIFIER_EXECUTOR ERROR] Failed to send error notification: {notify_exception}")
         
         return False, error_msg, None
 
-def has_verifier(instruction_name: str) -> bool:
+
+def has_verifier(action_type: str) -> bool:
     """
-    Check if an instruction has a corresponding verifier handler.
+    Check if an action type has a corresponding verifier handler.
     
     Args:
-        instruction_name: Name of the instruction to check
+        action_type: Type of action to check
         
     Returns:
         True if verifier handler exists, False otherwise
     """
-    return instruction_name in VERIFIER_HANDLERS
+    return action_type in VERIFIER_HANDLERS
 
 
-# ============================================================================
-# BATCH VERIFICATION FUNCTIONS
-# ============================================================================
-
-def verify_instruction_sequence(instructions: list, **kwargs) -> Tuple[bool, list]:
+def get_supported_verifications() -> List[str]:
     """
-    Verify a sequence of instructions.
+    Get a list of all supported action types that have verifiers.
+    
+    Returns:
+        List of action type strings that have verifiers
+    """
+    return list(VERIFIER_HANDLERS.keys())
+
+
+def get_verifier_info(action_type: str) -> Optional[Dict[str, Any]]:
+    """
+    Get information about a verifier handler for a specific action type.
     
     Args:
-        instructions: List of instruction names to verify
-        **kwargs: Additional parameters for verification
+        action_type: Type of action to get verifier info for
         
     Returns:
-        Tuple of (all_passed: bool, results: list)
-        - all_passed: Whether all verifications passed
-        - results: List of (instruction_name, success, message, data) tuples
+        Dictionary with verifier information or None if not found
     """
-    print(f"[VERIFIER_EXECUTOR] Verifying sequence of {len(instructions)} instructions")
+    if action_type not in VERIFIER_HANDLERS:
+        return None
     
-    results = []
-    all_passed = True
+    verifier_handler = VERIFIER_HANDLERS[action_type]
     
-    for instruction_name in instructions:
-        success, message, data = execute_verification(instruction_name, **kwargs)
-        results.append((instruction_name, success, message, data))
+    return {
+        "action_type": action_type,
+        "handler_function": verifier_handler.__name__,
+        "handler_module": verifier_handler.__module__,
+        "docstring": verifier_handler.__doc__ or "No documentation available"
+    }
+
+
+def save_failure_context(action_type: str,
+                       parameters: Dict[str, Any],
+                       verification_error: str,
+                       attempt_number: int) -> str:
+    """
+    Save failure context for debugging purposes.
+    
+    Args:
+        action_type: Type of action that failed
+        parameters: Parameters that were used for the action
+        verification_error: Error message from verification
+        attempt_number: Attempt number for the action
         
-        if not success:
-            all_passed = False
-            print(f"[VERIFIER_EXECUTOR] ✗ Verification failed for: {instruction_name}")
+    Returns:
+        Filepath of saved debug screenshot or error message
+    """
+    try:
+        from . import verifier
+        
+        # Generate debug filename
+        timestamp = int(time.time())
+        filename = f"failure_{action_type}_attempt{attempt_number}_{timestamp}.png"
+        
+        # Save debug screenshot
+        success, filepath = verifier.save_debug_screenshot(filename)
+        
+        if success:
+            print(f"[VERIFIER_EXECUTOR] Debug screenshot saved: {filepath}")
+            return filepath
         else:
-            print(f"[VERIFIER_EXECUTOR] ✓ Verification passed for: {instruction_name}")
+            print(f"[VERIFIER_EXECUTOR] Failed to save debug screenshot: {filepath}")
+            return filepath  # Return error message
+            
+    except Exception as e:
+        error_msg = f"Failed to save failure context: {e}"
+        print(f"[VERIFIER_EXECUTOR ERROR] {error_msg}")
+        return error_msg
+
+
+
+    """
+    List all registered verifiers.
     
-    return all_passed, results
+    Returns:
+        Dictionary mapping action types to handler function names
+    """
+    return {
+        action_type: handler.__name__ 
+        for action_type, handler in VERIFIER_HANDLERS.items()
+    }
