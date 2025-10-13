@@ -42,7 +42,7 @@ def get_easy_ocr_instance():
     if _easy_ocr_instance is None:
         print("[OCR] Initializing EasyOCR...")
         # Initialize EasyOCR with English language
-        _easy_ocr_instance = easyocr.Reader(['en'], gpu=False)  # Set gpu=True if you have CUDA
+        _easy_ocr_instance = easyocr.Reader(['en'], gpu=True)  # Set gpu=True if you have CUDA
         print("[OCR] EasyOCR initialized successfully")
     
     return _easy_ocr_instance

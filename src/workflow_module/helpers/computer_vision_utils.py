@@ -153,9 +153,10 @@ def get_image_dimensions(image: np.ndarray) -> Tuple[int, int]:
 
 def crop_image(image: np.ndarray, 
               x: int, y: int, 
-              width: int, height: int) -> Optional[np.ndarray]:
+              width: int, height: int,
+              preprocess_for_ocr: bool = False) -> Optional[np.ndarray]:
     """
-    Crop a region from an image.
+    Crop a region from an image, with optional preprocessing for OCR.
     
     Args:
         image: Input image as numpy array
@@ -163,13 +164,14 @@ def crop_image(image: np.ndarray,
         y: Y-coordinate of top-left corner
         width: Width of crop region
         height: Height of crop region
+        preprocess_for_ocr: If True, apply OCR preprocessing after cropping
         
     Returns:
-        Cropped image, or None if failed
+        Cropped (and optionally preprocessed) image, or None if failed
         
     Example:
-        # Crop top-left 200x200 region
-        cropped = crop_image(screenshot, 0, 0, 200, 200)
+        # Crop with preprocessing
+        cropped = crop_image(screenshot, 0, 0, 200, 200, preprocess_for_ocr=True)
     """
     try:
         # Validate coordinates
@@ -187,10 +189,53 @@ def crop_image(image: np.ndarray,
         cropped = image[y:y+height, x:x+width]
         
         print(f"[CV] Image cropped: region ({x},{y},{width},{height})")
+        
+        if preprocess_for_ocr:
+            cropped = preprocess_image_for_ocr(cropped)
+            if cropped is None:
+                return None
+            print(f"[CV] Applied OCR preprocessing to cropped image")
+        
         return cropped
         
     except Exception as e:
         print(f"[CV ERROR] Crop failed: {e}")
+        return None
+
+def preprocess_image_for_ocr(image: np.ndarray) -> Optional[np.ndarray]:
+    """
+    Preprocess an image for OCR to remove artifacts like cursors and underlines.
+    
+    Args:
+        image: Input image to preprocess
+        
+    Returns:
+        Preprocessed image or None if failed
+    """
+    try:
+        if image is None:
+            return None
+        
+        # Convert to grayscale
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        # Apply adaptive thresholding to binarize the image
+        thresh = cv2.adaptiveThreshold(
+            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+            cv2.THRESH_BINARY_INV, 11, 2
+        )
+        
+        # Apply morphological operations to remove small artifacts (e.g., cursor)
+        kernel = np.ones((3,3), np.uint8)
+        cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
+        
+        # Dilate to enhance text
+        dilated = cv2.dilate(cleaned, kernel, iterations=1)
+        
+        return dilated
+        
+    except Exception as e:
+        print(f"[CV ERROR] Failed to preprocess image for OCR: {e}")
         return None
 
 def match_template_in_region(screenshot: np.ndarray,
@@ -242,17 +287,24 @@ def match_template_in_region(screenshot: np.ndarray,
         
         # Perform template matching
         result = cv2.matchTemplate(region_img, template, cv2.TM_CCOEFF_NORMED)
+        
+        # Get best match
         min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
         
         # Check if confidence threshold met
         if max_val >= confidence:
-            # Calculate center position in global coordinates
+            # Calculate center position in region coordinates
             template_height, template_width = template.shape[:2]
-            center_x = x + max_loc[0] + template_width // 2
-            center_y = y + max_loc[1] + template_height // 2
+            center_x = max_loc[0] + template_width // 2
+            center_y = max_loc[1] + template_height // 2
             
-            print(f"[CV] Template matched in region with confidence {max_val:.2f}")
-            return True, max_val, (center_x, center_y)
+            # Convert to global coordinates
+            global_x = x + center_x
+            global_y = y + center_y
+            
+            print(f"[CV] Template found in region with confidence {max_val:.2f}")
+            print(f"[CV] Position: ({global_x}, {global_y})")
+            return True, max_val, (global_x, global_y)
         else:
             print(f"[CV] Template not found in region (confidence {max_val:.2f} < {confidence})")
             return False, max_val, None

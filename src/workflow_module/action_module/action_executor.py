@@ -47,7 +47,6 @@ ACTION_HANDLERS: Dict[str, Any] = {
     
     # Search form actions
     "enter_advertiser_name": action_handler.enter_advertiser_name,
-    "verify_advertiser_found": action_handler.verify_advertiser_found,
     "enter_order_id": action_handler.enter_order_id,
     "enter_agency": action_handler.enter_agency,
     "enter_begin_date": action_handler.enter_begin_date,
@@ -55,12 +54,13 @@ ACTION_HANDLERS: Dict[str, Any] = {
     "click_search_button": action_handler.click_search_button,
     "wait_for_search_results": action_handler.wait_for_search_results,
     
-    # Not implemented
+    
     # # Table interaction
-    # "find_row_by_deal_number": action_handler.find_row_by_deal_number,
+    # "find_row_by_order_number": action_handler.find_row_by_order_number,
     # "right_click_row": action_handler.right_click_row,
     # "select_edit_multinetwork_instruction": action_handler.select_edit_multinetwork_instruction,
-    
+
+    # Not implemented
     # # Edit page actions
     # "wait_for_edit_page_load": action_handler.wait_for_edit_page_load,
     # "verify_edit_page_opened": action_handler.verify_edit_page_opened,

@@ -55,23 +55,23 @@ VERIFIER_HANDLERS = {
     # Button actions
     "click_search_button": verifier_handlers.verify_search_button_clicked,
     
-    # Table interaction actions
-    "find_row_by_deal_number": verifier_handlers.verify_row_found,
-    "right_click_row": verifier_handlers.verify_row_right_clicked,
-    "select_edit_multinetwork_instruction": verifier_handlers.verify_edit_menu_selected,
+    # # Table interaction actions
+    # "find_row_by_deal_number": verifier_handlers.verify_row_found,
+    # "right_click_row": verifier_handlers.verify_row_right_clicked,
+    # "select_edit_multinetwork_instruction": verifier_handlers.verify_edit_menu_selected,
     
-    # Form field actions
-    "enter_isci_1": verifier_handlers.verify_isci_1_entered,
-    "enter_isci_2_if_provided": verifier_handlers.verify_isci_2_entered,
-    "enter_isci_3_if_provided": verifier_handlers.verify_isci_3_entered,
+    # # Form field actions
+    # "enter_isci_1": verifier_handlers.verify_isci_1_entered,
+    # "enter_isci_2_if_provided": verifier_handlers.verify_isci_2_entered,
+    # "enter_isci_3_if_provided": verifier_handlers.verify_isci_3_entered,
     
-    # Save actions
-    "save_instruction": verifier_handlers.verify_instruction_saved,
+    # # Save actions
+    # "save_instruction": verifier_handlers.verify_instruction_saved,
     
-    # Generic actions (fallback)
-    "type_text": verifier_handlers.verify_text_typed,
-    "click_at_position": verifier_handlers.verify_position_clicked,
-    "press_key": verifier_handlers.verify_key_pressed,
+    # # Generic actions (fallback)
+    # "type_text": verifier_handlers.verify_text_typed,
+    # "click_at_position": verifier_handlers.verify_position_clicked,
+    # "press_key": verifier_handlers.verify_key_pressed,
 }
 
 

@@ -6,6 +6,7 @@ Each function handles the verification logic for a specific action type.
 """
 
 from typing import Dict, Any, Tuple, Optional
+import re
 from . import verifier
 
 
@@ -37,7 +38,7 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
             return False, "Failed to take screenshot for verification", None
         
         # Define the advertiser field region
-        field_region = (206, 152, 1439, 79)
+        field_region = (370, 175, 160, 48)
         
         # Crop the screenshot to the advertiser field region
         cropped_image = verifier.crop_image_for_verification(
@@ -57,10 +58,10 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
         if not success:
             return False, f"Failed to extract text from advertiser field: {extracted_text}", None
         
-        print(f"[VERIFIER_HANDLER] Extracted text from field: '{extracted_text}'")
+        print(f"[VERIFIER_HANDLER] This is the extracted text: '{extracted_text}'")
         
         # Extract advertiser name from the OCR text using similarity matching
-        extracted_advertiser_name = _extract_advertiser_name_from_text(extracted_text, advertiser_name)
+        extracted_advertiser_name = _extract_value_from_text(extracted_text, advertiser_name)
         
         if not extracted_advertiser_name:
             error_msg = f"✗ Advertiser name verification failed. Expected: '{advertiser_name}', Could not extract advertiser name from OCR text: '{extracted_text}'"
@@ -131,7 +132,7 @@ def verify_order_id_entered(order_number: str = "", **kwargs) -> Tuple[bool, str
             return False, "Failed to take screenshot for verification", None
         
         # Define the order field region
-        field_region = (206, 152, 1439, 79)
+        field_region = (206, 175, 82, 48)
         
         # Crop the screenshot to the order field region
         cropped_image = verifier.crop_image_for_verification(
@@ -213,7 +214,83 @@ def verify_agency_name_entered(agency_name: str = "", **kwargs) -> Tuple[bool, s
     Returns:
         Tuple of (success: bool, message: str, data: Optional[Dict])
     """
-    pass
+    print(f"[VERIFIER_HANDLER] Verifying order ID entered: '{agency_name}'")
+    
+    if not agency_name:
+        return True, "No order ID to verify", None
+    
+    try:
+        # Take screenshot
+        screenshot = verifier.take_screenshot_for_verification()
+        if screenshot is None:
+            return False, "Failed to take screenshot for verification", None
+        
+        # Define the order field region
+        field_region = (668, 175, 160, 50)
+        
+        # Crop the screenshot to the order field region
+        cropped_image = verifier.crop_image_for_verification(
+            screenshot, 
+            field_region[0], 
+            field_region[1], 
+            field_region[2], 
+            field_region[3]
+        )
+        
+        if cropped_image is None:
+            return False, "Failed to crop image to order field region", None
+        
+        # Use OCR to extract text from the cropped field region
+        success, extracted_text = verifier.extract_text_from_cropped_image(cropped_image)
+        
+        if not success:
+            return False, f"Failed to extract text from order field: {extracted_text}", None
+        
+        print(f"[VERIFIER_HANDLER] Extracted text from field: '{extracted_text}'")
+        
+        # Extract order ID from the OCR text using similarity matching
+        extracted_agency_name = _extract_value_from_text(extracted_text, agency_name)
+        
+        if not extracted_agency_name:
+            error_msg = f"✗ Order ID verification failed. Expected: '{agency_name}', Could not extract order ID from OCR text: '{extracted_text}'"
+            print(f"[VERIFIER_HANDLER] {error_msg}")
+            verification_data = {
+                "expected_text": agency_name,
+                "extracted_text": extracted_text,
+                "extracted_agency_name": None,
+                "field_region": field_region,
+                "threshold": 0.80
+            }
+            return False, error_msg, verification_data
+        
+        print(f"[VERIFIER_HANDLER] Extracted order ID: '{extracted_agency_name}'")
+        
+        # Perform similarity check (80% threshold) on the extracted order ID
+        similarity = verifier.calculate_text_similarity(agency_name, extracted_agency_name)
+        
+        verification_data = {
+            "expected_text": agency_name,
+            "extracted_text": extracted_text,
+            "extracted_agency_name": extracted_agency_name,
+            "similarity_score": similarity,
+            "field_region": field_region,
+            "threshold": 0.80
+        }
+        
+        if similarity >= 0.80:
+            success_msg = f"✓ Order ID verified with {similarity:.2%} similarity (extracted: '{extracted_agency_name}')"
+            print(f"[VERIFIER_HANDLER] {success_msg}")
+            return True, success_msg, verification_data
+        else:
+            error_msg = f"✗ Order ID verification failed. Expected: '{agency_name}', Extracted: '{extracted_agency_name}', Similarity: {similarity:.2%} (threshold: 80%)"
+            print(f"[VERIFIER_HANDLER] {error_msg}")
+            return False, error_msg, verification_data
+        
+    except Exception as e:
+        error_msg = f"Error verifying order ID entry: {e}"
+        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
+        return False, error_msg, None
+
 
 def verify_begin_date_entered(begin_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
@@ -225,7 +302,82 @@ def verify_begin_date_entered(begin_date: str = "", **kwargs) -> Tuple[bool, str
     Returns:
         Tuple of (success: bool, message: str, data: Optional[Dict])
     """
-    pass
+    print(f"[VERIFIER_HANDLER] Verifying order ID entered: '{begin_date}'")
+    
+    if not begin_date:
+        return True, "No order ID to verify", None
+    
+    try:
+        # Take screenshot
+        screenshot = verifier.take_screenshot_for_verification()
+        if screenshot is None:
+            return False, "Failed to take screenshot for verification", None
+        
+        # Define the order field region
+        field_region = (992, 175, 114, 50)
+        
+        # Crop the screenshot to the order field region
+        cropped_image = verifier.crop_image_for_verification(
+            screenshot, 
+            field_region[0], 
+            field_region[1], 
+            field_region[2], 
+            field_region[3]
+        )
+        
+        if cropped_image is None:
+            return False, "Failed to crop image to order field region", None
+        
+        # Use OCR to extract text from the cropped field region
+        success, extracted_text = verifier.extract_text_from_cropped_image(cropped_image)
+        
+        if not success:
+            return False, f"Failed to extract text from order field: {extracted_text}", None
+        
+        print(f"[VERIFIER_HANDLER] Extracted text from field: '{extracted_text}'")
+        
+        # Extract order ID from the OCR text using similarity matching
+        extracted_begin_date = _extract_date_from_text(extracted_text, begin_date)
+        
+        if not extracted_begin_date:
+            error_msg = f"✗ Order ID verification failed. Expected: '{begin_date}', Could not extract order ID from OCR text: '{extracted_text}'"
+            print(f"[VERIFIER_HANDLER] {error_msg}")
+            verification_data = {
+                "expected_text": begin_date,
+                "extracted_text": extracted_text,
+                "extracted_begin_date": None,
+                "field_region": field_region,
+                "threshold": 0.80
+            }
+            return False, error_msg, verification_data
+        
+        print(f"[VERIFIER_HANDLER] Extracted order ID: '{extracted_begin_date}'")
+        
+        # Perform similarity check (80% threshold) on the extracted order ID
+        similarity = verifier.calculate_text_similarity(begin_date, extracted_begin_date)
+        
+        verification_data = {
+            "expected_text": begin_date,
+            "extracted_text": extracted_text,
+            "extracted_begin_date": extracted_begin_date,
+            "similarity_score": similarity,
+            "field_region": field_region,
+            "threshold": 0.80
+        }
+        
+        if similarity >= 0.80:
+            success_msg = f"✓ Order ID verified with {similarity:.2%} similarity (extracted: '{extracted_begin_date}')"
+            print(f"[VERIFIER_HANDLER] {success_msg}")
+            return True, success_msg, verification_data
+        else:
+            error_msg = f"✗ Order ID verification failed. Expected: '{begin_date}', Extracted: '{extracted_begin_date}', Similarity: {similarity:.2%} (threshold: 80%)"
+            print(f"[VERIFIER_HANDLER] {error_msg}")
+            return False, error_msg, verification_data
+        
+    except Exception as e:
+        error_msg = f"Error verifying order ID entry: {e}"
+        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
+        return False, error_msg, None
 
 
 def verify_end_date_entered(end_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
@@ -238,7 +390,82 @@ def verify_end_date_entered(end_date: str = "", **kwargs) -> Tuple[bool, str, Op
     Returns:
         Tuple of (success: bool, message: str, data: Optional[Dict])
     """
-    pass
+    print(f"[VERIFIER_HANDLER] Verifying order ID entered: '{end_date}'")
+    
+    if not end_date:
+        return True, "No order ID to verify", None
+    
+    try:
+        # Take screenshot
+        screenshot = verifier.take_screenshot_for_verification()
+        if screenshot is None:
+            return False, "Failed to take screenshot for verification", None
+        
+        # Define the order field region
+        field_region = (1105, 175, 114, 50)
+        
+        # Crop the screenshot to the order field region
+        cropped_image = verifier.crop_image_for_verification(
+            screenshot, 
+            field_region[0], 
+            field_region[1], 
+            field_region[2], 
+            field_region[3]
+        )
+        
+        if cropped_image is None:
+            return False, "Failed to crop image to order field region", None
+        
+        # Use OCR to extract text from the cropped field region
+        success, extracted_text = verifier.extract_text_from_cropped_image(cropped_image)
+        
+        if not success:
+            return False, f"Failed to extract text from order field: {extracted_text}", None
+        
+        print(f"[VERIFIER_HANDLER] Extracted text from field: '{extracted_text}'")
+        
+        # Extract order ID from the OCR text using similarity matching
+        extracted_end_date = _extract_date_from_text(extracted_text, end_date)
+        
+        if not extracted_end_date:
+            error_msg = f"✗ Order ID verification failed. Expected: '{end_date}', Could not extract order ID from OCR text: '{extracted_text}'"
+            print(f"[VERIFIER_HANDLER] {error_msg}")
+            verification_data = {
+                "expected_text": end_date,
+                "extracted_text": extracted_text,
+                "extracted_end_date": None,
+                "field_region": field_region,
+                "threshold": 0.80
+            }
+            return False, error_msg, verification_data
+        
+        print(f"[VERIFIER_HANDLER] Extracted order ID: '{extracted_end_date}'")
+        
+        # Perform similarity check (80% threshold) on the extracted order ID
+        similarity = verifier.calculate_text_similarity(end_date, extracted_end_date)
+        
+        verification_data = {
+            "expected_text": end_date,
+            "extracted_text": extracted_text,
+            "extracted_end_date": extracted_end_date,
+            "similarity_score": similarity,
+            "field_region": field_region,
+            "threshold": 0.80
+        }
+        
+        if similarity >= 0.80:
+            success_msg = f"✓ Order ID verified with {similarity:.2%} similarity (extracted: '{extracted_end_date}')"
+            print(f"[VERIFIER_HANDLER] {success_msg}")
+            return True, success_msg, verification_data
+        else:
+            error_msg = f"✗ Order ID verification failed. Expected: '{end_date}', Extracted: '{extracted_end_date}', Similarity: {similarity:.2%} (threshold: 80%)"
+            print(f"[VERIFIER_HANDLER] {error_msg}")
+            return False, error_msg, verification_data
+        
+    except Exception as e:
+        error_msg = f"Error verifying order ID entry: {e}"
+        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
+        return False, error_msg, None
 
 def verify_search_button_clicked(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
@@ -250,22 +477,106 @@ def verify_search_button_clicked(**kwargs) -> Tuple[bool, str, Optional[Dict[str
     print("[VERIFIER_HANDLER] Verifying search button clicked...")
     
     try:
-        # Use verifier.py to verify button click
-        success, message, verification_data = verifier.verify_button_clicked(
-            expected_indicators=[
-                "loading", "searching", "results", "found", "no results", 
-                "search results", "loading...", "please wait"
-            ],
-            timeout=2.0
+        # Take screenshot
+        screenshot = verifier.take_screenshot_for_verification()
+        if screenshot is None:
+            return False, "Failed to take screenshot for verification", None
+        
+        # Define the order field region
+        field_region = (205, 225, 50, 30)
+        
+        # Crop the screenshot to the order field region
+        cropped_image = verifier.crop_image_for_verification(
+            screenshot, 
+            field_region[0], 
+            field_region[1], 
+            field_region[2], 
+            field_region[3]
         )
         
-        return success, message, verification_data
+        if cropped_image is None:
+            return False, "Failed to crop image to order field region", None
+        
+        # Use OCR to extract text from the cropped field region
+        success, extracted_text = verifier.extract_text_from_cropped_image(cropped_image)
+        
+        if not success:
+            return False, f"Failed to extract text from order field: {extracted_text}", None
+        
+        print(f"[VERIFIER_HANDLER] Extracted text from field: '{extracted_text}'")
+
+        # Extract order ID from the OCR text using similarity matching
+        extracted_end_date = _extract_value_from_text(extracted_text, "Results")
+        
+        if not extracted_end_date:
+            error_msg = f"✗ Order ID verification failed. Expected: Results, Could not extract order ID from OCR text: '{extracted_text}'"
+            print(f"[VERIFIER_HANDLER] {error_msg}")
+            verification_data = {
+                "expected_text": "Results",
+                "extracted_text": extracted_text,
+                "extracted_end_date": None,
+                "field_region": field_region,
+                "threshold": 0.80
+            }
+            return False, error_msg, verification_data
+        
+        print(f"[VERIFIER_HANDLER] Extracted order ID: '{extracted_end_date}'")
+        
+        # Perform similarity check (80% threshold) on the extracted order ID
+        similarity = verifier.calculate_text_similarity("Results", extracted_end_date)
+        
+        verification_data = {
+            "expected_text": "Results",
+            "extracted_text": extracted_text,
+            "extracted_end_date": extracted_end_date,
+            "similarity_score": similarity,
+            "field_region": field_region,
+            "threshold": 0.80
+        }
+        
+        if similarity >= 0.80:
+            success_msg = f"✓ Order ID verified with {similarity:.2%} similarity (extracted: '{extracted_end_date}')"
+            print(f"[VERIFIER_HANDLER] {success_msg}")
+            return True, success_msg, verification_data
+        else:
+            error_msg = f"✗ Order ID verification failed. Expected: Results, Extracted: '{extracted_end_date}', Similarity: {similarity:.2%} (threshold: 80%)"
+            print(f"[VERIFIER_HANDLER] {error_msg}")
+            return False, error_msg, verification_data
         
     except Exception as e:
         error_msg = f"Error verifying search button click: {e}"
         print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
         return False, error_msg, None
 
+def verify_row_found(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """
+    Verify that a row was found in the table.
+    
+    Returns:
+        Tuple of (success: bool, message: str, data: Optional[Dict])
+    """
+    print("[VERIFIER_HANDLER] Verifying row found...")
+    pass
+
+
+def verify_row_right_clicked(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """
+    Verify that a row was right-clicked successfully.
+    
+    Returns:
+        Tuple of (success: bool, message: str, data: Optional[Dict])
+    """
+    pass
+
+
+def verify_edit_menu_selected(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """
+    Verify that the edit menu was selected successfully.
+    
+    Returns:
+        Tuple of (success: bool, message: str, data: Optional[Dict])
+    """
+    pass
 
 def verify_multinetwork_page_opened(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
@@ -334,79 +645,6 @@ def verify_multinetwork_page_opened(**kwargs) -> Tuple[bool, str, Optional[Dict[
         print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
         return False, error_msg, None
 
-
-def verify_row_found(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """
-    Verify that a row was found in the table.
-    
-    Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
-    """
-    print("[VERIFIER_HANDLER] Verifying row found...")
-    
-    try:
-        # Use verifier.py to verify row presence
-        success, message = verifier.verify_element_present(
-            element_type="table_row",
-            timeout=2.0
-        )
-        
-        return success, message, None
-        
-    except Exception as e:
-        error_msg = f"Error verifying row found: {e}"
-        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
-        return False, error_msg, None
-
-
-def verify_row_right_clicked(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """
-    Verify that a row was right-clicked successfully.
-    
-    Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
-    """
-    print("[VERIFIER_HANDLER] Verifying row right-clicked...")
-    
-    try:
-        # Use verifier.py to verify context menu appeared
-        success, message = verifier.verify_ui_state_change(
-            expected_texts=["Edit", "Copy", "Delete"],
-            timeout=2.0
-        )
-        
-        return success, message, None
-        
-    except Exception as e:
-        error_msg = f"Error verifying row right-click: {e}"
-        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
-        return False, error_msg, None
-
-
-def verify_edit_menu_selected(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """
-    Verify that the edit menu was selected successfully.
-    
-    Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
-    """
-    print("[VERIFIER_HANDLER] Verifying edit menu selected...")
-    
-    try:
-        # Use verifier.py to verify UI state change
-        success, message = verifier.verify_ui_state_change(
-            expected_texts=["Edit", "Multi-network", "Instructions"],
-            timeout=3.0
-        )
-        
-        return success, message, None
-        
-    except Exception as e:
-        error_msg = f"Error verifying edit menu selection: {e}"
-        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
-        return False, error_msg, None
-
-
 def verify_isci_1_entered(isci_1: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
     Verify that ISCI 1 was entered correctly.
@@ -417,38 +655,7 @@ def verify_isci_1_entered(isci_1: str = "", **kwargs) -> Tuple[bool, str, Option
     Returns:
         Tuple of (success: bool, message: str, data: Optional[Dict])
     """
-    print(f"[VERIFIER_HANDLER] Verifying ISCI 1 entered: '{isci_1}'")
-    
-    if not isci_1:
-        return True, "No ISCI 1 to verify", None
-    
-    try:
-        # Take screenshot and verify text entry
-        screenshot = verifier.take_screenshot_for_verification()
-        if screenshot is None:
-            return False, "Failed to take screenshot for verification", None
-        
-        success, extracted_text = verifier.extract_text_from_cropped_image(screenshot)
-        
-        if not success:
-            return False, f"Failed to extract text: {extracted_text}", None
-        
-        similarity = verifier.calculate_text_similarity(isci_1, extracted_text)
-        
-        if similarity >= 0.80:
-            success_msg = f"✓ ISCI 1 verified with {similarity:.2%} similarity"
-            print(f"[VERIFIER_HANDLER] {success_msg}")
-            return True, success_msg, {"similarity_score": similarity}
-        else:
-            error_msg = f"✗ ISCI 1 verification failed. Expected: '{isci_1}', Extracted: '{extracted_text}', Similarity: {similarity:.2%}"
-            print(f"[VERIFIER_HANDLER] {error_msg}")
-            return False, error_msg, {"similarity_score": similarity}
-        
-    except Exception as e:
-        error_msg = f"Error verifying ISCI 1 entry: {e}"
-        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
-        return False, error_msg, None
-
+    pass
 
 def verify_isci_2_entered(isci_2: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
@@ -460,38 +667,7 @@ def verify_isci_2_entered(isci_2: str = "", **kwargs) -> Tuple[bool, str, Option
     Returns:
         Tuple of (success: bool, message: str, data: Optional[Dict])
     """
-    print(f"[VERIFIER_HANDLER] Verifying ISCI 2 entered: '{isci_2}'")
-    
-    if not isci_2:
-        return True, "No ISCI 2 to verify", None
-    
-    try:
-        # Take screenshot and verify text entry
-        screenshot = verifier.take_screenshot_for_verification()
-        if screenshot is None:
-            return False, "Failed to take screenshot for verification", None
-        
-        success, extracted_text = verifier.extract_text_from_cropped_image(screenshot)
-        
-        if not success:
-            return False, f"Failed to extract text: {extracted_text}", None
-        
-        similarity = verifier.calculate_text_similarity(isci_2, extracted_text)
-        
-        if similarity >= 0.80:
-            success_msg = f"✓ ISCI 2 verified with {similarity:.2%} similarity"
-            print(f"[VERIFIER_HANDLER] {success_msg}")
-            return True, success_msg, {"similarity_score": similarity}
-        else:
-            error_msg = f"✗ ISCI 2 verification failed. Expected: '{isci_2}', Extracted: '{extracted_text}', Similarity: {similarity:.2%}"
-            print(f"[VERIFIER_HANDLER] {error_msg}")
-            return False, error_msg, {"similarity_score": similarity}
-        
-    except Exception as e:
-        error_msg = f"Error verifying ISCI 2 entry: {e}"
-        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
-        return False, error_msg, None
-
+    pass
 
 def verify_isci_3_entered(isci_3: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
@@ -503,38 +679,7 @@ def verify_isci_3_entered(isci_3: str = "", **kwargs) -> Tuple[bool, str, Option
     Returns:
         Tuple of (success: bool, message: str, data: Optional[Dict])
     """
-    print(f"[VERIFIER_HANDLER] Verifying ISCI 3 entered: '{isci_3}'")
-    
-    if not isci_3:
-        return True, "No ISCI 3 to verify", None
-    
-    try:
-        # Take screenshot and verify text entry
-        screenshot = verifier.take_screenshot_for_verification()
-        if screenshot is None:
-            return False, "Failed to take screenshot for verification", None
-        
-        success, extracted_text = verifier.extract_text_from_cropped_image(screenshot)
-        
-        if not success:
-            return False, f"Failed to extract text: {extracted_text}", None
-        
-        similarity = verifier.calculate_text_similarity(isci_3, extracted_text)
-        
-        if similarity >= 0.80:
-            success_msg = f"✓ ISCI 3 verified with {similarity:.2%} similarity"
-            print(f"[VERIFIER_HANDLER] {success_msg}")
-            return True, success_msg, {"similarity_score": similarity}
-        else:
-            error_msg = f"✗ ISCI 3 verification failed. Expected: '{isci_3}', Extracted: '{extracted_text}', Similarity: {similarity:.2%}"
-            print(f"[VERIFIER_HANDLER] {error_msg}")
-            return False, error_msg, {"similarity_score": similarity}
-        
-    except Exception as e:
-        error_msg = f"Error verifying ISCI 3 entry: {e}"
-        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
-        return False, error_msg, None
-
+    pass
 
 def verify_instruction_saved(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
@@ -543,22 +688,7 @@ def verify_instruction_saved(**kwargs) -> Tuple[bool, str, Optional[Dict[str, An
     Returns:
         Tuple of (success: bool, message: str, data: Optional[Dict])
     """
-    print("[VERIFIER_HANDLER] Verifying instruction saved...")
-    
-    try:
-        # Use verifier.py to verify save confirmation
-        success, message = verifier.verify_ui_state_change(
-            expected_texts=["saved", "success", "completed"],
-            timeout=3.0
-        )
-        
-        return success, message, None
-        
-    except Exception as e:
-        error_msg = f"Error verifying instruction save: {e}"
-        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
-        return False, error_msg, None
-
+    pass
 
 def verify_text_typed(text: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
@@ -599,58 +729,6 @@ def verify_text_typed(text: str = "", **kwargs) -> Tuple[bool, str, Optional[Dic
         
     except Exception as e:
         error_msg = f"Error verifying text entry: {e}"
-        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
-        return False, error_msg, None
-
-
-def verify_position_clicked(x: int = 0, y: int = 0, **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """
-    Verify that a position was clicked successfully.
-    
-    Args:
-        x: X coordinate that was clicked
-        y: Y coordinate that was clicked
-        
-    Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
-    """
-    print(f"[VERIFIER_HANDLER] Verifying position clicked: ({x}, {y})")
-    
-    try:
-        # Use verifier.py to verify click action
-        success, message = verifier.verify_click_action(x, y, timeout=2.0)
-        
-        return success, message, {"click_position": (x, y)}
-        
-    except Exception as e:
-        error_msg = f"Error verifying position click: {e}"
-        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
-        return False, error_msg, None
-
-
-def verify_key_pressed(key: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """
-    Verify that a key was pressed successfully.
-    
-    Args:
-        key: Key that was pressed
-        
-    Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
-    """
-    print(f"[VERIFIER_HANDLER] Verifying key pressed: '{key}'")
-    
-    if not key:
-        return True, "No key to verify", None
-    
-    try:
-        # Use verifier.py to verify key press action
-        success, message = verifier.verify_key_action(key, timeout=2.0)
-        
-        return success, message, {"key_pressed": key}
-        
-    except Exception as e:
-        error_msg = f"Error verifying key press: {e}"
         print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
         return False, error_msg, None
 
@@ -705,7 +783,7 @@ def _extract_order_id_from_text(ocr_text: str, expected_order_id: str) -> Option
     return None
 
 
-def _extract_advertiser_name_from_text(ocr_text: str, expected_advertiser_name: str) -> Optional[str]:
+def _extract_value_from_text(ocr_text: str, expected_string: str) -> Optional[str]:
     """
     Extract advertiser name from OCR text using similarity matching.
     
@@ -720,7 +798,6 @@ def _extract_advertiser_name_from_text(ocr_text: str, expected_advertiser_name: 
     Returns:
         Extracted advertiser name string or None if not found
     """
-    import re
     
     # Clean the OCR text
     ocr_text_clean = ocr_text.strip()
@@ -742,7 +819,7 @@ def _extract_advertiser_name_from_text(ocr_text: str, expected_advertiser_name: 
         if len(pattern_clean) < 3:  # Skip very short patterns
             continue
             
-        similarity = verifier.calculate_text_similarity(expected_advertiser_name, pattern_clean)
+        similarity = verifier.calculate_text_similarity(expected_string, pattern_clean)
         
         if similarity > best_similarity:
             best_similarity = similarity
@@ -753,4 +830,67 @@ def _extract_advertiser_name_from_text(ocr_text: str, expected_advertiser_name: 
         return best_match
     
     print(f"[VERIFIER_HANDLER] No suitable advertiser name pattern found (best similarity: {best_similarity:.2%})")
+    return None
+
+def _extract_date_from_text(ocr_text: str, expected_date: str) -> Optional[str]:
+    """
+    Extract date in MM/DD/YYYY format from OCR text, ignoring letters and allowing single-digit months/days.
+    
+    This function looks for a date in the OCR text by:
+    1. Removing all letters from the OCR text
+    2. Using a regex to find M/D/YYYY or MM/DD/YYYY formats
+    3. Normalizing to MM/DD/YYYY format
+    4. Finding the pattern with the highest similarity to the expected date
+    
+    Args:
+        ocr_text: Full OCR text from the field
+        expected_date: Expected date in MM/DD/YYYY format to match against
+        
+    Returns:
+        Extracted date string or None if not found
+    """
+    # Clean the OCR text and remove all letters
+    ocr_text_clean = re.sub(r'[a-zA-Z]', '', ocr_text.strip())
+    
+    # Regex for M/D/YYYY or MM/DD/YYYY (months 1-12, days 1-31, year 4 digits)
+    date_pattern = r'(\d{1,2})/(\d{1,2})/(\d{4})'
+    date_matches = re.findall(date_pattern, ocr_text_clean)
+    
+    if not date_matches:
+        print(f"[VERIFIER_HANDLER] No date patterns found in OCR text: '{ocr_text_clean}'")
+        return None
+    
+    # Normalize matches to MM/DD/YYYY format
+    date_strings = []
+    for month, day, year in date_matches:
+        try:
+            # Convert to integers to validate ranges
+            month_int = int(month)
+            day_int = int(day)
+            if 1 <= month_int <= 12 and 1 <= day_int <= 31:
+                date_str = f"{month_int:02d}/{day_int:02d}/{year}"
+                date_strings.append(date_str)
+        except ValueError:
+            continue
+    
+    if not date_strings:
+        print(f"[VERIFIER_HANDLER] No valid date patterns found in OCR text: '{ocr_text_clean}'")
+        return None
+    
+    # Find the pattern with the highest similarity to the expected date
+    best_match = None
+    best_similarity = 0.0
+    
+    for date_str in date_strings:
+        similarity = verifier.calculate_text_similarity(expected_date, date_str)
+        
+        if similarity > best_similarity:
+            best_similarity = similarity
+            best_match = date_str
+    
+    if best_match and best_similarity >= 0.8:  # 80% similarity threshold
+        print(f"[VERIFIER_HANDLER] Found best match: '{best_match}' (similarity: {best_similarity:.2%})")
+        return best_match
+    
+    print(f"[VERIFIER_HANDLER] No suitable date pattern found (best similarity: {best_similarity:.2%})")
     return None

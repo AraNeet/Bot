@@ -28,8 +28,8 @@ from ..helpers import computer_vision_utils
 # ============================================================================
 
 def verify_text_entered(expected_text: str, 
-                       region: Optional[Tuple[int, int, int, int]] = None,
-                       case_sensitive: bool = False) -> Tuple[bool, str]:
+                        region: Optional[Tuple[int, int, int, int]] = None,
+                        case_sensitive: bool = False) -> Tuple[bool, str]:
     """
     Verify that specific text was entered on the screen.
     
@@ -115,209 +115,6 @@ def verify_text_presence(expected_texts: List[str],
             
     except Exception as e:
         return False, f"Error verifying text presence: {e}"
-
-
-def verify_text_in_field(expected_text: str,
-                        field_region: Tuple[int, int, int, int],
-                        confidence_threshold: float = 0.60) -> Tuple[bool, str, Dict[str, Any]]:
-    """
-    Verify that specific text appears in a specific field region using OCR.
-    
-    Args:
-        expected_text: Text to verify
-        field_region: Field region tuple (x, y, width, height)
-        confidence_threshold: Minimum OCR confidence threshold
-        
-    Returns:
-        Tuple of (success: bool, message: str, verification_data: Dict)
-    """
-    try:
-        # Take screenshot
-        screenshot = computer_vision_utils.take_screenshot()
-        if screenshot is None:
-            return False, "Failed to take screenshot", {}
-        
-        # Crop to field region
-        cropped_image = crop_image_for_verification(
-            screenshot, 
-            field_region[0], 
-            field_region[1], 
-            field_region[2], 
-            field_region[3]
-        )
-        
-        if cropped_image is None:
-            return False, "Failed to crop image to field region", {}
-        
-        # Get detailed OCR data
-        ocr_success, ocr_data = get_detailed_ocr_data(cropped_image)
-        
-        if not ocr_success:
-            return False, f"Failed to get OCR data: {ocr_data}", {}
-        
-        # Check if we have valid OCR data
-        if not isinstance(ocr_data, dict) or 'text' not in ocr_data or 'confidence' not in ocr_data:
-            return False, "Invalid OCR data structure", {}
-        
-        # Perform text matching with multiple strategies
-        expected_lower = expected_text.lower().strip()
-        match_found = False
-        match_method = ""
-        best_match_confidence = 0.0
-        best_match_text = ""
-        
-        # Strategy 1: High confidence exact matches (85%+)
-        for i, text in enumerate(ocr_data['text']):
-            if not text.strip():
-                continue
-                
-            confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
-            
-            if confidence >= 0.85:
-                text_lower = text.lower().strip()
-                
-                if expected_lower == text_lower:
-                    match_found = True
-                    match_method = f"high confidence exact match (confidence: {confidence:.2f})"
-                    best_match_confidence = confidence
-                    best_match_text = text
-                    break
-        
-        # Strategy 2: Medium confidence matches (60%+) with various patterns
-        if not match_found:
-            for i, text in enumerate(ocr_data['text']):
-                if not text.strip():
-                    continue
-                    
-                confidence = ocr_data['confidence'][i] if i < len(ocr_data['confidence']) else 0.0
-                
-                if confidence >= confidence_threshold:
-                    text_lower = text.lower().strip()
-                    
-                    if expected_lower == text_lower:
-                        if confidence > best_match_confidence:
-                            match_found = True
-                            match_method = f"exact match (confidence: {confidence:.2f})"
-                            best_match_confidence = confidence
-                            best_match_text = text
-                    elif expected_lower in text_lower:
-                        if confidence > best_match_confidence:
-                            match_found = True
-                            match_method = f"expected contains extracted (confidence: {confidence:.2f})"
-                            best_match_confidence = confidence
-                            best_match_text = text
-                    elif text_lower in expected_lower:
-                        if confidence > best_match_confidence:
-                            match_found = True
-                            match_method = f"extracted contains expected (confidence: {confidence:.2f})"
-                            best_match_confidence = confidence
-                            best_match_text = text
-        
-        # Prepare verification data
-        verification_data = {
-            "expected_text": expected_text,
-            "field_region": field_region,
-            "confidence_threshold": confidence_threshold,
-            "ocr_data": ocr_data
-        }
-        
-        if match_found:
-            verification_data.update({
-                "matched_text": best_match_text,
-                "match_confidence": best_match_confidence,
-                "match_method": match_method
-            })
-            return True, f"Text '{expected_text}' verified in field ({match_method})", verification_data
-        else:
-            return False, f"Text '{expected_text}' not found in field", verification_data
-            
-    except Exception as e:
-        return False, f"Error verifying text in field: {e}", {}
-
-
-# ============================================================================
-# TEMPLATE VERIFICATION FUNCTIONS
-# ============================================================================
-
-def verify_template_found(template_path: str,
-                         region: Optional[Tuple[int, int, int, int]] = None,
-                         confidence: float = 0.8) -> Tuple[bool, str, Optional[Tuple[int, int, int, int]]]:
-    """
-    Verify that a template image is found on the screen.
-    
-    Args:
-        template_path: Path to the template image file
-        region: Optional region to limit search
-        confidence: Minimum confidence threshold
-        
-    Returns:
-        Tuple of (success: bool, message: str, region: Optional[Tuple])
-    """
-    try:
-        # Take screenshot
-        screenshot = computer_vision_utils.take_screenshot()
-        if screenshot is None:
-            return False, "Failed to take screenshot", None
-        
-        # Search for template
-        if region:
-            found, conf_score, position = computer_vision_utils.find_template_in_region(
-                screenshot, template_path, region, confidence
-            )
-            template_region = region
-        else:
-            found, conf_score, position, template_region = computer_vision_utils.find_template_full_screen(
-                screenshot, template_path, confidence
-            )
-        
-        if found:
-            return True, f"Template found with confidence {conf_score:.2f}", template_region
-        else:
-            return False, f"Template not found (confidence: {conf_score:.2f})", None
-            
-    except Exception as e:
-        return False, f"Error verifying template: {e}", None
-
-
-def verify_page_with_template(template_path: str,
-                             expected_texts: List[str],
-                             min_text_matches: int = 1,
-                             confidence: float = 0.8) -> Tuple[bool, str, Optional[Tuple[int, int, int, int]]]:
-    """
-    Verify that a page loaded by checking for both template and expected texts.
-    
-    Args:
-        template_path: Path to the template image file
-        expected_texts: List of texts that should be on the page
-        min_text_matches: Minimum number of texts that must be found
-        confidence: Template matching confidence threshold
-        
-    Returns:
-        Tuple of (success: bool, message: str, region: Optional[Tuple])
-    """
-    try:
-        # First verify template is found
-        template_success, template_msg, template_region = verify_template_found(
-            template_path, None, confidence
-        )
-        
-        if not template_success:
-            return False, f"Template verification failed: {template_msg}", None
-        
-        # Then verify expected texts are present
-        text_success, text_msg = verify_text_presence(
-            expected_texts, None, min_text_matches
-        )
-        
-        if not text_success:
-            return False, f"Text verification failed: {text_msg}", template_region
-        
-        # Both verifications passed
-        return True, f"Page verified: {template_msg} and {text_msg}", template_region
-        
-    except Exception as e:
-        return False, f"Error verifying page with template: {e}", None
-
 
 # ============================================================================
 # UI STATE VERIFICATION FUNCTIONS
@@ -633,7 +430,7 @@ def calculate_text_similarity(text1: str, text2: str) -> float:
 
 
 def validate_region_coordinates(region: Tuple[int, int, int, int], 
-                               image_shape: Tuple[int, int]) -> Tuple[bool, Tuple[int, int, int, int]]:
+                                image_shape: Tuple[int, int]) -> Tuple[bool, Tuple[int, int, int, int]]:
     """
     Validate and clamp region coordinates to image bounds.
     

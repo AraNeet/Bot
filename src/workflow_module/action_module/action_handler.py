@@ -199,24 +199,6 @@ def enter_advertiser_name(advertiser_name: str) -> Tuple[bool, str]:
         cv2.imwrite(debug_filename, cropped_image)
         print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
         
-        # # Use OCR to find the "advertiser" word within the cropped region
-        # ocr_success, text_found = ocr_utils.find_text(
-        #     cropped_image,
-        #     "advertiser",
-        #     case_sensitive=False
-        # )
-        
-        # if not ocr_success:
-        #     return False, "OCR search failed"
-        
-        # if not text_found:
-        #     return False, f"Word 'advertiser' not found in region {search_region}"
-        
-        # print(f"[ACTION_HANDLER] ✓ Found 'advertiser' word in region {search_region}")
-        
-        # # Now find the exact position of the "advertiser" text in the cropped image
-        # print(f"[ACTION_HANDLER] Finding exact position of 'advertiser' text in cropped image...")
-        
         success, found, bbox = ocr_utils.find_text_with_position(
             cropped_image,
             "advertiser",
@@ -280,24 +262,6 @@ def enter_advertiser_name(advertiser_name: str) -> Tuple[bool, str]:
         print(f"[ACTION_HANDLER ERROR] {error_msg}")
         return False, error_msg
 
-
-def verify_advertiser_found(advertiser_name: str) -> Tuple[bool, str]:
-    """
-    Verify that the advertiser name was found in the dropdown.
-    
-    This function is now handled by the verifier module.
-    The verifier module will automatically verify advertiser entries.
-    
-    Args:
-        advertiser_name: Name of advertiser to verify
-        
-    Returns:
-        Tuple of (success: bool, message: str)
-    """
-    print(f"[ACTION_HANDLER] Advertiser verification is handled by verifier module")
-    return True, f"Advertiser '{advertiser_name}' verification delegated to verifier module"
-
-
 def enter_order_id(order_number: str) -> Tuple[bool, str]:
     """
     Enter order ID in the search field.
@@ -338,11 +302,6 @@ def enter_order_id(order_number: str) -> Tuple[bool, str]:
             return False, "Failed to crop image to search region"
         
         print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
-        
-        # Save the cropped image for debugging
-        debug_filename = f"order_search_region_{int(time.time())}.png"
-        cv2.imwrite(debug_filename, cropped_image)
-        print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
         
         # Use OCR to find the "order" word within the cropped region
         success, found, bbox = ocr_utils.find_text_with_position(
@@ -448,12 +407,7 @@ def enter_agency(agency_name: str) -> Tuple[bool, str]:
             return False, "Failed to crop image to search region"
         
         print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
-        
-        # Save the cropped image for debugging
-        debug_filename = f"agency_search_region_{int(time.time())}.png"
-        cv2.imwrite(debug_filename, cropped_image)
-        print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
-        
+
         # Use OCR to find the "agency" word within the cropped region
         success, found, bbox = ocr_utils.find_text_with_position(
             cropped_image,
@@ -558,11 +512,6 @@ def enter_begin_date(begin_date: str) -> Tuple[bool, str]:
             return False, "Failed to crop image to search region"
         
         print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
-        
-        # Save the cropped image for debugging
-        debug_filename = f"begin_date_search_region_{int(time.time())}.png"
-        cv2.imwrite(debug_filename, cropped_image)
-        print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
         
         # Use OCR to find the "begin" word within the cropped region
         success, found, bbox = ocr_utils.find_text_with_position(
@@ -669,11 +618,6 @@ def enter_end_date(end_date: str) -> Tuple[bool, str]:
             return False, "Failed to crop image to search region"
         
         print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
-        
-        # Save the cropped image for debugging
-        debug_filename = f"end_date_search_region_{int(time.time())}.png"
-        cv2.imwrite(debug_filename, cropped_image)
-        print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
         
         # Use OCR to find the "end" word within the cropped region
         success, found, bbox = ocr_utils.find_text_with_position(

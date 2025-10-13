@@ -89,38 +89,38 @@ def execute_single_instruction(instruction: Dict[str, Any],
     
     # Retry loop
     for attempt in range(1, max_retries + 1):
-        print(f"\n[ENGINE] Attempt {attempt}/{max_retries}")
+        # print(f"\n[ENGINE] Attempt {attempt}/{max_retries}")
         
-        # Step 1: Execute action
-        print(f"[ENGINE] Executing action via action_executor...")
-        action_success, action_msg = action_executor.execute_action(
-            action_type=action_type,
-            parameters=parameters
-        )
+        # # Step 1: Execute action
+        # print(f"[ENGINE] Executing action via action_executor...")
+        # action_success, action_msg = action_executor.execute_action(
+        #     action_type=action_type,
+        #     parameters=parameters
+        # )
         
-        if not action_success:
-            print(f"[ENGINE ERROR] Action execution failed: {action_msg}")
+        # if not action_success:
+        #     print(f"[ENGINE ERROR] Action execution failed: {action_msg}")
             
-            # If this was the last attempt, fail
-            if attempt == max_retries:
-                error_msg = f"Action '{action_type}' failed after {max_retries} attempts: {action_msg}"
-                notify_error(
-                    error_msg,
-                    "workflow_engine.execute_single_instruction",
-                    {
-                        "action_type": action_type,
-                        "parameters": parameters,
-                        "attempts": max_retries,
-                        "final_error": action_msg
-                    }
-                )
-                return False, error_msg
+        #     # If this was the last attempt, fail
+        #     if attempt == max_retries:
+        #         error_msg = f"Action '{action_type}' failed after {max_retries} attempts: {action_msg}"
+        #         notify_error(
+        #             error_msg,
+        #             "workflow_engine.execute_single_instruction",
+        #             {
+        #                 "action_type": action_type,
+        #                 "parameters": parameters,
+        #                 "attempts": max_retries,
+        #                 "final_error": action_msg
+        #             }
+        #         )
+        #         return False, error_msg
             
-            # Otherwise, retry
-            print(f"[ENGINE] Retrying action...")
-            continue
+        #     # Otherwise, retry
+        #     print(f"[ENGINE] Retrying action...")
+        #     continue
         
-        print(f"[ENGINE SUCCESS] Action executed: {action_msg}")
+        # print(f"[ENGINE SUCCESS] Action executed: {action_msg}")
         
         # Step 2: Verify action completed using new verifier module
         print(f"[ENGINE] Verifying action completion...")
