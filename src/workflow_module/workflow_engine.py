@@ -28,12 +28,12 @@ from typing import Dict, Any, List, Tuple, Optional
 from .verifier_module import verifier_executor as verifier
 from src.notification_module import notify_error
 from .action_module import action_executor
+from . import workflow_planner
 
 def execute_single_instruction(instruction: Dict[str, Any],
                                 instruction_index: int,
                                 total_instructions: int,
                                 max_retries: int = 3) -> Tuple[bool, str]:
-    
     """
     Execute a single instruction with retry logic and verification.
     
@@ -44,9 +44,7 @@ def execute_single_instruction(instruction: Dict[str, Any],
         b. Verify action completed via new verifier module
         c. If verification fails, save debug screenshot and retry
     3. If all retries fail, send error notification
-    
-    The new verifier module automatically routes instruction names to their
-    corresponding verifier handlers, making verification more robust and extensible.
+    4. If action_type unsupported, skip with warning
     
     Args:
         instruction: Single instruction dictionary with:
@@ -60,26 +58,11 @@ def execute_single_instruction(instruction: Dict[str, Any],
         
     Returns:
         Tuple of (success: bool, message)
-        
-    Example instruction:
-    {
-        "action_type": "type_text",
-        "description": "Enter advertiser name",
-        "parameters": {
-            "text": "Acme Corp",
-            "interval": 0.05
-        },
-        "verification": {
-            "type": "text_inputted",
-            "expected_text": "Acme Corp"
-        }
-    }
     """
     # Extract instruction components
     action_type = instruction.get("action_type")
     description = instruction.get("description", "No description")
     parameters = instruction.get("parameters", {})
-    verification_config = instruction.get("verification")
     
     print(f"\n{'─'*60}")
     print(f"[ENGINE] Step {instruction_index}/{total_instructions}: {action_type}")
@@ -87,40 +70,46 @@ def execute_single_instruction(instruction: Dict[str, Any],
     print(f"[ENGINE] Parameters: {parameters}")
     print(f"{'─'*60}")
     
+    # Check if action type is supported
+    if action_type not in action_executor.ACTION_HANDLERS:
+        warning_msg = f"Action '{action_type}' is unsupported, skipping this step"
+        print(f"[ENGINE WARNING] ⚠ {warning_msg}")
+        return True, warning_msg
+    
     # Retry loop
     for attempt in range(1, max_retries + 1):
-        # print(f"\n[ENGINE] Attempt {attempt}/{max_retries}")
+        print(f"\n[ENGINE] Attempt {attempt}/{max_retries}")
         
-        # # Step 1: Execute action
-        # print(f"[ENGINE] Executing action via action_executor...")
-        # action_success, action_msg = action_executor.execute_action(
-        #     action_type=action_type,
-        #     parameters=parameters
-        # )
+        # Step 1: Execute action
+        print(f"[ENGINE] Executing action via action_executor...")
+        action_success, action_msg = action_executor.execute_action(
+            action_type=action_type,
+            parameters=parameters
+        )
         
-        # if not action_success:
-        #     print(f"[ENGINE ERROR] Action execution failed: {action_msg}")
+        if not action_success:
+            print(f"[ENGINE ERROR] Action execution failed: {action_msg}")
             
-        #     # If this was the last attempt, fail
-        #     if attempt == max_retries:
-        #         error_msg = f"Action '{action_type}' failed after {max_retries} attempts: {action_msg}"
-        #         notify_error(
-        #             error_msg,
-        #             "workflow_engine.execute_single_instruction",
-        #             {
-        #                 "action_type": action_type,
-        #                 "parameters": parameters,
-        #                 "attempts": max_retries,
-        #                 "final_error": action_msg
-        #             }
-        #         )
-        #         return False, error_msg
+            # If this was the last attempt, fail
+            if attempt == max_retries:
+                error_msg = f"Action '{action_type}' failed after {max_retries} attempts: {action_msg}"
+                notify_error(
+                    error_msg,
+                    "workflow_engine.execute_single_instruction",
+                    {
+                        "action_type": action_type,
+                        "parameters": parameters,
+                        "attempts": max_retries,
+                        "final_error": action_msg
+                    }
+                )
+                return False, error_msg
             
-        #     # Otherwise, retry
-        #     print(f"[ENGINE] Retrying action...")
-        #     continue
+            # Otherwise, retry
+            print(f"[ENGINE] Retrying action...")
+            continue
         
-        # print(f"[ENGINE SUCCESS] Action executed: {action_msg}")
+        print(f"[ENGINE SUCCESS] Action executed: {action_msg}")
         
         # Step 2: Verify action completed using new verifier module
         print(f"[ENGINE] Verifying action completion...")
@@ -165,16 +154,15 @@ def execute_single_instruction(instruction: Dict[str, Any],
                         "action_type": action_type,
                         "parameters": parameters,
                         "verification_error": verification_msg,
-                        "screenshot": screenshot_path,
                         "attempts": max_retries
                     }
                 )
-                return False, f"{error_msg}: {verification_msg}"
-            else:
-                print(f"[ENGINE] Retrying action after verification failure...")
+                return False, error_msg
+        
+        # Retry on verification failure
+        print(f"[ENGINE] Retrying action due to verification failure...")
     
-    # Should not reach here, but just in case
-    return False, f"Action '{action_type}' failed after {max_retries} attempts"
+    return False, f"Unexpected end of retry loop for '{action_type}'"
 
 # ============================================================================
 # OBJECTIVE EXECUTION
@@ -457,15 +445,7 @@ def start_workflow(parser_results: Dict[str, Any],
     print("WORKFLOW ENGINE - WORKFLOW START")
     print("="*70)
     
-    # Show supported verifiers
-    supported_verifiers = verifier.get_supported_verifications()
-    print(f"\n[ENGINE] Supported verifiers ({len(supported_verifiers)}):")
-    for verifier_name in supported_verifiers:
-        print(f"  - {verifier_name}")
-    
-    # Import planner (imported here to avoid circular imports)
-    from . import workflow_planner
-    
+
     # Step 1: Plan workflow (preparation phase)
     print("\n[ENGINE] Starting planning phase...")
     success, result = workflow_planner.plan_workflow(

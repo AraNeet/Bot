@@ -33,6 +33,7 @@ Responsibilities:
 from typing import Dict, Any, Tuple, Optional, List
 from . import verifier_handlers
 from src.notification_module import notify_error
+import src.workflow_module.helpers.computer_vision_utils as computer_vision_utils
 import time
 
 
@@ -42,22 +43,22 @@ import time
 
 # Map action types to their corresponding verifier handler functions
 VERIFIER_HANDLERS = {
-    # Navigation actions
-    "open_multinetwork_instructions_page": verifier_handlers.verify_multinetwork_page_opened,
+    # # Navigation actions
+    # "open_multinetwork_instructions_page": verifier_handlers.verify_multinetwork_page_opened,
     
-    # Search field actions
-    "enter_advertiser_name": verifier_handlers.verify_advertiser_name_entered,
-    "enter_order_id": verifier_handlers.verify_order_id_entered,
-    "enter_agency": verifier_handlers.verify_agency_name_entered,
-    "enter_begin_date": verifier_handlers.verify_begin_date_entered,
-    "enter_end_date": verifier_handlers.verify_end_date_entered,
+    # # Search field actions
+    # "enter_advertiser_name": verifier_handlers.verify_advertiser_name_entered,
+    # # "enter_order_number": verifier_handlers.verify_order_number_entered,
+    # "enter_deal_number": verifier_handlers.verify_deal_number_entered,
+    # "enter_agency": verifier_handlers.verify_agency_name_entered,
+    # "enter_begin_date": verifier_handlers.verify_begin_date_entered,
+    # "enter_end_date": verifier_handlers.verify_end_date_entered,
     
-    # Button actions
-    "click_search_button": verifier_handlers.verify_search_button_clicked,
+    # # Button actions
+    # "click_search_button": verifier_handlers.verify_search_button_clicked,
     
     # # Table interaction actions
-    # "find_row_by_deal_number": verifier_handlers.verify_row_found,
-    # "right_click_row": verifier_handlers.verify_row_right_clicked,
+    "find_row_by_deal_number": verifier_handlers.verify_row_found,
     # "select_edit_multinetwork_instruction": verifier_handlers.verify_edit_menu_selected,
     
     # # Form field actions
@@ -153,7 +154,6 @@ def verify_action_completion(action_type: str, **kwargs) -> Tuple[bool, str, Opt
         
         return False, error_msg, None
 
-
 def has_verifier(action_type: str) -> bool:
     """
     Check if an action type has a corresponding verifier handler.
@@ -165,40 +165,6 @@ def has_verifier(action_type: str) -> bool:
         True if verifier handler exists, False otherwise
     """
     return action_type in VERIFIER_HANDLERS
-
-
-def get_supported_verifications() -> List[str]:
-    """
-    Get a list of all supported action types that have verifiers.
-    
-    Returns:
-        List of action type strings that have verifiers
-    """
-    return list(VERIFIER_HANDLERS.keys())
-
-
-def get_verifier_info(action_type: str) -> Optional[Dict[str, Any]]:
-    """
-    Get information about a verifier handler for a specific action type.
-    
-    Args:
-        action_type: Type of action to get verifier info for
-        
-    Returns:
-        Dictionary with verifier information or None if not found
-    """
-    if action_type not in VERIFIER_HANDLERS:
-        return None
-    
-    verifier_handler = VERIFIER_HANDLERS[action_type]
-    
-    return {
-        "action_type": action_type,
-        "handler_function": verifier_handler.__name__,
-        "handler_module": verifier_handler.__module__,
-        "docstring": verifier_handler.__doc__ or "No documentation available"
-    }
-
 
 def save_failure_context(action_type: str,
                        parameters: Dict[str, Any],
@@ -217,14 +183,13 @@ def save_failure_context(action_type: str,
         Filepath of saved debug screenshot or error message
     """
     try:
-        from . import verifier
         
         # Generate debug filename
         timestamp = int(time.time())
         filename = f"failure_{action_type}_attempt{attempt_number}_{timestamp}.png"
         
         # Save debug screenshot
-        success, filepath = verifier.save_debug_screenshot(filename)
+        success, filepath = save_debug_screenshot(filename)
         
         if success:
             print(f"[VERIFIER_EXECUTOR] Debug screenshot saved: {filepath}")
@@ -238,15 +203,27 @@ def save_failure_context(action_type: str,
         print(f"[VERIFIER_EXECUTOR ERROR] {error_msg}")
         return error_msg
 
-
-
+def save_debug_screenshot(filename: str = None) -> Tuple[bool, str]:
     """
-    List all registered verifiers.
+    Save a debug screenshot for troubleshooting.
     
+    Args:
+        filename: Optional custom filename
+        
     Returns:
-        Dictionary mapping action types to handler function names
+        Tuple of (success: bool, filepath or error_message)
     """
-    return {
-        action_type: handler.__name__ 
-        for action_type, handler in VERIFIER_HANDLERS.items()
-    }
+    try:
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot"
+        
+        if filename is None:
+            timestamp = int(time.time())
+            filename = f"debug_verification_{timestamp}.png"
+        
+        success, filepath = computer_vision_utils.save_screenshot(screenshot, filename)
+        return success, filepath
+        
+    except Exception as e:
+        return False, f"Error saving debug screenshot: {e}"

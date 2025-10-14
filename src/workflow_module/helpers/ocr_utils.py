@@ -34,7 +34,6 @@ except ImportError as e:
 # Global EasyOCR instance for performance
 _easy_ocr_instance = None
 
-
 def get_easy_ocr_instance():
     """Get or create a global EasyOCR instance for better performance."""
     global _easy_ocr_instance
@@ -46,7 +45,6 @@ def get_easy_ocr_instance():
         print("[OCR] EasyOCR initialized successfully")
     
     return _easy_ocr_instance
-
 
 def preprocess_for_ocr(image: np.ndarray) -> Optional[np.ndarray]:
     """
@@ -82,7 +80,6 @@ def preprocess_for_ocr(image: np.ndarray) -> Optional[np.ndarray]:
     except Exception as e:
         print(f"[OCR ERROR] Preprocessing failed: {e}")
         return None
-
 
 def extract_text(image: np.ndarray, 
                 preprocess: bool = False,
@@ -121,7 +118,7 @@ def extract_text(image: np.ndarray,
         
         try:
             # EasyOCR returns a list of tuples: (bbox, text, confidence)
-            results = reader.readtext(processed_image)
+            results = reader.readtext(processed_image, 'beamsearch')
         except Exception as ocr_error:
             print(f"[OCR ERROR] EasyOCR extraction failed: {ocr_error}")
             return False, f"EasyOCR extraction failed: {ocr_error}"
@@ -144,7 +141,6 @@ def extract_text(image: np.ndarray,
         error_msg = f"OCR extraction failed: {e}"
         print(f"[OCR ERROR] {error_msg}")
         return False, error_msg
-
 
 def find_text(image: np.ndarray, 
              search_text: str,
@@ -194,43 +190,6 @@ def find_text(image: np.ndarray,
         print(f"[OCR ERROR] {error_msg}")
         return False, False
 
-
-def extract_text_from_region(image: np.ndarray,
-                           region: Tuple[int, int, int, int],
-                           preprocess: bool = False) -> Tuple[bool, str]:
-    """
-    Extract text from a specific region of an image using EasyOCR.
-    
-    Args:
-        image: Input image as numpy array
-        region: Region to extract from (x, y, width, height)
-        preprocess: Whether to preprocess image before OCR
-        
-    Returns:
-        Tuple of (success: bool, extracted_text or error_message)
-        
-    Example:
-        region = (100, 100, 200, 50)  # x, y, width, height
-        success, text = extract_text_from_region(screenshot, region)
-    """
-    try:
-        x, y, width, height = region
-        
-        # Crop the image to the specified region
-        cropped_image = image[y:y+height, x:x+width]
-        
-        if cropped_image.size == 0:
-            return False, "Region is empty or invalid"
-        
-        # Extract text from the cropped region
-        return extract_text(cropped_image, preprocess)
-        
-    except Exception as e:
-        error_msg = f"Region text extraction failed: {e}"
-        print(f"[OCR ERROR] {error_msg}")
-        return False, error_msg
-
-
 def find_text_in_region(image: np.ndarray,
                        search_text: str,
                        region: Tuple[int, int, int, int],
@@ -272,7 +231,6 @@ def find_text_in_region(image: np.ndarray,
         print(f"[OCR ERROR] {error_msg}")
         return False, False
 
-
 def get_text_data(image: np.ndarray,
                  preprocess: bool = False) -> Tuple[bool, Any]:
     """
@@ -304,7 +262,6 @@ def get_text_data(image: np.ndarray,
                     confidence = data['confidence'][i]
                     print(f"'{word}' at bbox {bbox} (confidence: {confidence})")
     """
-
     try:
         # Preprocess if requested
         if preprocess:
@@ -359,7 +316,6 @@ def get_text_data(image: np.ndarray,
         error_msg = f"Failed to get text data: {e}"
         print(f"[OCR ERROR] {error_msg}")
         return False, error_msg
-
 
 def find_text_with_position(image: np.ndarray,
                            search_text: str,
@@ -424,13 +380,3 @@ def find_text_with_position(image: np.ndarray,
         error_msg = f"Text search with position failed: {e}"
         print(f"[OCR ERROR] {error_msg}")
         return False, False, None
-
-
-def get_ocr_engine_info() -> str:
-    """
-    Get information about the OCR engine being used.
-    
-    Returns:
-        String describing the OCR engine and its capabilities
-    """
-    return "EasyOCR - Multi-language OCR engine with GPU support"

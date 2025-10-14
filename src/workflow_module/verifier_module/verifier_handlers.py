@@ -8,7 +8,11 @@ Each function handles the verification logic for a specific action type.
 from typing import Dict, Any, Tuple, Optional
 import re
 from . import verifier
+from src.workflow_module.helpers import computer_vision_utils, ocr_utils
 
+# =====================================================================================================
+# Field Verifier Logic
+# =====================================================================================================
 
 def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
@@ -33,7 +37,7 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
     
     try:
         # Take screenshot
-        screenshot = verifier.take_screenshot_for_verification()
+        screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot for verification", None
         
@@ -41,7 +45,7 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
         field_region = (370, 175, 160, 48)
         
         # Crop the screenshot to the advertiser field region
-        cropped_image = verifier.crop_image_for_verification(
+        cropped_image = computer_vision_utils.crop_image(
             screenshot, 
             field_region[0], 
             field_region[1], 
@@ -53,7 +57,7 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
             return False, "Failed to crop image to advertiser field region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = verifier.extract_text_from_cropped_image(cropped_image)
+        success, extracted_text = ocr_utils.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from advertiser field: {extracted_text}", None
@@ -61,7 +65,7 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
         print(f"[VERIFIER_HANDLER] This is the extracted text: '{extracted_text}'")
         
         # Extract advertiser name from the OCR text using similarity matching
-        extracted_advertiser_name = _extract_value_from_text(extracted_text, advertiser_name)
+        extracted_advertiser_name = _extract_string_from_text(extracted_text, advertiser_name)
         
         if not extracted_advertiser_name:
             error_msg = f"✗ Advertiser name verification failed. Expected: '{advertiser_name}', Could not extract advertiser name from OCR text: '{extracted_text}'"
@@ -103,8 +107,7 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
         print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
         return False, error_msg, None
 
-
-def verify_order_id_entered(order_number: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+def verify_order_number_entered(order_number: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
     Verify that the order ID was entered correctly using OCR similarity check.
     
@@ -127,7 +130,7 @@ def verify_order_id_entered(order_number: str = "", **kwargs) -> Tuple[bool, str
     
     try:
         # Take screenshot
-        screenshot = verifier.take_screenshot_for_verification()
+        screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot for verification", None
         
@@ -135,7 +138,7 @@ def verify_order_id_entered(order_number: str = "", **kwargs) -> Tuple[bool, str
         field_region = (206, 175, 82, 48)
         
         # Crop the screenshot to the order field region
-        cropped_image = verifier.crop_image_for_verification(
+        cropped_image = computer_vision_utils.crop_image(
             screenshot, 
             field_region[0], 
             field_region[1], 
@@ -147,7 +150,7 @@ def verify_order_id_entered(order_number: str = "", **kwargs) -> Tuple[bool, str
             return False, "Failed to crop image to order field region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = verifier.extract_text_from_cropped_image(cropped_image)
+        success, extracted_text = ocr_utils.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from order field: {extracted_text}", None
@@ -155,7 +158,7 @@ def verify_order_id_entered(order_number: str = "", **kwargs) -> Tuple[bool, str
         print(f"[VERIFIER_HANDLER] Extracted text from field: '{extracted_text}'")
         
         # Extract order ID from the OCR text using similarity matching
-        extracted_order_id = _extract_order_id_from_text(extracted_text, order_number)
+        extracted_order_id = _extract_number_from_text(extracted_text, order_number)
         
         if not extracted_order_id:
             error_msg = f"✗ Order ID verification failed. Expected: '{order_number}', Could not extract order ID from OCR text: '{extracted_text}'"
@@ -197,6 +200,98 @@ def verify_order_id_entered(order_number: str = "", **kwargs) -> Tuple[bool, str
         print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
         return False, error_msg, None
 
+def verify_deal_number_entered(deal_number: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """
+    Verify that the order ID was entered correctly using OCR similarity check.
+    
+    This function:
+    1. Takes a screenshot
+    2. Crops it to the order field region (206, 152, 1439, 79)
+    3. Uses OCR to extract text from the field
+    4. Performs similarity check (80% threshold) to verify the order ID
+    
+    Args:
+        deal_number: Expected order ID to verify
+        
+    Returns:
+        Tuple of (success: bool, message: str, data: Optional[Dict])
+    """
+    print(f"[VERIFIER_HANDLER] Verifying order ID entered: '{deal_number}'")
+    
+    if not deal_number:
+        return True, "No order ID to verify", None
+    
+    try:
+        # Take screenshot
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot for verification", None
+        
+        # Define the order field region
+        field_region = (286, 175, 80, 48)
+        
+        # Crop the screenshot to the order field region
+        cropped_image = computer_vision_utils.crop_image(
+            screenshot, 
+            field_region[0], 
+            field_region[1], 
+            field_region[2], 
+            field_region[3]
+        )
+        
+        if cropped_image is None:
+            return False, "Failed to crop image to order field region", None
+        
+        # Use OCR to extract text from the cropped field region
+        success, extracted_text = ocr_utils.extract_text(cropped_image)
+        
+        if not success:
+            return False, f"Failed to extract text from order field: {extracted_text}", None
+        
+        print(f"[VERIFIER_HANDLER] Extracted text from field: '{extracted_text}'")
+        
+        # Extract order ID from the OCR text using similarity matching
+        extracted_deal_number = _extract_number_from_text(extracted_text, deal_number)
+        
+        if not extracted_deal_number:
+            error_msg = f"✗ Order ID verification failed. Expected: '{deal_number}', Could not extract order ID from OCR text: '{extracted_text}'"
+            print(f"[VERIFIER_HANDLER] {error_msg}")
+            verification_data = {
+                "expected_text": deal_number,
+                "extracted_text": extracted_text,
+                "extracted_deal_number": None,
+                "field_region": field_region,
+                "threshold": 0.80
+            }
+            return False, error_msg, verification_data
+        
+        print(f"[VERIFIER_HANDLER] Extracted order ID: '{extracted_deal_number}'")
+        
+        # Perform similarity check (80% threshold) on the extracted order ID
+        similarity = verifier.calculate_text_similarity(deal_number, extracted_deal_number)
+        
+        verification_data = {
+            "expected_text": deal_number,
+            "extracted_text": extracted_text,
+            "extracted_deal_number": extracted_deal_number,
+            "similarity_score": similarity,
+            "field_region": field_region,
+            "threshold": 0.80
+        }
+        
+        if similarity >= 0.80:
+            success_msg = f"✓ Order ID verified with {similarity:.2%} similarity (extracted: '{extracted_deal_number}')"
+            print(f"[VERIFIER_HANDLER] {success_msg}")
+            return True, success_msg, verification_data
+        else:
+            error_msg = f"✗ Order ID verification failed. Expected: '{deal_number}', Extracted: '{extracted_deal_number}', Similarity: {similarity:.2%} (threshold: 80%)"
+            print(f"[VERIFIER_HANDLER] {error_msg}")
+            return False, error_msg, verification_data
+        
+    except Exception as e:
+        error_msg = f"Error verifying order ID entry: {e}"
+        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
+        return False, error_msg, None
 
 def verify_agency_name_entered(agency_name: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
@@ -221,15 +316,15 @@ def verify_agency_name_entered(agency_name: str = "", **kwargs) -> Tuple[bool, s
     
     try:
         # Take screenshot
-        screenshot = verifier.take_screenshot_for_verification()
+        screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot for verification", None
         
         # Define the order field region
-        field_region = (668, 175, 160, 50)
+        field_region = (668, 180, 130, 40)
         
         # Crop the screenshot to the order field region
-        cropped_image = verifier.crop_image_for_verification(
+        cropped_image = computer_vision_utils.crop_image(
             screenshot, 
             field_region[0], 
             field_region[1], 
@@ -241,7 +336,7 @@ def verify_agency_name_entered(agency_name: str = "", **kwargs) -> Tuple[bool, s
             return False, "Failed to crop image to order field region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = verifier.extract_text_from_cropped_image(cropped_image)
+        success, extracted_text = ocr_utils.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from order field: {extracted_text}", None
@@ -249,7 +344,7 @@ def verify_agency_name_entered(agency_name: str = "", **kwargs) -> Tuple[bool, s
         print(f"[VERIFIER_HANDLER] Extracted text from field: '{extracted_text}'")
         
         # Extract order ID from the OCR text using similarity matching
-        extracted_agency_name = _extract_value_from_text(extracted_text, agency_name)
+        extracted_agency_name = _extract_string_from_text(extracted_text, agency_name)
         
         if not extracted_agency_name:
             error_msg = f"✗ Order ID verification failed. Expected: '{agency_name}', Could not extract order ID from OCR text: '{extracted_text}'"
@@ -291,7 +386,6 @@ def verify_agency_name_entered(agency_name: str = "", **kwargs) -> Tuple[bool, s
         print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
         return False, error_msg, None
 
-
 def verify_begin_date_entered(begin_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
     Verify that the begin date was entered correctly using OCR similarity check.
@@ -309,7 +403,7 @@ def verify_begin_date_entered(begin_date: str = "", **kwargs) -> Tuple[bool, str
     
     try:
         # Take screenshot
-        screenshot = verifier.take_screenshot_for_verification()
+        screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot for verification", None
         
@@ -317,7 +411,7 @@ def verify_begin_date_entered(begin_date: str = "", **kwargs) -> Tuple[bool, str
         field_region = (992, 175, 114, 50)
         
         # Crop the screenshot to the order field region
-        cropped_image = verifier.crop_image_for_verification(
+        cropped_image = computer_vision_utils.crop_image(
             screenshot, 
             field_region[0], 
             field_region[1], 
@@ -329,7 +423,7 @@ def verify_begin_date_entered(begin_date: str = "", **kwargs) -> Tuple[bool, str
             return False, "Failed to crop image to order field region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = verifier.extract_text_from_cropped_image(cropped_image)
+        success, extracted_text = ocr_utils.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from order field: {extracted_text}", None
@@ -379,7 +473,6 @@ def verify_begin_date_entered(begin_date: str = "", **kwargs) -> Tuple[bool, str
         print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
         return False, error_msg, None
 
-
 def verify_end_date_entered(end_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
     Verify that the end date was entered correctly using OCR similarity check.
@@ -397,7 +490,7 @@ def verify_end_date_entered(end_date: str = "", **kwargs) -> Tuple[bool, str, Op
     
     try:
         # Take screenshot
-        screenshot = verifier.take_screenshot_for_verification()
+        screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot for verification", None
         
@@ -405,7 +498,7 @@ def verify_end_date_entered(end_date: str = "", **kwargs) -> Tuple[bool, str, Op
         field_region = (1105, 175, 114, 50)
         
         # Crop the screenshot to the order field region
-        cropped_image = verifier.crop_image_for_verification(
+        cropped_image = computer_vision_utils.crop_image(
             screenshot, 
             field_region[0], 
             field_region[1], 
@@ -417,7 +510,7 @@ def verify_end_date_entered(end_date: str = "", **kwargs) -> Tuple[bool, str, Op
             return False, "Failed to crop image to order field region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = verifier.extract_text_from_cropped_image(cropped_image)
+        success, extracted_text = ocr_utils.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from order field: {extracted_text}", None
@@ -478,7 +571,7 @@ def verify_search_button_clicked(**kwargs) -> Tuple[bool, str, Optional[Dict[str
     
     try:
         # Take screenshot
-        screenshot = verifier.take_screenshot_for_verification()
+        screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot for verification", None
         
@@ -486,7 +579,7 @@ def verify_search_button_clicked(**kwargs) -> Tuple[bool, str, Optional[Dict[str
         field_region = (205, 225, 50, 30)
         
         # Crop the screenshot to the order field region
-        cropped_image = verifier.crop_image_for_verification(
+        cropped_image = computer_vision_utils.crop_image(
             screenshot, 
             field_region[0], 
             field_region[1], 
@@ -498,7 +591,7 @@ def verify_search_button_clicked(**kwargs) -> Tuple[bool, str, Optional[Dict[str
             return False, "Failed to crop image to order field region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = verifier.extract_text_from_cropped_image(cropped_image)
+        success, extracted_text = ocr_utils.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from order field: {extracted_text}", None
@@ -506,7 +599,7 @@ def verify_search_button_clicked(**kwargs) -> Tuple[bool, str, Optional[Dict[str
         print(f"[VERIFIER_HANDLER] Extracted text from field: '{extracted_text}'")
 
         # Extract order ID from the OCR text using similarity matching
-        extracted_end_date = _extract_value_from_text(extracted_text, "Results")
+        extracted_end_date = _extract_string_from_text(extracted_text, "Results")
         
         if not extracted_end_date:
             error_msg = f"✗ Order ID verification failed. Expected: Results, Could not extract order ID from OCR text: '{extracted_text}'"
@@ -548,6 +641,10 @@ def verify_search_button_clicked(**kwargs) -> Tuple[bool, str, Optional[Dict[str
         print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
         return False, error_msg, None
 
+# =====================================================================================================
+#  Opening/Editing MultiNetwork Verifier Logic
+# =====================================================================================================
+
 def verify_row_found(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
     Verify that a row was found in the table.
@@ -557,17 +654,6 @@ def verify_row_found(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
     print("[VERIFIER_HANDLER] Verifying row found...")
     pass
-
-
-def verify_row_right_clicked(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """
-    Verify that a row was right-clicked successfully.
-    
-    Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
-    """
-    pass
-
 
 def verify_edit_menu_selected(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
@@ -592,7 +678,7 @@ def verify_multinetwork_page_opened(**kwargs) -> Tuple[bool, str, Optional[Dict[
     
     try:
         # Take screenshot
-        screenshot = verifier.take_screenshot_for_verification()
+        screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot for verification", None
         
@@ -600,7 +686,7 @@ def verify_multinetwork_page_opened(**kwargs) -> Tuple[bool, str, Optional[Dict[
         field_region = (206, 152, 1439, 79)
         
         # Crop the screenshot to the search fields region
-        cropped_image = verifier.crop_image_for_verification(
+        cropped_image = computer_vision_utils.crop_image(
             screenshot, 
             field_region[0], 
             field_region[1], 
@@ -612,7 +698,7 @@ def verify_multinetwork_page_opened(**kwargs) -> Tuple[bool, str, Optional[Dict[
             return False, "Failed to crop image to search fields region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = verifier.extract_text_from_cropped_image(cropped_image)
+        success, extracted_text = ocr_utils.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from search fields region: {extracted_text}", None
@@ -711,7 +797,7 @@ def verify_text_typed(text: str = "", **kwargs) -> Tuple[bool, str, Optional[Dic
         if screenshot is None:
             return False, "Failed to take screenshot for verification", None
         
-        success, extracted_text = verifier.extract_text_from_cropped_image(screenshot)
+        success, extracted_text = ocr_utils.extract_text(screenshot)
         
         if not success:
             return False, f"Failed to extract text: {extracted_text}", None
@@ -737,7 +823,7 @@ def verify_text_typed(text: str = "", **kwargs) -> Tuple[bool, str, Optional[Dic
 # Helper Functions
 # ============================================================================
 
-def _extract_order_id_from_text(ocr_text: str, expected_order_id: str) -> Optional[str]:
+def _extract_number_from_text(ocr_text: str, expected_order_id: str) -> Optional[str]:
     """
     Extract order ID from OCR text using similarity matching.
     
@@ -782,8 +868,7 @@ def _extract_order_id_from_text(ocr_text: str, expected_order_id: str) -> Option
     print(f"[VERIFIER_HANDLER] No suitable order ID pattern found (best similarity: {best_similarity:.2%})")
     return None
 
-
-def _extract_value_from_text(ocr_text: str, expected_string: str) -> Optional[str]:
+def _extract_string_from_text(ocr_text: str, expected_string: str) -> Optional[str]:
     """
     Extract advertiser name from OCR text using similarity matching.
     

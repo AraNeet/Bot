@@ -7,10 +7,17 @@
                 "parameters": {}
             },            
             {
-                "action_type": "enter_order_id",
-                "description": "Enter order ID in search field",
+                "action_type": "enter_order_number",
+                "description": "Enter order number in search field",
                 "parameters": {
                     "order_number": ""
+                }
+            },
+            {
+                "action_type":"enter_deal_number",
+                "description":"Enter deal number in search field",
+                "parameters": {
+                    "deal_number": ""
                 }
             },
             {
@@ -54,10 +61,13 @@
                 }
             },
             {
-                "action_type": "find_row_by_deal_number",
+                "action_type": "find_row_by_values",
                 "description": "Search through table rows to find matching deal number",
                 "parameters": {
-                    "order_number": ""
+                    "deal_number": "",
+                    "advertiser_name": "",
+                    "begin_date": "",
+                    "end_date": ""
                 }
             },
             {

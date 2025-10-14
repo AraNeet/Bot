@@ -31,11 +31,14 @@ IMPORTANT: Functions receive parameters via **kwargs pattern:
         # Ignore any extra kwargs
 """
 
-from typing import Tuple, Dict, Any, Optional
+from typing import Tuple, Dict, Any, Optional,List
 from . import actions
 from ..helpers import computer_vision_utils, ocr_utils
 import time
 import cv2
+import re  # For parsing total rows
+import tabulate
+import src.workflow_module.verifier_module.verifier as verifier
 
 
 # ============================================================================
@@ -262,7 +265,7 @@ def enter_advertiser_name(advertiser_name: str) -> Tuple[bool, str]:
         print(f"[ACTION_HANDLER ERROR] {error_msg}")
         return False, error_msg
 
-def enter_order_id(order_number: str) -> Tuple[bool, str]:
+def enter_order_number(order_number: str) -> Tuple[bool, str]:
     """
     Enter order ID in the search field.
     
@@ -361,6 +364,111 @@ def enter_order_id(order_number: str) -> Tuple[bool, str]:
         
         print(f"[ACTION_HANDLER] ✓ Successfully entered order ID: '{order_number}'")
         return True, f"Successfully entered order ID: '{order_number}'"
+        
+    except Exception as e:
+        error_msg = f"Error entering order ID: {e}"
+        print(f"[ACTION_HANDLER ERROR] {error_msg}")
+        return False, error_msg
+
+def enter_deal_number(deal_number: str) -> Tuple[bool, str]:
+    """
+    Enter order ID in the search field.
+    
+    This function:
+    1. Takes a screenshot
+    2. Uses OCR to find the word "order" within region (206, 152, 1439, 79)
+    3. Clicks 15 pixels below the "order" text
+    4. Enters the order ID in the field
+    
+    Args:
+        deal_number: Order ID to enter
+        
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    print(f"[ACTION_HANDLER] Entering order ID: '{deal_number}'")
+    
+    try:
+        # Take screenshot
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot"
+        
+        # Define the region to search for "order" word
+        # Region: (206, 152, 1439, 79) = (x, y, width, height)
+        region_x = 206
+        region_y = 152
+        region_width = 1439
+        region_height = 79
+        search_region = (region_x, region_y, region_width, region_height)
+        
+        print(f"[ACTION_HANDLER] Searching for 'order' word in region {search_region}")
+        
+        # Crop the image to the search region for better OCR accuracy
+        cropped_image = computer_vision_utils.crop_image(screenshot, region_x, region_y, region_width, region_height)
+        if cropped_image is None:
+            return False, "Failed to crop image to search region"
+        
+        print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
+        
+        # Use OCR to find the "order" word within the cropped region
+        success, found, bbox = ocr_utils.find_text_with_position(
+            cropped_image,
+            "deal",
+            case_sensitive=False
+        )
+        
+        if not success or not found or bbox is None:
+            return False, "Could not determine exact position of 'order' text in cropped image"
+        
+        # Convert cropped image coordinates back to full screenshot coordinates
+        cropped_text_x, cropped_text_y, text_width, text_height = bbox
+        text_x = region_x + cropped_text_x  # Add region offset
+        text_y = region_y + cropped_text_y  # Add region offset
+        
+        print(f"[ACTION_HANDLER] ✓ 'order' text found at ({text_x}, {text_y}) with size {text_width}x{text_height}")
+        print(f"[ACTION_HANDLER] Cropped coordinates: ({cropped_text_x}, {cropped_text_y}) -> Full coordinates: ({text_x}, {text_y})")
+        
+        # Calculate the input field position 15 pixels below the "order" text
+        field_spacing = 15  # pixels below the text
+        field_x = text_x  # Same horizontal position as the text
+        field_y = text_y + text_height + field_spacing  # 15 pixels below the text
+        
+        print(f"[ACTION_HANDLER] Calculated field position: ({field_x}, {field_y}) - 15px below 'order' text")
+        
+        # Click on the input field
+        print(f"[ACTION_HANDLER] Clicking on order input field at ({field_x}, {field_y})")
+        click_success, click_msg = actions.click_at_position(field_x, field_y)
+        
+        if not click_success:
+            return False, f"Failed to click on order field: {click_msg}"
+        
+        # Wait a moment for the field to be focused
+        time.sleep(0.5)
+        
+        # Clear any existing text in the field
+        print(f"[ACTION_HANDLER] Clearing existing text in field...")
+        clear_success, clear_msg = actions.clear_field()
+        
+        if not clear_success:
+            print(f"[ACTION_HANDLER] Warning: Failed to clear field: {clear_msg}")
+            # Continue anyway, as the field might be empty
+        
+        # Wait a moment after clearing to ensure field is ready
+        time.sleep(0.2)
+        
+        # Type the order ID with faster interval to prevent double letters
+        print(f"[ACTION_HANDLER] Typing order ID: '{deal_number}'")
+        type_success, type_msg = actions.type_text(deal_number, interval=0.02)
+        
+        if not type_success:
+            return False, f"Failed to type order ID: {type_msg}"
+        
+        # Wait a moment for the text to be entered
+        time.sleep(0.5)
+        
+        print(f"[ACTION_HANDLER] ✓ Successfully entered order ID: '{deal_number}'")
+        return True, f"Successfully entered order ID: '{deal_number}'"
         
     except Exception as e:
         error_msg = f"Error entering order ID: {e}"
@@ -577,7 +685,6 @@ def enter_begin_date(begin_date: str) -> Tuple[bool, str]:
         print(f"[ACTION_HANDLER ERROR] {error_msg}")
         return False, error_msg
 
-
 def enter_end_date(end_date: str) -> Tuple[bool, str]:
     """
     Enter end date in the date field.
@@ -683,7 +790,6 @@ def enter_end_date(end_date: str) -> Tuple[bool, str]:
         print(f"[ACTION_HANDLER ERROR] {error_msg}")
         return False, error_msg
 
-
 # ============================================================================
 # BUTTON ACTIONS
 # ============================================================================
@@ -761,7 +867,7 @@ def click_search_button() -> Tuple[bool, str]:
         if not click_success:
             return False, f"Failed to click on search button: {click_msg}"
         
-        actions.move_mouse(1800, 50, 0)
+        actions.move_mouse(1400, 288, 0)
         # Wait a moment for the click to register
         time.sleep(0.5)
         
@@ -772,7 +878,6 @@ def click_search_button() -> Tuple[bool, str]:
         error_msg = f"Error clicking search button: {e}"
         print(f"[ACTION_HANDLER ERROR] {error_msg}")
         return False, error_msg
-
 
 def wait_for_search_results(timeout: int = 10) -> Tuple[bool, str]:
     """
@@ -797,45 +902,27 @@ def wait_for_search_results(timeout: int = 10) -> Tuple[bool, str]:
     
     return True, "Search results loaded successfully"
 
-
 # ============================================================================
 # TABLE INTERACTION ACTIONS
 # ============================================================================
 
-def find_row_by_deal_number(order_number: str, max_pages: int = 20) -> Tuple[bool, str]:
+def find_row_by_values(**kwargs) -> Tuple[bool, str]:
     """
-    Search through table rows to find matching deal number.
+    Find the row matching provided parameters using dynamic detection, total rows OCR, and precise scrolling.
+    
+    This function:
+    1. Gets total rows using get_total_rows
+    2. Scans table using scan_table, matching criteria
+    3. Scrolls using scroll_table if needed
+    4. Stops at total_rows, max_rows_to_check (500), or no new content
     
     Args:
-        order_number: Deal number to search for
-        max_pages: Maximum pages to search through
+        **kwargs: Parameters to match (e.g., order_number, deal_number, advertiser_name, begin_date, end_date, etc.)
         
     Returns:
         Tuple of (success: bool, message: str)
     """
-    print(f"[ACTION_HANDLER] Searching for deal number: '{order_number}' (max {max_pages} pages)")
-    
-    # Simple implementation - assume row is found
-    # TODO: Implement actual table search when table structure is known
-    return True, f"Found row with deal number: '{order_number}'"
-
-
-def right_click_row(order_number: str) -> Tuple[bool, str]:
-    """
-    Right-click on the row containing the specified order number.
-    
-    Args:
-        order_number: Deal number to identify the row
-        
-    Returns:
-        Tuple of (success: bool, message: str)
-    """
-    print(f"[ACTION_HANDLER] Right-clicking row with deal number: '{order_number}'")
-    
-    # Simple implementation - assume right-click succeeded
-    # TODO: Implement actual right-click when row coordinates are known
-    return True, f"Right-clicked on row with deal number: '{order_number}'"
-
+    pass
 
 def select_edit_multinetwork_instruction() -> Tuple[bool, str]:
     """
@@ -873,7 +960,6 @@ def wait_for_edit_page_load(timeout: int = 10) -> Tuple[bool, str]:
     
     return True, "Edit page loaded successfully"
 
-
 def verify_edit_page_opened(order_number: str) -> Tuple[bool, str]:
     """
     Verify the Edit Multi-network Instructions page opened for correct Deal ID.
@@ -889,7 +975,6 @@ def verify_edit_page_opened(order_number: str) -> Tuple[bool, str]:
     # Simple implementation - assume page opened correctly
     # TODO: Implement actual verification when page structure is known
     return True, f"Edit page opened for deal: '{order_number}'"
-
 
 # ============================================================================
 # FORM FIELD ACTIONS (ISCI CODES)
@@ -911,7 +996,6 @@ def enter_isci_1(isci_1: str) -> Tuple[bool, str]:
     # TODO: Implement actual ISCI entry when field coordinates are known
     return True, f"Entered ISCI 1: '{isci_1}'"
 
-
 def enter_isci_2_if_provided(isci_2: str, rotation_percent_isci_2: str) -> Tuple[bool, str]:
     """
     Enter ISCI 2 and rotation percentage if provided in optional fields.
@@ -932,7 +1016,6 @@ def enter_isci_2_if_provided(isci_2: str, rotation_percent_isci_2: str) -> Tuple
     # TODO: Implement actual ISCI entry when field coordinates are known
     return True, f"Entered ISCI 2: '{isci_2}' with rotation: '{rotation_percent_isci_2}%'"
 
-
 def enter_isci_3_if_provided(isci_3: str, rotation_percent_isci_3: str) -> Tuple[bool, str]:
     """
     Enter ISCI 3 and rotation percentage if provided in optional fields.
@@ -952,7 +1035,6 @@ def enter_isci_3_if_provided(isci_3: str, rotation_percent_isci_3: str) -> Tuple
     # Simple implementation - assume ISCI entry succeeded
     # TODO: Implement actual ISCI entry when field coordinates are known
     return True, f"Entered ISCI 3: '{isci_3}' with rotation: '{rotation_percent_isci_3}%'"
-
 
 # ============================================================================
 # SAVE ACTIONS
