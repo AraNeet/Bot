@@ -8,7 +8,10 @@ Each function handles the verification logic for a specific action type.
 from typing import Dict, Any, Tuple, Optional
 import re
 from . import verifier
-from src.workflow_module.helpers import computer_vision_utils, ocr_utils
+from src.workflow_module.helpers import computer_vision_utils
+from src.workflow_module.helpers.ocr_utils import TextScanner
+
+scanner = TextScanner()
 
 # =====================================================================================================
 # Field Verifier Logic
@@ -57,7 +60,7 @@ def verify_advertiser_name_entered(advertiser_name: str = "", **kwargs) -> Tuple
             return False, "Failed to crop image to advertiser field region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = ocr_utils.extract_text(cropped_image)
+        success, extracted_text = scanner.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from advertiser field: {extracted_text}", None
@@ -150,7 +153,7 @@ def verify_order_number_entered(order_number: str = "", **kwargs) -> Tuple[bool,
             return False, "Failed to crop image to order field region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = ocr_utils.extract_text(cropped_image)
+        success, extracted_text = scanner.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from order field: {extracted_text}", None
@@ -243,7 +246,7 @@ def verify_deal_number_entered(deal_number: str = "", **kwargs) -> Tuple[bool, s
             return False, "Failed to crop image to order field region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = ocr_utils.extract_text(cropped_image)
+        success, extracted_text = scanner.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from order field: {extracted_text}", None
@@ -336,7 +339,7 @@ def verify_agency_name_entered(agency_name: str = "", **kwargs) -> Tuple[bool, s
             return False, "Failed to crop image to order field region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = ocr_utils.extract_text(cropped_image)
+        success, extracted_text = scanner.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from order field: {extracted_text}", None
@@ -423,7 +426,7 @@ def verify_begin_date_entered(begin_date: str = "", **kwargs) -> Tuple[bool, str
             return False, "Failed to crop image to order field region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = ocr_utils.extract_text(cropped_image)
+        success, extracted_text = scanner.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from order field: {extracted_text}", None
@@ -510,7 +513,7 @@ def verify_end_date_entered(end_date: str = "", **kwargs) -> Tuple[bool, str, Op
             return False, "Failed to crop image to order field region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = ocr_utils.extract_text(cropped_image)
+        success, extracted_text = scanner.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from order field: {extracted_text}", None
@@ -591,7 +594,7 @@ def verify_search_button_clicked(**kwargs) -> Tuple[bool, str, Optional[Dict[str
             return False, "Failed to crop image to order field region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = ocr_utils.extract_text(cropped_image)
+        success, extracted_text = scanner.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from order field: {extracted_text}", None
@@ -698,7 +701,7 @@ def verify_multinetwork_page_opened(**kwargs) -> Tuple[bool, str, Optional[Dict[
             return False, "Failed to crop image to search fields region", None
         
         # Use OCR to extract text from the cropped field region
-        success, extracted_text = ocr_utils.extract_text(cropped_image)
+        success, extracted_text = scanner.extract_text(cropped_image)
         
         if not success:
             return False, f"Failed to extract text from search fields region: {extracted_text}", None
@@ -797,7 +800,7 @@ def verify_text_typed(text: str = "", **kwargs) -> Tuple[bool, str, Optional[Dic
         if screenshot is None:
             return False, "Failed to take screenshot for verification", None
         
-        success, extracted_text = ocr_utils.extract_text(screenshot)
+        success, extracted_text = scanner.extract_text(screenshot)
         
         if not success:
             return False, f"Failed to extract text: {extracted_text}", None

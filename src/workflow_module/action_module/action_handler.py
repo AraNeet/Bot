@@ -31,15 +31,19 @@ IMPORTANT: Functions receive parameters via **kwargs pattern:
         # Ignore any extra kwargs
 """
 
-from typing import Tuple, Dict, Any, Optional,List
+from typing import Tuple, Dict, Any, Optional, List
 from . import actions
-from ..helpers import computer_vision_utils, ocr_utils
+from ..helpers import computer_vision_utils
+from ..helpers.ocr_utils import TextScanner, match_text_positions
 import time
 import cv2
 import re  # For parsing total rows
-import tabulate
+import numpy as np
 import src.workflow_module.verifier_module.verifier as verifier
 
+from collections import defaultdict
+
+scanner = TextScanner()
 
 # ============================================================================
 # APPLICATION STARTUP ACTIONS
@@ -76,6 +80,7 @@ import src.workflow_module.verifier_module.verifier as verifier
     
 #     # Placeholder
 #     return True, "Application opened successfully"
+
 
 
 # ============================================================================
@@ -155,7 +160,6 @@ def open_multinetwork_instructions_page() -> Tuple[bool, str]:
 # ============================================================================
 # SEARCH FIELD ACTIONS
 # ============================================================================
-
 def enter_advertiser_name(advertiser_name: str) -> Tuple[bool, str]:
     """
     Enter advertiser name in the search field.
@@ -197,12 +201,7 @@ def enter_advertiser_name(advertiser_name: str) -> Tuple[bool, str]:
         
         print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
         
-        # Save the cropped image for debugging
-        debug_filename = f"advertiser_search_region_{int(time.time())}.png"
-        cv2.imwrite(debug_filename, cropped_image)
-        print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
-        
-        success, found, bbox = ocr_utils.find_text_with_position(
+        success, found, bbox = scanner.find_text_with_position(
             cropped_image,
             "advertiser",
             case_sensitive=False
@@ -307,7 +306,7 @@ def enter_order_number(order_number: str) -> Tuple[bool, str]:
         print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
         
         # Use OCR to find the "order" word within the cropped region
-        success, found, bbox = ocr_utils.find_text_with_position(
+        success, found, bbox = scanner.find_text_with_position(
             cropped_image,
             "order",
             case_sensitive=False
@@ -412,7 +411,7 @@ def enter_deal_number(deal_number: str) -> Tuple[bool, str]:
         print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
         
         # Use OCR to find the "order" word within the cropped region
-        success, found, bbox = ocr_utils.find_text_with_position(
+        success, found, bbox = scanner.find_text_with_position(
             cropped_image,
             "deal",
             case_sensitive=False
@@ -517,7 +516,7 @@ def enter_agency(agency_name: str) -> Tuple[bool, str]:
         print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
 
         # Use OCR to find the "agency" word within the cropped region
-        success, found, bbox = ocr_utils.find_text_with_position(
+        success, found, bbox = scanner.find_text_with_position(
             cropped_image,
             "agency",
             case_sensitive=False
@@ -622,7 +621,7 @@ def enter_begin_date(begin_date: str) -> Tuple[bool, str]:
         print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
         
         # Use OCR to find the "begin" word within the cropped region
-        success, found, bbox = ocr_utils.find_text_with_position(
+        success, found, bbox = scanner.find_text_with_position(
             cropped_image,
             "begin",
             case_sensitive=False
@@ -727,7 +726,7 @@ def enter_end_date(end_date: str) -> Tuple[bool, str]:
         print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
         
         # Use OCR to find the "end" word within the cropped region
-        success, found, bbox = ocr_utils.find_text_with_position(
+        success, found, bbox = scanner.find_text_with_position(
             cropped_image,
             "end",
             case_sensitive=False
@@ -837,7 +836,7 @@ def click_search_button() -> Tuple[bool, str]:
         print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
         
         # Use OCR to find the "search" word within the cropped region
-        success, found, bbox = ocr_utils.find_text_with_position(
+        success, found, bbox = scanner.find_text_with_position(
             cropped_image,
             "search",
             case_sensitive=False
@@ -908,21 +907,103 @@ def wait_for_search_results(timeout: int = 10) -> Tuple[bool, str]:
 
 def find_row_by_values(**kwargs) -> Tuple[bool, str]:
     """
-    Find the row matching provided parameters using dynamic detection, total rows OCR, and precise scrolling.
+    Find a row matching provided parameters, move mouse to deal_number, and right-click.
     
     This function:
-    1. Gets total rows using get_total_rows
-    2. Scans table using scan_table, matching criteria
-    3. Scrolls using scroll_table if needed
-    4. Stops at total_rows, max_rows_to_check (500), or no new content
+    1. Gets and validates the dynamic parameters (deal_number, advertiser_name, begin_date, end_date).
+    2. Captures and processes the table image (screenshot, crop, separate columns).
+    3. Uses TextScanner.get_text_data for OCR with positions.
+    4. Calls match_text_positions to find first match per target and return positions.
+    5. Moves mouse to deal_number position (first in list, adjusted to screen coords) and right-clicks.
+    6. Succeeds if fewer than 3 targets are missing, returning positions for matched targets.
     
     Args:
-        **kwargs: Parameters to match (e.g., order_number, deal_number, advertiser_name, begin_date, end_date, etc.)
+        **kwargs: Parameters to match (e.g., deal_number="418498", advertiser_name="Blue Apron", begin_date="9/29/2025", end_date="12/28/2025")
         
     Returns:
         Tuple of (success: bool, message: str)
+        - On success, message includes list of positions [(x, y, w, h), ...] for matched targets.
+        - On failure (3 or more missing), message lists missing targets.
     """
-    pass
+    # Step 1: Get params safely
+    deal_number = kwargs.get('deal_number')
+    advertiser_name = kwargs.get('advertiser_name')
+    begin_date = kwargs.get('begin_date')
+    end_date = kwargs.get('end_date')
+    
+    target_texts = [deal_number, advertiser_name, begin_date, end_date]
+    if any(t is None for t in target_texts):
+        return False, "Oh no, Master! Missing required params—can't hunt without all clues! 🕵️‍♀️"
+
+    print(f"[ACTION_HANDLER] Hunting for targets: {target_texts}")
+
+    # Step 2: Screenshot and process table (consistent with your column-separation logic)
+    print("Taking Screenshot")
+    image = computer_vision_utils.take_screenshot()
+    if image is None:
+        return False, "Screenshot failed—check your display! 📸"
+
+    print("Getting template")
+    template = computer_vision_utils.load_image("C:/Users/marti/Documents/Bot/assets/ColumnLine.png")  # Update path if needed
+    if template is None:
+        return False, "Template load failed—file missing? 🖼️"
+
+    print("Cropping fullscreen to table area")
+    crop_x, crop_y = 206, 225  # Save crop origin for position translation
+    cropped_img = computer_vision_utils.crop_image(image, crop_x, crop_y, 1445, 780)  # Matches your prior setup
+    if cropped_img is None:
+        return False, "Crop failed—coords might be off! ✂️"
+
+    print("Getting separators positions")
+    matches = computer_vision_utils.detect_column_separators(cropped_img, template)  # Lower for fuzzy lines
+    if not matches:
+        return False, "No separators found—check template or table visibility! 🔍"
+
+    print("Separating Columns")
+    separated_columns_img = computer_vision_utils.create_separated_columns_image(cropped_img, matches, template.shape[1])
+    if separated_columns_img is None:
+        return False, "Column separation failed—filtering issue? 🧹"
+
+    # Debug: Save separated image for inspection (like your past column-saving approach)
+    cv2.imwrite('debug_separated_columns.png', separated_columns_img)
+    print("[DEBUG] Saved 'debug_separated_columns.png'—check if columns look right!")
+
+    # Step 3: Use TextScanner for OCR data
+    success, data = scanner.get_text_data(separated_columns_img)
+    if not success:
+        return False, f"OCR failed: {data}"  # data has error msg
+
+    if not data['text']:
+        return False, "No text detected in table—empty results? 😔"
+
+    print(f"[ACTION_HANDLER] OCR found {len(data['text'])} texts!")
+
+    # Step 4 & 5: Match texts and get positions
+    positions = match_text_positions(target_texts, data)
+    if not positions:
+        return False, "Failed: Too many targets missing 🔎"
+
+    # Step 6: Move mouse to deal_number position and right-click
+    if positions and deal_number and any(deal_number.lower() in text.lower() for text in data['text'] if text):
+        deal_number_pos = positions[0]  # First position is deal_number (matches target_texts order)
+        x, y, w, h = deal_number_pos
+
+        # Get the corrected location of the row from the crop.
+        screen_x = x + crop_x
+        screen_y = y + crop_y
+        click_x = screen_x + w // 2 
+        click_y = screen_y + h // 2
+        print(f"[ACTION_HANDLER] Moving mouse to deal_number at screen coords ({click_x}, {click_y}) and right-clicking")
+        success, msg = actions.click_at_position(click_x, click_y, clicks=1, button='right')
+        if not success:
+            print(f"[ACTION_HANDLER] Mouse click failed: {msg}")
+            return False, f"Failed to right-click at deal_number position: {msg}"
+        print(f"[ACTION_HANDLER] Right-click successful: {msg}")
+    else:
+        print("[ACTION_HANDLER] No deal_number position found or deal_number not matched—skipping click!")
+
+    return True, f"Found {len(positions)} matched targets with first positions: {positions} 🎉"
+
 
 def select_edit_multinetwork_instruction() -> Tuple[bool, str]:
     """
