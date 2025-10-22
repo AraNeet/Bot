@@ -650,13 +650,66 @@ def verify_search_button_clicked(**kwargs) -> Tuple[bool, str, Optional[Dict[str
 
 def verify_row_found(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
-    Verify that a row was found in the table.
-    
+    Verify that a row was found and right-clicked by checking for the context menu.
+
+    After right-clicking on a row, a context menu should appear. This verifier
+    checks for the presence of that menu to the right of the current mouse position.
+
+    Args:
+        **kwargs: Optional parameters (currently unused, verifies current state)
+
     Returns:
         Tuple of (success: bool, message: str, data: Optional[Dict])
+        - success: True if right-click menu is detected
+        - message: Description of verification result
+        - data: Optional dict with menu position if found
     """
-    print("[VERIFIER_HANDLER] Verifying row found...")
-    pass
+    print("[VERIFIER_HANDLER] Verifying row found by checking for right-click menu...")
+
+    try:
+        import pyautogui
+        from ..helpers import computer_vision_utils
+        import time
+
+        # Small delay to allow menu to fully appear
+        time.sleep(0.3)
+
+        # Get current mouse position
+        mouse_x, mouse_y = pyautogui.position()
+        print(f"[VERIFIER_HANDLER] Current mouse position: ({mouse_x}, {mouse_y})")
+
+        # Take screenshot
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to capture screenshot for menu verification", None
+
+        # Detect right-click menu to the right of mouse
+        found, confidence, position = computer_vision_utils.detect_right_click_menu(
+            screenshot,
+            mouse_x,
+            mouse_y,
+            confidence=0.75  # Slightly lower threshold for menu detection
+        )
+
+        if found:
+            data = {
+                'menu_found': True,
+                'menu_position': position,
+                'confidence': confidence,
+                'mouse_position': (mouse_x, mouse_y)
+            }
+            message = f"Right-click menu detected at {position} with confidence {confidence:.2f}"
+            print(f"[VERIFIER_HANDLER] {message}")
+            return True, message, data
+        else:
+            message = f"Right-click menu not found (confidence {confidence:.2f} below threshold)"
+            print(f"[VERIFIER_HANDLER] {message}")
+            return False, message, None
+
+    except Exception as e:
+        error_msg = f"Error verifying right-click menu: {e}"
+        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
+        return False, error_msg, None
 
 def verify_edit_menu_selected(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """

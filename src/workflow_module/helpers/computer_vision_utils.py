@@ -341,6 +341,96 @@ def find_template_in_region(screenshot: np.ndarray,
         print(f"[CV ERROR] Template finding failed: {e}")
         return False, 0.0, None
     
+def detect_right_click_menu(screenshot: np.ndarray,
+                           mouse_x: int,
+                           mouse_y: int,
+                           menu_template_path: str = "assets/rightclickmenu.png",
+                           confidence: float = 0.8) -> Tuple[bool, float, Optional[Tuple[int, int]]]:
+    """
+    Detect right-click context menu to the right of the mouse cursor.
+
+    Creates a search region to the right of the mouse position, sized to account
+    for the menu appearing either above or below the cursor. The search width is
+    2x the template width to ensure we capture the menu even if it overhangs.
+
+    Args:
+        screenshot: Current screenshot as numpy array
+        mouse_x: X-coordinate of mouse cursor when right-click occurred
+        mouse_y: Y-coordinate of mouse cursor when right-click occurred
+        menu_template_path: Path to the right-click menu template image
+        confidence: Minimum confidence threshold (0-1)
+
+    Returns:
+        Tuple of (found: bool, confidence_score: float, position: Optional[Tuple[int, int]])
+        Position is (center_x, center_y) of menu if found
+
+    Example:
+        screenshot = take_screenshot()
+        mouse_x, mouse_y = pyautogui.position()
+
+        found, score, position = detect_right_click_menu(
+            screenshot, mouse_x, mouse_y, confidence=0.8
+        )
+
+        if found:
+            print(f"Right-click menu found at {position}")
+    """
+    try:
+        # Load the menu template
+        menu_template = load_image(menu_template_path)
+        if menu_template is None:
+            print(f"[CV ERROR] Failed to load menu template: {menu_template_path}")
+            return False, 0.0, None
+
+        template_height, template_width = menu_template.shape[:2]
+        screen_height, screen_width = screenshot.shape[:2]
+
+        # Calculate search region dimensions
+        # Width: 2x template width to account for menu positioning
+        search_width = template_width * 2
+
+        # Height: 2x template height to account for menu above or below cursor
+        search_height = template_height * 2
+
+        # Position the search region to the right of the mouse
+        # Start from mouse_x, but ensure we don't go off screen
+        region_x = mouse_x
+        region_width = min(search_width, screen_width - region_x)
+
+        # Center the search region vertically around the mouse position
+        # This accounts for menu appearing above or below
+        region_y = max(0, mouse_y - search_height // 2)
+        region_height = min(search_height, screen_height - region_y)
+
+        # Ensure region doesn't extend beyond screen bounds
+        if region_y + region_height > screen_height:
+            region_height = screen_height - region_y
+
+        print(f"[CV] Searching for right-click menu:")
+        print(f"[CV]   Mouse position: ({mouse_x}, {mouse_y})")
+        print(f"[CV]   Template size: {template_width}x{template_height}")
+        print(f"[CV]   Search region: ({region_x}, {region_y}, {region_width}, {region_height})")
+
+        # Perform template matching in the calculated region
+        found, match_score, position = match_template_in_region(
+            screenshot, menu_template,
+            (region_x, region_y, region_width, region_height),
+            confidence
+        )
+
+        if found:
+            print(f"[CV] Right-click menu detected with confidence {match_score:.2f}")
+            print(f"[CV] Menu center position: {position}")
+        else:
+            print(f"[CV] Right-click menu not found (confidence {match_score:.2f} < {confidence})")
+
+        return found, match_score, position
+
+    except Exception as e:
+        print(f"[CV ERROR] Right-click menu detection failed: {e}")
+        return False, 0.0, None
+
+
 def detect_column_separators(source_img, template_img, match_threshold=0.9, mask_size_factor=0.9, debug=False):
     """
     Detects ALL column separator positions by template matching.

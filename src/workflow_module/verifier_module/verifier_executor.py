@@ -45,7 +45,7 @@ import time
 VERIFIER_HANDLERS = {
     # # Navigation actions
     # "open_multinetwork_instructions_page": verifier_handlers.verify_multinetwork_page_opened,
-    
+
     # # # Search field actions
     # "enter_advertiser_name": verifier_handlers.verify_advertiser_name_entered,
     # # # "enter_order_number": verifier_handlers.verify_order_number_entered,
@@ -53,22 +53,22 @@ VERIFIER_HANDLERS = {
     # "enter_agency": verifier_handlers.verify_agency_name_entered,
     # "enter_begin_date": verifier_handlers.verify_begin_date_entered,
     # "enter_end_date": verifier_handlers.verify_end_date_entered,
-    
+
     # # Button actions
     # "click_search_button": verifier_handlers.verify_search_button_clicked,
-    
-    # # Table interaction actions
-    # "find_row_by_deal_number": verifier_handlers.verify_row_found,
+
+    # Table interaction actions - ACTIVE
+    "find_row_by_values": verifier_handlers.verify_row_found,
     # "select_edit_multinetwork_instruction": verifier_handlers.verify_edit_menu_selected,
-    
+
     # # Form field actions
     # "enter_isci_1": verifier_handlers.verify_isci_1_entered,
     # "enter_isci_2_if_provided": verifier_handlers.verify_isci_2_entered,
     # "enter_isci_3_if_provided": verifier_handlers.verify_isci_3_entered,
-    
+
     # # Save actions
     # "save_instruction": verifier_handlers.verify_instruction_saved,
-    
+
     # # Generic actions (fallback)
     # "type_text": verifier_handlers.verify_text_typed,
     # "click_at_position": verifier_handlers.verify_position_clicked,
