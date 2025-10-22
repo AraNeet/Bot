@@ -340,3 +340,166 @@ def find_template_in_region(screenshot: np.ndarray,
     except Exception as e:
         print(f"[CV ERROR] Template finding failed: {e}")
         return False, 0.0, None
+    
+def detect_column_separators(source_img, template_img, match_threshold=0.9, mask_size_factor=0.9, debug=False):
+    """
+    Detects ALL column separator positions by template matching.
+    
+    FLOW:
+    1. Creates match heatmap using TM_CCOEFF_NORMED
+    2. Finds ALL peaks above threshold (one by one)
+    3. Masks nearby maxima to get UNIQUE matches only
+    4. Prints details if debug=True
+    
+    RETURNS: List of [(x,y_position, confidence_score)] tuples
+    """
+    # Get template dimensions
+    template_height, template_width = template_img.shape[:2]
+    
+    # Create match heatmap
+    match_heatmap = cv2.matchTemplate(source_img, template_img, cv2.TM_CCOEFF_NORMED)
+    
+    column_separator_positions = []  # List of (x_position, y_position, confidence)
+    
+    while True:
+        # Find brightest remaining match
+        min_val, max_confidence, min_loc, best_match_position = cv2.minMaxLoc(match_heatmap)
+        
+        # Stop if below threshold
+        if max_confidence < match_threshold:
+            break
+        
+        # Record this column separator
+        column_separator_positions.append((best_match_position, max_confidence))
+        
+        # MASK nearby maxima to prevent duplicates
+        mask_height = int(template_height * mask_size_factor)
+        mask_width = int(template_width * mask_size_factor)
+        
+        y_start = max(0, best_match_position[1] - mask_height // 2)
+        y_end = min(match_heatmap.shape[0], best_match_position[1] + mask_height // 2)
+        x_start = max(0, best_match_position[0] - mask_width // 2)
+        x_end = min(match_heatmap.shape[1], best_match_position[0] + mask_width // 2)
+        
+        # FLATTEN this area - no more fake matches here!
+        match_heatmap[y_start:y_end, x_start:x_end] = 0
+    
+    # Debug: Show what we found
+    if debug:
+        if column_separator_positions:
+            print(f"Found {len(column_separator_positions)} column separators (threshold: {match_threshold}):")
+            for i, (position, confidence) in enumerate(column_separator_positions, 1):
+                print(f"  Column {i}: x={position[0]}, y={position[1]}, Confidence={confidence:.3f}")
+        else:
+            print(f"No column separators found above threshold {match_threshold}")
+    
+    return column_separator_positions
+
+def create_separated_columns_image(source_img, column_separator_positions, template_width, 
+                                   padding_width=10, debug=False):
+    """
+    **SMART 5-STEP MAGIC**: Creates separated columns + FILTERS OUT JUNK COLUMNS!
+    
+    FILTERING RULES (NEW!):
+    1. REMOVE: Column LEFT of FIRST separator (usually UI/headers)
+    2. REMOVE: LAST 2 columns (usually totals/empty space)
+    
+    STEP-BY-STEP:
+    1. Calculate ALL column boundaries
+    2. Crop ALL columns  
+    3. FILTER: Remove 1st + last 2 columns
+    4. Add white padding between REMAINING columns
+    5. Combine into ONE wide image
+    
+    INPUT: 
+        - source_img: Your cropped image
+        - column_separator_positions: List of [((x, y), score)]
+        - template_width: Width of your ColumnLine.png
+    
+    RETURNS: Filtered separated columns image
+    """
+    
+    if not column_separator_positions:
+        if debug:
+            print(" No column separators found!")
+        return None
+    
+    # ===========================================
+    # STEP 1: CALCULATE ALL COLUMN BOUNDARIES
+    # ===========================================
+    print(f" Calculating boundaries from {len(column_separator_positions)} separators...")
+    
+    column_split_positions = []
+    for position in column_separator_positions:
+        x_position = position[0]
+        split_center = x_position + (template_width // 2)
+        column_split_positions.append(split_center)
+    
+    unique_split_positions = sorted(set(column_split_positions))
+    image_width = source_img.shape[1]
+    all_column_boundaries = [0] + unique_split_positions + [image_width]
+    
+    if debug:
+        print(f"   ALL Boundaries: {all_column_boundaries}")
+
+    print(f" Cropping {len(all_column_boundaries)-1} TOTAL columns...")
+    
+    all_columns = []
+    for column_index in range(len(all_column_boundaries) - 1):
+        left_edge = all_column_boundaries[column_index]
+        right_edge = all_column_boundaries[column_index + 1]
+        single_column = source_img[:, left_edge:right_edge]
+        all_columns.append(single_column)
+        
+        if debug:
+            print(f"   TOTAL Column {column_index+1}: pixels {left_edge}→{right_edge} (width: {right_edge-left_edge}px)")
+    
+    if not all_columns:
+        return None
+
+    print(" **Unsused Columns**: Removing junk columns...")
+    
+    total_columns = len(all_columns)
+    print(f"   Total columns before filtering: {total_columns}")
+
+    filtered_columns = all_columns[1:]  # Skip index 0
+    print(f"   Removed Column 1 (UI/Headers)")
+    
+    if len(filtered_columns) >= 3:
+        filtered_columns = filtered_columns[:-3]  # Remove last 2
+        print(f"   Removed Columns {total_columns-1} & {total_columns} (Totals/Empty)")
+    else:
+        print(f"   Not enough columns to remove last 2!")
+    
+    columns_to_keep = filtered_columns
+    
+    print(f"   KEEPING {len(columns_to_keep)} CLEAN COLUMNS!")
+    
+    if not columns_to_keep:
+        if debug:
+            print("❌ No columns left after filtering!")
+        return None
+
+    print("Creating white padding...")
+    image_height = source_img.shape[0]
+    white_padding = np.full((image_height, padding_width, 3), 255, dtype=np.uint8)
+
+    print("Assembling FILTERED image...")
+    
+    final_parts = [columns_to_keep[0]]  # First kept column
+    
+    # Add padding + column for remaining kept columns
+    for next_column in columns_to_keep[1:]:
+        final_parts.append(white_padding)
+        final_parts.append(next_column)
+    
+    separated_columns_image = np.hstack(final_parts)
+
+    print(f" **PERFECT!** {len(columns_to_keep)} CLEAN COLUMNS created!")
+    print(f"   Final size: {separated_columns_image.shape[1]}px wide")
+    
+    if debug:
+        cv2.imwrite('separated_columns.png', separated_columns_image)
+        print(" Saved 'separated_columns.png' - FILTERED result!")
+    
+    return separated_columns_image

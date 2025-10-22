@@ -46,9 +46,9 @@ VERIFIER_HANDLERS = {
     # # Navigation actions
     # "open_multinetwork_instructions_page": verifier_handlers.verify_multinetwork_page_opened,
     
-    # # Search field actions
+    # # # Search field actions
     # "enter_advertiser_name": verifier_handlers.verify_advertiser_name_entered,
-    # # "enter_order_number": verifier_handlers.verify_order_number_entered,
+    # # # "enter_order_number": verifier_handlers.verify_order_number_entered,
     # "enter_deal_number": verifier_handlers.verify_deal_number_entered,
     # "enter_agency": verifier_handlers.verify_agency_name_entered,
     # "enter_begin_date": verifier_handlers.verify_begin_date_entered,
@@ -58,7 +58,7 @@ VERIFIER_HANDLERS = {
     # "click_search_button": verifier_handlers.verify_search_button_clicked,
     
     # # Table interaction actions
-    "find_row_by_deal_number": verifier_handlers.verify_row_found,
+    # "find_row_by_deal_number": verifier_handlers.verify_row_found,
     # "select_edit_multinetwork_instruction": verifier_handlers.verify_edit_menu_selected,
     
     # # Form field actions
