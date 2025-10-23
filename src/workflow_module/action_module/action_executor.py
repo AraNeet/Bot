@@ -42,27 +42,25 @@ ACTION_HANDLERS: Dict[str, Any] = {
     # Application startup
     # "open_application": action_handler.open_application,
     
-    # # # Navigation
-    # "open_multinetwork_instructions_page": action_handler.open_multinetwork_instructions_page,
+    # # Navigation
+    "open_multinetwork_instructions_page": action_handler.open_multinetwork_instructions_page,
     
-    # # # Search form actions
-    # "enter_advertiser_name": action_handler.enter_advertiser_name,
-    # # # "enter_order_number": action_handler.enter_order_number,
-    # "enter_deal_number": action_handler.enter_deal_number,
-    # "enter_agency": action_handler.enter_agency,
-    # "enter_begin_date": action_handler.enter_begin_date,
-    # "enter_end_date": action_handler.enter_end_date,
-    # "click_search_button": action_handler.click_search_button,
-    # "wait_for_search_results": action_handler.wait_for_search_results,
-    
+    # # Search form actions
+    "enter_advertiser_name": action_handler.enter_advertiser_name,
+    # # "enter_order_number": action_handler.enter_order_number,
+    "enter_deal_number": action_handler.enter_deal_number,
+    "enter_agency": action_handler.enter_agency,
+    "enter_begin_date": action_handler.enter_begin_date,
+    "enter_end_date": action_handler.enter_end_date,
+    "click_search_button": action_handler.click_search_button,
+    "wait_for_search_results": action_handler.wait_for_search_results,
     
     # Table interaction
     "find_row_by_values": action_handler.find_row_by_values,
-    # "select_edit_multinetwork_instruction": action_handler.select_edit_multinetwork_instruction,
-
+    "select_edit_multinetwork_instruction": action_handler.select_edit_multinetwork_instruction,
+    
     # Not implemented
     # # Edit page actions
-    # "wait_for_edit_page_load": action_handler.wait_for_edit_page_load,
     # "verify_edit_page_opened": action_handler.verify_edit_page_opened,
     # "enter_isci_1": action_handler.enter_isci_1,
     # "enter_isci_2_if_provided": action_handler.enter_isci_2_if_provided,
@@ -72,7 +70,6 @@ ACTION_HANDLERS: Dict[str, Any] = {
     # "save_instruction": action_handler.save_instruction,
     # "verify_save_successful": action_handler.verify_save_successful,
 }
-
 
 # ============================================================================
 # MAIN EXECUTION FUNCTION

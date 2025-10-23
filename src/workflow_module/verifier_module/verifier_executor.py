@@ -58,8 +58,7 @@ VERIFIER_HANDLERS = {
     # "click_search_button": verifier_handlers.verify_search_button_clicked,
     
     # # Table interaction actions
-    # "find_row_by_deal_number": verifier_handlers.verify_row_found,
-    # "select_edit_multinetwork_instruction": verifier_handlers.verify_edit_menu_selected,
+    # "wait_for_edit_page_load": verifier_handlers.is_edit_page_loaded_and_open,
     
     # # Form field actions
     # "enter_isci_1": verifier_handlers.verify_isci_1_entered,

@@ -83,17 +83,10 @@
                 "parameters": {}
             },
             {
-                "action_type": "wait_for_edit_page_load",
-                "description": "Wait for edit page to finish loading",
+                "action_type": "is_edit_page_loaded_and_open",
+                "description": "Wait for edit page to finish loading/Check if the page is open.",
                 "parameters": {
-                    "timeout": 10
-                }
-            },
-            {
-                "action_type": "verify_edit_page_opened",
-                "description": "Verify the Edit Multi-network Instructions page opened for correct Deal ID",
-                "parameters": {
-                    "order_number": ""
+                    "timeout": 5
                 }
             },
             {

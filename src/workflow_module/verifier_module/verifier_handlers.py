@@ -644,28 +644,58 @@ def verify_search_button_clicked(**kwargs) -> Tuple[bool, str, Optional[Dict[str
         print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
         return False, error_msg, None
 
-# =====================================================================================================
-#  Opening/Editing MultiNetwork Verifier Logic
-# =====================================================================================================
+#  =====================================================================================================
+#  Verifiers for instructions edits
+#  =====================================================================================================
 
-def verify_row_found(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+def verify_isci_1_entered(isci_1: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
-    Verify that a row was found in the table.
+    Verify that ISCI 1 was entered correctly.
     
-    Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
-    """
-    print("[VERIFIER_HANDLER] Verifying row found...")
-    pass
-
-def verify_edit_menu_selected(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """
-    Verify that the edit menu was selected successfully.
-    
+    Args:
+        isci_1: Expected ISCI 1 value to verify
+        
     Returns:
         Tuple of (success: bool, message: str, data: Optional[Dict])
     """
     pass
+
+def verify_isci_2_entered(isci_2: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """
+    Verify that ISCI 2 was entered correctly.
+    
+    Args:
+        isci_2: Expected ISCI 2 value to verify
+        
+    Returns:
+        Tuple of (success: bool, message: str, data: Optional[Dict])
+    """
+    pass
+
+def verify_isci_3_entered(isci_3: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """
+    Verify that ISCI 3 was entered correctly.
+    
+    Args:
+        isci_3: Expected ISCI 3 value to verify
+        
+    Returns:
+        Tuple of (success: bool, message: str, data: Optional[Dict])
+    """
+    pass
+
+def verify_instruction_saved(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """
+    Verify that the instruction was saved successfully.
+    
+    Returns:
+        Tuple of (success: bool, message: str, data: Optional[Dict])
+    """
+    pass
+
+# =====================================================================================================
+#  Checks if page are open
+# =====================================================================================================
 
 def verify_multinetwork_page_opened(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
@@ -734,93 +764,69 @@ def verify_multinetwork_page_opened(**kwargs) -> Tuple[bool, str, Optional[Dict[
         print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
         return False, error_msg, None
 
-def verify_isci_1_entered(isci_1: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+def is_edit_page_loaded_and_open(timeout: int = 4) -> Tuple[bool, str]:
     """
-    Verify that ISCI 1 was entered correctly.
+    Wait for the edit page to finish loading.
     
     Args:
-        isci_1: Expected ISCI 1 value to verify
+        timeout: Maximum seconds to wait
         
     Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
+        Tuple of (success: bool, message: str)
     """
-    pass
-
-def verify_isci_2_entered(isci_2: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """
-    Verify that ISCI 2 was entered correctly.
-    
-    Args:
-        isci_2: Expected ISCI 2 value to verify
-        
-    Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
-    """
-    pass
-
-def verify_isci_3_entered(isci_3: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """
-    Verify that ISCI 3 was entered correctly.
-    
-    Args:
-        isci_3: Expected ISCI 3 value to verify
-        
-    Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
-    """
-    pass
-
-def verify_instruction_saved(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """
-    Verify that the instruction was saved successfully.
-    
-    Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
-    """
-    pass
-
-def verify_text_typed(text: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """
-    Verify that text was typed correctly.
-    
-    Args:
-        text: Expected text to verify
-        
-    Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
-    """
-    print(f"[VERIFIER_HANDLER] Verifying text typed: '{text}'")
-    
-    if not text:
-        return True, "No text to verify", None
-    
+    print(f"[ACTION_HANDLER] Waiting for edit page to load (timeout: {timeout}s)...")
+    time.sleep(timeout)
     try:
-        # Take screenshot and verify text entry
-        screenshot = verifier.take_screenshot_for_verification()
+        # Take screenshot
+        screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot for verification", None
         
-        success, extracted_text = scanner.extract_text(screenshot)
+        # Define the search fields region
+        field_region = (206, 152, 1439, 79)
+        
+        # Crop the screenshot to the search fields region
+        cropped_image = computer_vision_utils.crop_image(
+            screenshot, 
+            field_region[0], 
+            field_region[1], 
+            field_region[2], 
+            field_region[3]
+        )
+        
+        if cropped_image is None:
+            return False, "Failed to crop image to search fields region", None
+        
+        # Use OCR to extract text from the cropped field region
+        success, extracted_text = scanner.extract_text(cropped_image)
         
         if not success:
-            return False, f"Failed to extract text: {extracted_text}", None
+            return False, f"Failed to extract text from search fields region: {extracted_text}", None
         
-        similarity = verifier.calculate_text_similarity(text, extracted_text)
+        print(f"[VERIFIER_HANDLER] Extracted text from search fields region: '{extracted_text}'")
         
-        if similarity >= 0.80:
-            success_msg = f"✓ Text verified with {similarity:.2%} similarity"
+        # Check if the words "order" or "agency" are present in the extracted text
+        extracted_text_lower = extracted_text.lower()
+        has_deal = "deal" in extracted_text_lower
+        verification_data = {
+            "extracted_text": extracted_text,
+            "field_region": field_region,
+            "has_deal": has_deal,
+        }
+        
+        if has_deal:
+            success_msg = f"✓ Multi-network edit page opened successfully. Found search fields with {'order' if has_order else ''}{' and ' if has_order and has_agency else ''}{'agency' if has_agency else ''}"
             print(f"[VERIFIER_HANDLER] {success_msg}")
-            return True, success_msg, {"similarity_score": similarity}
+            return True, success_msg, verification_data
         else:
-            error_msg = f"✗ Text verification failed. Expected: '{text}', Extracted: '{extracted_text}', Similarity: {similarity:.2%}"
+            error_msg = f"✗ Multi-network page verification failed. Expected 'order' or 'agency' in search fields region, but found: '{extracted_text}'"
             print(f"[VERIFIER_HANDLER] {error_msg}")
-            return False, error_msg, {"similarity_score": similarity}
+            return False, error_msg, verification_data
         
     except Exception as e:
-        error_msg = f"Error verifying text entry: {e}"
+        error_msg = f"Error verifying multi-network page opening: {e}"
         print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
         return False, error_msg, None
-
 
 # ============================================================================
 # Helper Functions

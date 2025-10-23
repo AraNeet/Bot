@@ -40,8 +40,9 @@ import cv2
 import re  # For parsing total rows
 import numpy as np
 import src.workflow_module.verifier_module.verifier as verifier
-
+import pyautogui
 from collections import defaultdict
+import time
 
 scanner = TextScanner()
 
@@ -905,6 +906,7 @@ def wait_for_search_results(timeout: int = 10) -> Tuple[bool, str]:
 # TABLE INTERACTION ACTIONS
 # ============================================================================
 
+#TODO Fully add scrolling.
 def find_row_by_values(**kwargs) -> Tuple[bool, str]:
     """
     Find a row matching provided parameters, move mouse to deal_number, and right-click.
@@ -980,14 +982,14 @@ def find_row_by_values(**kwargs) -> Tuple[bool, str]:
 
     # Step 4 & 5: Match texts and get positions
     positions = match_text_positions(target_texts, data)
+    print(f"[DEBUG] Positions before unpacking: {positions}")
     if not positions:
         return False, "Failed: Too many targets missing 🔎"
 
     # Step 6: Move mouse to deal_number position and right-click
     if positions and deal_number and any(deal_number.lower() in text.lower() for text in data['text'] if text):
-        deal_number_pos = positions[0]  # First position is deal_number (matches target_texts order)
-        x, y, w, h = deal_number_pos
-
+        x, y, w, h = positions[0]
+        
         # Get the corrected location of the row from the crop.
         screen_x = x + crop_x
         screen_y = y + crop_y
@@ -1004,58 +1006,64 @@ def find_row_by_values(**kwargs) -> Tuple[bool, str]:
 
     return True, f"Found {len(positions)} matched targets with first positions: {positions} 🎉"
 
-
 def select_edit_multinetwork_instruction() -> Tuple[bool, str]:
     """
-    Select 'Edit Multi-network Instruction' from context menu.
+    Select 'Edit Multi-network Instruction' from context menu using OCR.
+    
+    This function:
+    1. Takes a screenshot and crops around the current mouse position.
+    2. Uses TextScanner.get_text_data to extract text and positions.
+    3. Searches for 'Edit Multi-network Instruction' (case-insensitive).
+    4. Clicks the center of the matched text's bounding box if found.
     
     Returns:
         Tuple of (success: bool, message: str)
     """
-    print("[ACTION_HANDLER] Selecting 'Edit Multi-network Instruction' from context menu...")
-    
-    # Simple implementation - assume menu selection succeeded
-    # TODO: Implement actual menu selection when context menu structure is known
-    return True, "Selected 'Edit Multi-network Instruction' from context menu"
+    print("[ACTION_HANDLER] Selecting 'Edit Multi-network Instruction' from context menu using OCR...")
 
+    # Step 1: Take screenshot
+    print("Taking Screenshot")
+    image = computer_vision_utils.take_screenshot()
+    if image is None:
+        return False, "Screenshot failed—check your display! 📸"
 
-# ============================================================================
-# PAGE LOAD WAITING ACTIONS
-# ============================================================================
+    # Step 2: Crop around mouse position
+    mouse_x, mouse_y = pyautogui.position()
+    crop_width, crop_height = 305, 110  # Same dimensions as original
+    crop_x, crop_y = mouse_x, mouse_y  # Same offset as original
+    cropped_img = computer_vision_utils.crop_image(image, crop_x, crop_y, crop_width, crop_height)
+    if cropped_img is None:
+        return False, "Crop failed—coords might be off! ✂️"
 
-def wait_for_edit_page_load(timeout: int = 10) -> Tuple[bool, str]:
-    """
-    Wait for the edit page to finish loading.
-    
-    Args:
-        timeout: Maximum seconds to wait
-        
-    Returns:
-        Tuple of (success: bool, message: str)
-    """
-    print(f"[ACTION_HANDLER] Waiting for edit page to load (timeout: {timeout}s)...")
-    
-    # Simple wait implementation
-    import time
-    time.sleep(3.0)  # Wait 3 seconds for page to load
-    
-    return True, "Edit page loaded successfully"
+    # Step 3: Use OCR to extract text and positions
+    success, data = scanner.get_text_data(cropped_img)
+    if not success:
+        return False, f"OCR failed: {data}"
 
-def verify_edit_page_opened(order_number: str) -> Tuple[bool, str]:
-    """
-    Verify the Edit Multi-network Instructions page opened for correct Deal ID.
+    if not data['text']:
+        return False, "No text detected in cropped region—empty results? 😔"
+
+    # Step 4: Search for target text
+    target_text = "Add Multi-Network instruction to order".lower()
+    for i, text in enumerate(data['text']):
+        if not text.strip():
+            continue
+        if target_text in text.lower():
+            # Found match, get position
+            bbox = data['bbox'][i]  # [x1, y1, x2, y2]
+            x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
+            # Adjust to screen coordinates
+            click_x = crop_x + x + w // 2
+            click_y = crop_y + y + h // 2
+            print(f"[ACTION_HANDLER] Found '{text}' at screen coords ({click_x}, {click_y})")
+            # Step 5: Click at position
+            success, msg = actions.click_at_position(click_x, click_y, clicks=1, button='left')
+            if success:
+                return True, f"Clicked 'Edit Multi-network Instruction' at ({click_x}, {click_y})"
+            else:
+                return False, f"Click failed: {msg}"
     
-    Args:
-        order_number: Expected deal ID on the page
-        
-    Returns:
-        Tuple of (success: bool, message: str)
-    """
-    print(f"[ACTION_HANDLER] Verifying edit page opened for deal: '{order_number}'")
-    
-    # Simple implementation - assume page opened correctly
-    # TODO: Implement actual verification when page structure is known
-    return True, f"Edit page opened for deal: '{order_number}'"
+    return False, "Target 'Edit Multi-network Instruction' not found in context menu"
 
 # ============================================================================
 # FORM FIELD ACTIONS (ISCI CODES)

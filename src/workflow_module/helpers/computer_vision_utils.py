@@ -387,11 +387,11 @@ def detect_column_separators(source_img, template_img, match_threshold=0.9, mask
     # Debug: Show what we found
     if debug:
         if column_separator_positions:
-            print(f"Found {len(column_separator_positions)} column separators (threshold: {match_threshold}):")
+            print(f"🎯 Found {len(column_separator_positions)} column separators (threshold: {match_threshold}):")
             for i, (position, confidence) in enumerate(column_separator_positions, 1):
                 print(f"  Column {i}: x={position[0]}, y={position[1]}, Confidence={confidence:.3f}")
         else:
-            print(f"No column separators found above threshold {match_threshold}")
+            print(f"😔 No column separators found above threshold {match_threshold}")
     
     return column_separator_positions
 
@@ -421,16 +421,16 @@ def create_separated_columns_image(source_img, column_separator_positions, templ
     
     if not column_separator_positions:
         if debug:
-            print(" No column separators found!")
+            print("❌ No column separators found!")
         return None
     
     # ===========================================
     # STEP 1: CALCULATE ALL COLUMN BOUNDARIES
     # ===========================================
-    print(f" Calculating boundaries from {len(column_separator_positions)} separators...")
+    print(f"📏 Calculating boundaries from {len(column_separator_positions)} separators...")
     
     column_split_positions = []
-    for position in column_separator_positions:
+    for position, score in column_separator_positions:
         x_position = position[0]
         split_center = x_position + (template_width // 2)
         column_split_positions.append(split_center)
@@ -441,8 +441,11 @@ def create_separated_columns_image(source_img, column_separator_positions, templ
     
     if debug:
         print(f"   ALL Boundaries: {all_column_boundaries}")
-
-    print(f" Cropping {len(all_column_boundaries)-1} TOTAL columns...")
+    
+    # ===========================================
+    # STEP 2: CROP ALL COLUMNS (BEFORE FILTERING)
+    # ===========================================
+    print(f"✂️  Cropping {len(all_column_boundaries)-1} TOTAL columns...")
     
     all_columns = []
     for column_index in range(len(all_column_boundaries) - 1):
@@ -456,35 +459,46 @@ def create_separated_columns_image(source_img, column_separator_positions, templ
     
     if not all_columns:
         return None
-
-    print(" **Unsused Columns**: Removing junk columns...")
+    
+    # ===========================================
+    # *** NEW STEP 3: SMART FILTERING! ***
+    # ===========================================
+    print("🧹 **SMART FILTERING**: Removing junk columns...")
     
     total_columns = len(all_columns)
     print(f"   Total columns before filtering: {total_columns}")
-
-    filtered_columns = all_columns[1:]  # Skip index 0
-    print(f"   Removed Column 1 (UI/Headers)")
     
+    # RULE 1: REMOVE FIRST COLUMN (left of first match)
+    filtered_columns = all_columns[1:]  # Skip index 0
+    print(f"   ✅ Removed Column 1 (UI/Headers)")
+    
+    # RULE 2: REMOVE LAST 2 COLUMNS
     if len(filtered_columns) >= 3:
         filtered_columns = filtered_columns[:-3]  # Remove last 2
-        print(f"   Removed Columns {total_columns-1} & {total_columns} (Totals/Empty)")
+        print(f"   ✅ Removed Columns {total_columns-1} & {total_columns} (Totals/Empty)")
     else:
-        print(f"   Not enough columns to remove last 2!")
+        print(f"   ⚠️  Not enough columns to remove last 2!")
     
     columns_to_keep = filtered_columns
     
-    print(f"   KEEPING {len(columns_to_keep)} CLEAN COLUMNS!")
+    print(f"   🎯 KEEPING {len(columns_to_keep)} CLEAN COLUMNS!")
     
     if not columns_to_keep:
         if debug:
             print("❌ No columns left after filtering!")
         return None
-
-    print("Creating white padding...")
+    
+    # ===========================================
+    # STEP 4: CREATE WHITE PADDING
+    # ===========================================
+    print("🤍 Creating white padding...")
     image_height = source_img.shape[0]
     white_padding = np.full((image_height, padding_width, 3), 255, dtype=np.uint8)
-
-    print("Assembling FILTERED image...")
+    
+    # ===========================================
+    # STEP 5: COMBINE FILTERED COLUMNS!
+    # ===========================================
+    print("🧩 Assembling FILTERED image...")
     
     final_parts = [columns_to_keep[0]]  # First kept column
     
@@ -494,12 +508,15 @@ def create_separated_columns_image(source_img, column_separator_positions, templ
         final_parts.append(next_column)
     
     separated_columns_image = np.hstack(final_parts)
-
-    print(f" **PERFECT!** {len(columns_to_keep)} CLEAN COLUMNS created!")
+    
+    # ===========================================
+    # FINISH!
+    # ===========================================
+    print(f"✅ **PERFECT!** {len(columns_to_keep)} CLEAN COLUMNS created!")
     print(f"   Final size: {separated_columns_image.shape[1]}px wide")
     
     if debug:
         cv2.imwrite('separated_columns.png', separated_columns_image)
-        print(" Saved 'separated_columns.png' - FILTERED result!")
+        print("💾 Saved 'separated_columns.png' - FILTERED result!")
     
     return separated_columns_image
