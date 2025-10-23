@@ -58,6 +58,7 @@ ACTION_HANDLERS: Dict[str, Any] = {
     # Table interaction
     "find_row_by_values": action_handler.find_row_by_values,
     "select_edit_multinetwork_instruction": action_handler.select_edit_multinetwork_instruction,
+    "is_edit_page_loaded_and_open": action_handler.is_edit_page_loaded_and_open,
     
     # Not implemented
     # # Edit page actions

@@ -86,7 +86,7 @@
                 "action_type": "is_edit_page_loaded_and_open",
                 "description": "Wait for edit page to finish loading/Check if the page is open.",
                 "parameters": {
-                    "timeout": 5
+                    "timeout": 3
                 }
             },
             {

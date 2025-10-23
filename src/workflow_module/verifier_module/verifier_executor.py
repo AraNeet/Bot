@@ -44,21 +44,18 @@ import time
 # Map action types to their corresponding verifier handler functions
 VERIFIER_HANDLERS = {
     # # Navigation actions
-    # "open_multinetwork_instructions_page": verifier_handlers.verify_multinetwork_page_opened,
+    "open_multinetwork_instructions_page": verifier_handlers.verify_multinetwork_page_opened,
     
-    # # # Search field actions
-    # "enter_advertiser_name": verifier_handlers.verify_advertiser_name_entered,
-    # # # "enter_order_number": verifier_handlers.verify_order_number_entered,
-    # "enter_deal_number": verifier_handlers.verify_deal_number_entered,
-    # "enter_agency": verifier_handlers.verify_agency_name_entered,
-    # "enter_begin_date": verifier_handlers.verify_begin_date_entered,
-    # "enter_end_date": verifier_handlers.verify_end_date_entered,
+    # # Search field actions
+    "enter_advertiser_name": verifier_handlers.verify_advertiser_name_entered,
+    # # "enter_order_number": verifier_handlers.verify_order_number_entered,
+    "enter_deal_number": verifier_handlers.verify_deal_number_entered,
+    "enter_agency": verifier_handlers.verify_agency_name_entered,
+    "enter_begin_date": verifier_handlers.verify_begin_date_entered,
+    "enter_end_date": verifier_handlers.verify_end_date_entered,
     
-    # # Button actions
-    # "click_search_button": verifier_handlers.verify_search_button_clicked,
-    
-    # # Table interaction actions
-    # "wait_for_edit_page_load": verifier_handlers.is_edit_page_loaded_and_open,
+    # Button actions
+    "click_search_button": verifier_handlers.verify_search_button_clicked,
     
     # # Form field actions
     # "enter_isci_1": verifier_handlers.verify_isci_1_entered,

@@ -188,9 +188,9 @@ def enter_advertiser_name(advertiser_name: str) -> Tuple[bool, str]:
         # Define the region to search for "advertiser" word
         # Region: (206, 152, 1439, 79) = (x, y, width, height)
         region_x = 206
-        region_y = 152
-        region_width = 1439
-        region_height = 79
+        region_y = 170
+        region_width = 1440
+        region_height = 80
         search_region = (region_x, region_y, region_width, region_height)
         
         print(f"[ACTION_HANDLER] Searching for 'advertiser' word in region {search_region}")
@@ -292,9 +292,9 @@ def enter_order_number(order_number: str) -> Tuple[bool, str]:
         # Define the region to search for "order" word
         # Region: (206, 152, 1439, 79) = (x, y, width, height)
         region_x = 206
-        region_y = 152
-        region_width = 1439
-        region_height = 79
+        region_y = 170
+        region_width = 1440
+        region_height = 80
         search_region = (region_x, region_y, region_width, region_height)
         
         print(f"[ACTION_HANDLER] Searching for 'order' word in region {search_region}")
@@ -397,9 +397,9 @@ def enter_deal_number(deal_number: str) -> Tuple[bool, str]:
         # Define the region to search for "order" word
         # Region: (206, 152, 1439, 79) = (x, y, width, height)
         region_x = 206
-        region_y = 152
-        region_width = 1439
-        region_height = 79
+        region_y = 170
+        region_width = 1440
+        region_height = 80
         search_region = (region_x, region_y, region_width, region_height)
         
         print(f"[ACTION_HANDLER] Searching for 'order' word in region {search_region}")
@@ -502,9 +502,9 @@ def enter_agency(agency_name: str) -> Tuple[bool, str]:
         # Define the region to search for "agency" word
         # Region: (206, 152, 1439, 79) = (x, y, width, height)
         region_x = 206
-        region_y = 152
-        region_width = 1439
-        region_height = 79
+        region_y = 170
+        region_width = 1440
+        region_height = 80
         search_region = (region_x, region_y, region_width, region_height)
         
         print(f"[ACTION_HANDLER] Searching for 'agency' word in region {search_region}")
@@ -607,9 +607,9 @@ def enter_begin_date(begin_date: str) -> Tuple[bool, str]:
         # Define the region to search for "begin" word
         # Region: (206, 152, 1439, 79) = (x, y, width, height)
         region_x = 206
-        region_y = 152
-        region_width = 1439
-        region_height = 79
+        region_y = 170
+        region_width = 1440
+        region_height = 80
         search_region = (region_x, region_y, region_width, region_height)
         
         print(f"[ACTION_HANDLER] Searching for 'begin' word in region {search_region}")
@@ -712,9 +712,9 @@ def enter_end_date(end_date: str) -> Tuple[bool, str]:
         # Define the region to search for "end" word
         # Region: (206, 152, 1439, 79) = (x, y, width, height)
         region_x = 206
-        region_y = 152
-        region_width = 1439
-        region_height = 79
+        region_y = 170
+        region_width = 1440
+        region_height = 80
         search_region = (region_x, region_y, region_width, region_height)
         
         print(f"[ACTION_HANDLER] Searching for 'end' word in region {search_region}")
@@ -818,8 +818,8 @@ def click_search_button() -> Tuple[bool, str]:
         # Region: (206, 170, 1439, 79) = (x, y, width, height)
         region_x = 206
         region_y = 170
-        region_width = 1439
-        region_height = 79
+        region_width = 1440
+        region_height = 80
         search_region = (region_x, region_y, region_width, region_height)
         
         print(f"[ACTION_HANDLER] Searching for 'search' word in region {search_region}")
@@ -830,11 +830,7 @@ def click_search_button() -> Tuple[bool, str]:
             return False, "Failed to crop image to search region"
         
         print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
-        
-        # Save the cropped image for debugging
-        debug_filename = f"search_button_search_region_{int(time.time())}.png"
-        cv2.imwrite(debug_filename, cropped_image)
-        print(f"[ACTION_HANDLER] Saved cropped image for debugging: {debug_filename}")
+    
         
         # Use OCR to find the "search" word within the cropped region
         success, found, bbox = scanner.find_text_with_position(
@@ -985,22 +981,6 @@ def find_row_by_values(**kwargs) -> Tuple[bool, str]:
     print(f"[DEBUG] Positions before unpacking: {positions}")
     if not positions:
         return False, "Failed: Too many targets missing 🔎"
-
-    # Step 6: Move mouse to deal_number position and right-click
-    if positions and deal_number and any(deal_number.lower() in text.lower() for text in data['text'] if text):
-        x, y, w, h = positions[0]
-        
-        # Get the corrected location of the row from the crop.
-        screen_x = x + crop_x
-        screen_y = y + crop_y
-        click_x = screen_x + w // 2 
-        click_y = screen_y + h // 2
-        print(f"[ACTION_HANDLER] Moving mouse to deal_number at screen coords ({click_x}, {click_y}) and right-clicking")
-        success, msg = actions.click_at_position(click_x, click_y, clicks=1, button='right')
-        if not success:
-            print(f"[ACTION_HANDLER] Mouse click failed: {msg}")
-            return False, f"Failed to right-click at deal_number position: {msg}"
-        print(f"[ACTION_HANDLER] Right-click successful: {msg}")
     else:
         print("[ACTION_HANDLER] No deal_number position found or deal_number not matched—skipping click!")
 
@@ -1064,6 +1044,65 @@ def select_edit_multinetwork_instruction() -> Tuple[bool, str]:
                 return False, f"Click failed: {msg}"
     
     return False, "Target 'Edit Multi-network Instruction' not found in context menu"
+
+def is_edit_page_loaded_and_open(timeout: int = 4) -> Tuple[bool, str]:
+    """
+    Wait for the edit page to finish loading.
+    
+    Args:
+        timeout: Maximum seconds to wait
+        
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    print(f"[ACTION_HANDLER] Waiting for edit page to load (timeout: {timeout}s)...")
+    time.sleep(timeout)
+    try:
+        # Take screenshot
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot for verification", None
+        
+        # Define the search fields region
+        field_region = (200, 145, 200, 79)
+        
+        # Crop the screenshot to the search fields region
+        cropped_image = computer_vision_utils.crop_image(
+            screenshot, 
+            field_region[0], 
+            field_region[1], 
+            field_region[2], 
+            field_region[3]
+        )
+        
+        if cropped_image is None:
+            return False, "Failed to crop image to search fields region", None
+        
+        # Use OCR to extract text from the cropped field region
+        success, extracted_text = scanner.extract_text(cropped_image)
+        
+        if not success:
+            return False, f"Failed to extract text from search fields region: {extracted_text}", None
+        
+        print(f"[VERIFIER_HANDLER] Extracted text from search fields region: '{extracted_text}'")
+        
+        # Check if the words "order" or "agency" are present in the extracted text
+        extracted_text_lower = extracted_text.lower()
+        has_deal = "deal" in extracted_text_lower
+        
+        if has_deal:
+            success_msg = f"✓ Multi-network edit page opened successfully. Found search fields with {'deal' if has_deal else ''}"
+            print(f"[VERIFIER_HANDLER] {success_msg}")
+            return True, success_msg
+        else:
+            error_msg = f"✗ Multi-network page verification failed. Expected 'deal' in search fields region, but found: '{extracted_text}'"
+            print(f"[VERIFIER_HANDLER] {error_msg}")
+            return False, error_msg
+        
+    except Exception as e:
+        error_msg = f"Error verifying multi-network page opening: {e}"
+        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
+        return False, error_msg
 
 # ============================================================================
 # FORM FIELD ACTIONS (ISCI CODES)
@@ -1141,7 +1180,6 @@ def save_instruction() -> Tuple[bool, str]:
     # Simple implementation - assume save succeeded
     # TODO: Implement actual save when save button coordinates are known
     return True, "Instruction saved successfully"
-
 
 def verify_save_successful(order_number: str) -> Tuple[bool, str]:
     """
