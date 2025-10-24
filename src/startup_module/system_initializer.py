@@ -5,9 +5,9 @@ Contains high-level orchestration functions that coordinate between different co
 
 import os
 from typing import Dict, Any, Optional, Tuple
-from .helpers import computer_vision_utils
-from .application_launcher import startup_sequence
-from src.notification_module import notify_error
+from src.startup_module.helpers import computer_vision_utils
+from src.startup_module.application_launcher import startup_sequence
+from src.notification_module.error_notifier import notify_error
 from dotenv import load_dotenv
 
 

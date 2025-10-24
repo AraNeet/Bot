@@ -6,8 +6,8 @@ Contains step-by-step functions for the application startup sequence.
 import time
 from typing import Tuple, Optional, Dict, Any
 import pygetwindow
-from .helpers import computer_vision_utils, window_utils
-from src.notification_module import notify_error
+from src.startup_module.helpers import computer_vision_utils, window_utils
+from src.notification_module.error_notifier import notify_error
 
 
 def ensure_application_open(app_name: str, app_path: str, process_name: str, max_retries: int = 3) -> Tuple[bool, Optional[pygetwindow.Window]]:

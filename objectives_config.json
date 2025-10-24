@@ -1,102 +1,43 @@
 {
     "objectives": {
-        "edit_copy_instruction": {
-            "description": "Edit copy instruction for multinetwork instructions",
+        "edit_copy_definition": {
+            "description": "Edit Copy Definition - Automated workflow objective",
             "required_fields": {
+                "order_number": {
+                    "type": "number",
+                    "description": "Order Number"
+                },
+                "deal_number": {
+                    "type": "number",
+                    "description": "Deal Number"
+                },
                 "advertiser_name": {
                     "type": "string",
                     "description": "Name of the advertiser"
                 },
                 "agency_name": {
-                    "type": "string", 
-                    "description": "Name of the agency"
-                },
-                "order_number": {
                     "type": "string",
-                    "description": "Order/deal number"
+                    "description": "Name of the agency"
                 },
                 "begin_date": {
                     "type": "string",
-                    "description": "Start date for the instruction",
+                    "description": "Begin Date for the instruction",
                     "format": "MM/DD/YYYY"
                 },
                 "end_date": {
                     "type": "string",
-                    "description": "End date for the instruction", 
+                    "description": "End Date for the instruction",
                     "format": "MM/DD/YYYY"
                 },
                 "isci_1": {
                     "type": "string",
-                    "description": "Primary ISCI code"
+                    "description": "Isci 1 code"
                 }
             },
-            "optional_fields": {
-                "isci_2": {
-                    "type": "string",
-                    "description": "Secondary ISCI code"
-                },
-                "isci_2_rotation_percent": {
-                    "type": "number",
-                    "description": "Rotation percentage for ISCI 2",
-                    "min": 0,
-                    "max": 100
-                },
-                "isci_3": {
-                    "type": "string", 
-                    "description": "Tertiary ISCI code"
-                },
-                "isci_3_rotation_percent": {
-                    "type": "number",
-                    "description": "Rotation percentage for ISCI 3",
-                    "min": 0,
-                    "max": 100
-                }
-            }
-        },
-        "do_not_air_instruction": {
-            "description": "Create do not air instruction",
-            "required_fields": {
-                "advertiser_name": {
-                    "type": "string",
-                    "description": "Name of the advertiser"
-                },
-                "agency_name": {
-                    "type": "string",
-                    "description": "Name of the agency"
-                },
-                "order_number": {
-                    "type": "string",
-                    "description": "Order/deal number"
-                },
-                "begin_date": {
-                    "type": "string",
-                    "description": "Start date for the instruction",
-                    "format": "MM/DD/YYYY"
-                },
-                "end_date": {
-                    "type": "string",
-                    "description": "End date for the instruction",
-                    "format": "MM/DD/YYYY"
-                },
-                "reason": {
-                    "type": "string",
-                    "description": "Reason for do not air instruction"
-                }
-            },
-            "optional_fields": {
-                "notes": {
-                    "type": "string",
-                    "description": "Additional notes for the instruction"
-                }
-            }
-        },
-        "open_multinetwork_instructions_page": {
-            "description": "Open the multinetwork instructions page",
-            "required_fields": {},
             "optional_fields": {
                 "timeout": {
                     "type": "number",
-                    "description": "Timeout in seconds for page load",
+                    "description": "Timeout in seconds for operation",
                     "default": 10
                 }
             }

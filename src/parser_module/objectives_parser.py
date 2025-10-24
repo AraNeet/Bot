@@ -16,7 +16,7 @@ Functions:
 import json
 import os
 from typing import Dict, Any, Tuple, List, Optional
-from src.notification_module import notify_error
+from src.notification_module.error_notifier import notify_error
 
 def load_objectives_config(config_file_path: str = "objectives_config.json") -> Tuple[bool, Any]:
     """
@@ -136,12 +136,12 @@ def parse_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
         if not isinstance(values_list, list):
             continue
         
-        print(f"\n📋 Checking: {objective_type}")
+        print(f"\n[CHECK] {objective_type}")
         
         # Check if objective type is supported
         objectives_config = config.get("objectives", {})
         if objective_type not in objectives_config:
-            print(f"   ❌ Not supported")
+            print(f"   [NOT SUPPORTED]")
             notify_error(f"Unsupported objective type: {objective_type}", "parse_objectives")
             continue
         
@@ -149,7 +149,7 @@ def parse_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
         valid_instances = []
         for i, values in enumerate(values_list):
             if not isinstance(values, dict):
-                print(f"   ❌ Instance {i+1}: Invalid format")
+                print(f"   [INVALID] Instance {i+1}: Invalid format")
                 continue
             
             # Merge required and optional values
@@ -163,9 +163,9 @@ def parse_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
             
             if has_all_required:
                 valid_instances.append(merged_values)
-                print(f"   ✅ Instance {i+1}: Valid")
+                print(f"   [VALID] Instance {i+1}")
             else:
-                print(f"   ❌ Instance {i+1}: Missing {', '.join(missing_fields)}")
+                print(f"   [MISSING] Instance {i+1}: {', '.join(missing_fields)}")
                 # Send error notification
                 error_message = f"Missing required fields for {objective_type}[{i}]: {', '.join(missing_fields)}"
                 error_details = {
@@ -181,7 +181,7 @@ def parse_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
                 "objective_type": objective_type,
                 "values_list": valid_instances
             })
-            print(f"   ✅ {objective_type}: {len(valid_instances)} valid instances")
+            print(f"   [OK] {objective_type}: {len(valid_instances)} valid instances")
     
     print("\n" + "="*50)
     print("SUMMARY")
@@ -191,7 +191,7 @@ def parse_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
     if not supported_objectives:
         return False, "No valid objectives found"
     
-    print("✅ All objectives validated successfully!")
+    print("[SUCCESS] All objectives validated successfully!")
     print("="*50)
     
     return True, supported_objectives

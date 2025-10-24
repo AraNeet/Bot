@@ -13,17 +13,17 @@ Key Change: Graceful failure handling - partial success is still success!
 """
 
 from typing import Dict, Any, List, Tuple
-from .helpers import instruction_loader
-from src.notification_module import notify_error
+from src.workflow_module.engine_1 import instruction_loader
+from src.notification_module.error_notifier import notify_error
 
 
 # ============================================================================
-# SINGLE OBJECTIVE PREPARATION
+# SINGLE OBJECTIVE PREPARATION (PRIVATE)
 # ============================================================================
 
-def prepare_single_objective(objective_type: str, 
-                            objective_values: Dict[str, Any],
-                            actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
+def _prepare_single_objective(objective_type: str, 
+                             objective_values: Dict[str, Any],
+                             actions_dir: str = "src/workflow_module/objective_definitions") -> Tuple[bool, Any]:
     """
     Prepare instruction data for a single objective execution.
     
@@ -88,11 +88,11 @@ def prepare_single_objective(objective_type: str,
 
 
 # ============================================================================
-# BATCH PREPARATION (RESILIENT VERSION)
+# BATCH PREPARATION (RESILIENT VERSION - PRIVATE)
 # ============================================================================
 
-def prepare_all_objectives(supported_objectives: List[Dict[str, Any]],
-                           actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Dict[str, Any]]:
+def _prepare_all_objectives(supported_objectives: List[Dict[str, Any]],
+                            actions_dir: str = "src/workflow_module/objective_definitions") -> Tuple[bool, Dict[str, Any]]:
     """
     Prepare all supported objectives from parser results - RESILIENT VERSION.
     
@@ -129,7 +129,7 @@ def prepare_all_objectives(supported_objectives: List[Dict[str, Any]],
     }
     
     Example:
-        success, results = prepare_all_objectives(supported_objectives)
+        success, results = _prepare_all_objectives(supported_objectives)
         
         if success:
             print(f"Prepared: {results['total_prepared']}/{results['total_requested']}")
@@ -192,7 +192,7 @@ def prepare_all_objectives(supported_objectives: List[Dict[str, Any]],
             print(f"\n[PLANNER] Preparing value set {val_index}/{len(values_list)}...")
             
             try:
-                success, prepared_data = prepare_single_objective(
+                success, prepared_data = _prepare_single_objective(
                     objective_type=objective_type,
                     objective_values=objective_values,
                     actions_dir=actions_dir
@@ -218,7 +218,7 @@ def prepare_all_objectives(supported_objectives: List[Dict[str, Any]],
                     # Send notification for this failure
                     notify_error(
                         f"Failed to prepare '{objective_type}' value set {val_index}",
-                        "workflow_planner.prepare_all_objectives",
+                        "workflow_planner._prepare_all_objectives",
                         {
                             "objective_type": objective_type,
                             "value_set_index": val_index,
@@ -242,7 +242,7 @@ def prepare_all_objectives(supported_objectives: List[Dict[str, Any]],
                 # Send notification for exception
                 notify_error(
                     f"Exception preparing '{objective_type}' value set {val_index}",
-                    "workflow_planner.prepare_all_objectives",
+                    "workflow_planner._prepare_all_objectives",
                     {
                         "objective_type": objective_type,
                         "value_set_index": val_index,
@@ -290,12 +290,12 @@ def prepare_all_objectives(supported_objectives: List[Dict[str, Any]],
         print(f"\n[PLANNER SUCCESS] All objectives prepared successfully!")
         return True, results
 
-def print_preparation_summary(prepared_objectives: List[Dict[str, Any]]) -> None:
+def _print_preparation_summary(prepared_objectives: List[Dict[str, Any]]) -> None:
     """
-    Print a detailed summary of prepared objectives.
+    Print a detailed summary of prepared objectives (PRIVATE).
     
     Args:
-        prepared_objectives: List of prepared objectives from prepare_all_objectives()
+        prepared_objectives: List of prepared objectives from _prepare_all_objectives()
     """
     print("\n" + "="*70)
     print("PREPARATION SUMMARY")
@@ -339,7 +339,7 @@ def print_preparation_summary(prepared_objectives: List[Dict[str, Any]]) -> None
 # ============================================================================
 
 def plan_workflow(parser_results: Dict[str, Any],
-                 actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
+                 actions_dir: str = "src/workflow_module/objective_definitions") -> Tuple[bool, Any]:
     """
     Main planning function - validates and prepares all objectives (RESILIENT).
     
@@ -384,7 +384,7 @@ def plan_workflow(parser_results: Dict[str, Any],
     print("="*70)
 
     supported = parser_results["supported_objectives"]
-    success, results = prepare_all_objectives(supported, actions_dir)
+    success, results = _prepare_all_objectives(supported, actions_dir)
     
     if not success:
         # ALL objectives failed to prepare
@@ -395,7 +395,7 @@ def plan_workflow(parser_results: Dict[str, Any],
     
     # Step 3: Print summary of prepared objectives
     if results["prepared_objectives"]:
-        print_preparation_summary(results["prepared_objectives"])
+        _print_preparation_summary(results["prepared_objectives"])
     
     # Step 4: Provide warning if partial failure
     if results["failed_objectives"]:

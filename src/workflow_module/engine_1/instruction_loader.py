@@ -17,11 +17,11 @@ import json
 import os
 from typing import Dict, Any, List, Tuple, Optional
 from pathlib import Path
-from src.notification_module import notify_error
+from src.notification_module.error_notifier import notify_error
 
 
 def load_instruction_file(objective_type: str, 
-                         actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
+                         actions_dir: str = "src/workflow_module/objective_definitions") -> Tuple[bool, Any]:
     """
     Load the instruction definition JSON file for a specific objective type.
     
@@ -37,7 +37,7 @@ def load_instruction_file(objective_type: str,
         
     Example JSON structure:
     {
-        "Instructions": {
+        "definitions": {
             "make_file": [
                 {
                     "action_type": "open_file_menu",
@@ -99,25 +99,25 @@ def extract_instructions_list(instruction_data: Dict[str, Any],
         Tuple of (success: bool, instructions_list or error_message)
     """
 
-    # Validate JSON has "Instructions" key
-    if "Instructions" not in instruction_data:
-        error_msg = "Instruction file missing 'Instructions' key"
+    # Validate JSON has "definitions" key
+    if "definitions" not in instruction_data:
+        error_msg = "Definition file missing 'definitions' key"
         print(f"[LOADER ERROR] {error_msg}")
         return False, error_msg
     
-    instructions_dict = instruction_data["Instructions"]
+    definitions_dict = instruction_data["definitions"]
     
-    # Validate objective type exists in Instructions
-    if objective_type not in instructions_dict:
-        error_msg = f"No instructions found for objective type: {objective_type}"
+    # Validate objective type exists in definitions
+    if objective_type not in definitions_dict:
+        error_msg = f"No definition found for objective type: {objective_type}"
         print(f"[LOADER ERROR] {error_msg}")
         return False, error_msg
     
-    instructions_list = instructions_dict[objective_type]
+    instructions_list = definitions_dict[objective_type]
     
     # Validate it's a list
     if not isinstance(instructions_list, list):
-        error_msg = f"Instructions must be a list, got: {type(instructions_list)}"
+        error_msg = f"Definition must be a list, got: {type(instructions_list)}"
         print(f"[LOADER ERROR] {error_msg}")
         return False, error_msg
     
@@ -259,7 +259,7 @@ def merge_values_into_instructions(instructions_list: List[Dict[str, Any]],
                 template_params[param_key] = all_values[param_key]
                 print(f"[LOADER] Merged '{param_key}' = '{all_values[param_key]}'")
             else:
-                # Parameter remains empty (will be handled by action_executor)
+                # Parameter remains empty (will be handled by unified_executor)
                 print(f"[LOADER] Parameter '{param_key}' left empty (not in values)")
         
         # Update the instruction with filled parameters
@@ -271,7 +271,7 @@ def merge_values_into_instructions(instructions_list: List[Dict[str, Any]],
 
 def load_objective_data(objective_type: str,
                        objective_values: Dict[str, Any],
-                       actions_dir: str = "src/workflow_module/Instructions") -> Tuple[bool, Any]:
+                       actions_dir: str = "src/workflow_module/objective_definitions") -> Tuple[bool, Any]:
     """
     Complete loading process for a single objective execution.
     

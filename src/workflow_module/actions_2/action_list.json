@@ -1,0 +1,63 @@
+{
+  "open_multinetwork_instructions_page": {
+    "module": "src.workflow_module.actions_2.handlers.1_open_multinetwork_instructions_page",
+    "description": "Navigate to the Multinetwork Instructions page",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
+  "enter_advertiser_name": {
+    "module": "src.workflow_module.actions_2.handlers.2_enter_advertiser_name",
+    "description": "Enter advertiser name in the search field",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
+  "enter_deal_number": {
+    "module": "src.workflow_module.actions_2.handlers.3_enter_deal_number",
+    "description": "Enter deal number in the search field",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
+  "enter_agency": {
+    "module": "src.workflow_module.actions_2.handlers.4_enter_agency",
+    "description": "Enter agency name in the search field",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
+  "enter_begin_date": {
+    "module": "src.workflow_module.actions_2.handlers.5_enter_begin_date",
+    "description": "Enter begin date in the date field",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
+  "enter_end_date": {
+    "module": "src.workflow_module.actions_2.handlers.6_enter_end_date",
+    "description": "Enter end date in the date field",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
+  "click_search_button": {
+    "module": "src.workflow_module.actions_2.handlers.7_click_search_button",
+    "description": "Click the search button to submit the search form",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
+  "wait_for_search_results": {
+    "module": "src.workflow_module.actions_2.handlers.8_wait_for_search_results",
+    "description": "Wait for search results to load",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
+  "find_row_by_values": {
+    "module": "src.workflow_module.actions_2.handlers.9_find_row_by_values",
+    "description": "Find a row matching provided parameters and right-click on it",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
+  "select_edit_multinetwork_instruction": {
+    "module": "src.workflow_module.actions_2.handlers.10_select_edit_multinetwork_instruction",
+    "description": "Select 'Edit Multi-network Instruction' from context menu",
+    "has_verifier": true,
+    "has_error_handler": true
+  }
+}
+

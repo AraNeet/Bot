@@ -1,6 +1,6 @@
 {
-    "Instructions": {
-        "edit_copy_instruction": [
+    "definitions": {
+        "edit_copy_definition": [
             {
                 "action_type": "open_multinetwork_instructions_page",
                 "description": "Navigate to Multinetwork Instructions page",
