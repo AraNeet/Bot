@@ -19,8 +19,8 @@ This module is used by verifier_handlers.py to implement specific verification l
 import time
 import cv2
 from typing import Dict, Any, Tuple, Optional, List
-from ..helpers import ocr_utils
-from ..helpers import computer_vision_utils
+from Utils import ocr_utils
+from Utils import computer_vision_utils
 
 
 # ============================================================================

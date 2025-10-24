@@ -33,13 +33,13 @@ IMPORTANT: Functions receive parameters via **kwargs pattern:
 
 from typing import Tuple, Dict, Any, Optional, List
 from . import actions
-from ..helpers import computer_vision_utils
-from ..helpers.ocr_utils import TextScanner, match_text_positions
+from Utils.computer_vision_utils import computer_vision_utils
+from Utils.ocr_utils import TextScanner, match_text_positions
 import time
 import cv2
 import re  # For parsing total rows
 import numpy as np
-import src.workflow_module.verifier_module.verifier as verifier
+import verifier as verifier
 import pyautogui
 from collections import defaultdict
 import time

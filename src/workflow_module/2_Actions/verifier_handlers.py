@@ -8,8 +8,8 @@ Each function handles the verification logic for a specific action type.
 from typing import Dict, Any, Tuple, Optional
 import re
 from . import verifier
-from src.workflow_module.helpers import computer_vision_utils
-from src.workflow_module.helpers.ocr_utils import TextScanner
+from Utils import computer_vision_utils
+from Utils import TextScanner
 
 scanner = TextScanner()
 

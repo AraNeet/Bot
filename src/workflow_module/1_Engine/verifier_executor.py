@@ -33,7 +33,7 @@ Responsibilities:
 from typing import Dict, Any, Tuple, Optional, List
 from . import verifier_handlers
 from src.notification_module import notify_error
-import src.workflow_module.helpers.computer_vision_utils as computer_vision_utils
+import Utils.computer_vision_utils as computer_vision_utils
 import time
 
 

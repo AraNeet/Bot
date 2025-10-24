@@ -13,7 +13,7 @@ Key Change: Graceful failure handling - partial success is still success!
 """
 
 from typing import Dict, Any, List, Tuple
-from .helpers import instruction_loader
+import instruction_loader
 from src.notification_module import notify_error
 
 
