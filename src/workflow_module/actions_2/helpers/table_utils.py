@@ -1,281 +1,359 @@
+#!/usr/bin/env python3
 """
-Table Structure Detection Utilities
+Table Utilities Module
 
-This module provides functions for analyzing table structure from OCR detection results.
-It includes functionality for:
-- Detecting table row boundaries using clustering algorithms
-- Normalizing text box heights for consistent table analysis
-- Counting rows in detected tables
-
-These utilities are essential for navigating and interacting with data tables
-in the automation workflow.
+This module provides utilities for working with tables:
+- Column separator detection and processing
+- Table row searching and matching
+- Results count extraction
 """
 
-from typing import List, Any, Tuple, Optional
+import cv2
 import numpy as np
-from sklearn.cluster import DBSCAN
+import re
+import time
+from typing import Tuple, Dict, Any, Optional, List
+from src.workflow_module.actions_2.helpers import actions
+from src.workflow_module.actions_2.helpers import computer_vision_utils
+from src.workflow_module.actions_2.helpers.ocr_utils import TextScanner, match_text_positions
 
+scanner = TextScanner()
 
-def determine_row_boundaries(ocr_results: List[Any],
-                           min_row_height: int = 15,
-                           clustering_tolerance: int = 5,
-                           normalize_heights: bool = False,
-                           target_height: Optional[int] = None) -> Tuple[List[Tuple[int, int]], int]:
+# ============================================================================
+# RESULTS COUNT EXTRACTION
+# ============================================================================
+
+def get_results_count() -> Optional[int]:
     """
-    Determines row boundaries and counts rows from OCR detection results.
-
-    Analyzes the vertical positions of detected text boxes to identify distinct
-    table rows by clustering boxes with similar y-coordinates.
-
-    Args:
-        ocr_results: List of OCR result objects from detect_text_and_regions()
-        min_row_height: Minimum height in pixels for a valid row
-        clustering_tolerance: Tolerance in pixels for grouping text into same row
-        normalize_heights: Whether to normalize box heights before clustering
-        target_height: Target height for normalization (auto-calculated if None)
-
+    Extract the number of results from the results count region.
+    
     Returns:
-        Tuple of:
-        - List of (top_y, bottom_y) tuples defining each row boundary
-        - Number of detected rows
+        Number of results as integer, or None if failed to extract
     """
-    if not ocr_results:
-        return [], 0
-
-    # Optional height normalization for better clustering
-    if normalize_heights:
-        print("🔧 Applying height normalization for better row detection...")
-        normalize_text_box_heights(ocr_results, target_height)
-
-    # STEP 1: TEXT BOX EXTRACTION
-    # Parse OCR results to extract all detected text boxes and their coordinates
-    all_boxes = []
-    all_texts = []
-
-    for result in ocr_results:
-        # Handle different result formats
-        if hasattr(result, 'rec_boxes') and hasattr(result, 'rec_texts'):
-            # PaddleOCR format with rec_boxes and rec_texts
-            boxes = result.rec_boxes
-            texts = result.rec_texts
-        elif hasattr(result, 'dt_polys') and hasattr(result, 'rec_texts'):
-            # Alternative format - convert dt_polys to boxes
-            boxes = []
-            for poly in result.dt_polys:
-                # Convert polygon to bounding box [x1, y1, x2, y2]
-                x_coords = [point[0] for point in poly]
-                y_coords = [point[1] for point in poly]
-                boxes.append([min(x_coords), min(y_coords), max(x_coords), max(y_coords)])
-            texts = result.rec_texts
+    try:
+        # Take screenshot
+        image = computer_vision_utils.take_screenshot()
+        if image is None:
+            print("[GET_RESULTS] Screenshot failed")
+            return None
+        
+        # Crop results region (x, y, width, height)
+        results_region = computer_vision_utils.crop_image(image, 206, 225, 225, 25)
+        if results_region is None:
+            print("[GET_RESULTS] Failed to crop results region")
+            return None
+        
+        # OCR the region
+        success, data = scanner.get_text_data(results_region)
+        if not success or not data['text']:
+            print("[GET_RESULTS] OCR failed or no text found")
+            return None
+        
+        # Extract number from text
+        # Expected format could be like "30 results" or "Results: 30" etc.
+        all_text = ' '.join(data['text'])
+        print(f"[GET_RESULTS] OCR text from results region: '{all_text}'")
+        
+        # Extract all numbers from the text
+        numbers = re.findall(r'\d+', all_text)
+        
+        if numbers:
+            # Take the first number found
+            result_count = int(numbers[0])
+            print(f"[GET_RESULTS] Extracted result count: {result_count}")
+            return result_count
         else:
-            # Try to extract from dictionary format
-            try:
-                if 'rec_boxes' in result:
-                    boxes = result['rec_boxes']
-                    texts = result['rec_texts']
-                elif 'dt_polys' in result:
-                    boxes = []
-                    for poly in result['dt_polys']:
-                        x_coords = [point[0] for point in poly]
-                        y_coords = [point[1] for point in poly]
-                        boxes.append([min(x_coords), min(y_coords), max(x_coords), max(y_coords)])
-                    texts = result['rec_texts']
-                else:
-                    continue
-            except (TypeError, KeyError):
-                continue
+            print("[GET_RESULTS] No numbers found in results region")
+            return None
+            
+    except Exception as e:
+        print(f"[GET_RESULTS] Error extracting results count: {e}")
+        return None
 
-        all_boxes.extend(boxes)
-        all_texts.extend(texts)
+# ============================================================================
+# COLUMN SEPARATOR DETECTION
+# ============================================================================
 
-    if not all_boxes:
-        print("Warning: No text boxes found in OCR results")
-        return [], 0
-
-    print(f"Found {len(all_boxes)} text boxes for row analysis")
-
-    # STEP 2: VERTICAL POSITION ANALYSIS
-    # Extract center y-coordinates for clustering analysis
-    center_y_coords = []
-    box_info = []
-
-    for i, box in enumerate(all_boxes):
-        if len(box) >= 4:  # Ensure box has at least [x1, y1, x2, y2]
-            x1, y1, x2, y2 = box[:4]
-            # Calculate vertical center point of text box
-            center_y = (y1 + y2) / 2
-            center_y_coords.append([center_y])  # DBSCAN expects 2D array format
-
-            # Store comprehensive box information for later processing
-            box_info.append({
-                'index': i,
-                'box': box,
-                'text': all_texts[i] if i < len(all_texts) else '',
-                'center_y': center_y,
-                'top': y1,      # Top boundary of text box
-                'bottom': y2    # Bottom boundary of text box
-            })
-
-    if not center_y_coords:
-        print("Warning: No valid boxes found for clustering")
-        return [], 0
-
-    # STEP 3: DBSCAN CLUSTERING
-    # Group text boxes with similar vertical positions into row clusters
-    # eps=clustering_tolerance: max distance between boxes in same row (default: 5px)
-    # min_samples=1: allow single text boxes to form clusters (rows)
-    clustering = DBSCAN(eps=clustering_tolerance, min_samples=1)
-    cluster_labels = clustering.fit_predict(center_y_coords)
-
-    # Group boxes by cluster ID (each cluster represents a potential row)
-    rows = {}
-    for i, label in enumerate(cluster_labels):
-        if label not in rows:
-            rows[label] = []
-        rows[label].append(box_info[i])
-
-    print(f"Found {len(rows)} potential rows after clustering")
-
-    # STEP 4: ROW BOUNDARY CALCULATION
-    # For each cluster, calculate the overall row boundaries
-    row_boundaries = []
-
-    for cluster_id, boxes_in_row in rows.items():
-        if cluster_id == -1:  # Skip DBSCAN noise points (outliers)
-            continue
-
-        # Find the overall top and bottom boundaries of this row
-        # row_top = highest point (minimum y-coordinate) of any box in row
-        # row_bottom = lowest point (maximum y-coordinate) of any box in row
-        row_top = min(box['top'] for box in boxes_in_row)
-        row_bottom = max(box['bottom'] for box in boxes_in_row)
-        row_height = row_bottom - row_top
-
-        # STEP 5: QUALITY FILTERING
-        # Filter out rows that are too small (likely OCR noise or artifacts)
-        if row_height >= min_row_height:
-            row_boundaries.append((int(row_top), int(row_bottom)))
-
-            # Debug: Show what text was found in this row
-            texts_in_row = [box['text'] for box in boxes_in_row]
-            print(f"Row {len(row_boundaries)}: y={row_top:.1f}-{row_bottom:.1f} "
-                  f"(height: {row_height:.1f}px) - {len(boxes_in_row)} boxes")
-            print(f"  Sample texts: {texts_in_row[:3]}...")
-
-    # FINAL STEP: Sort rows by vertical position (top to bottom of table)
-    row_boundaries.sort(key=lambda x: x[0])
-
-    num_rows = len(row_boundaries)
-    print(f"\nFinal result: {num_rows} valid rows detected")
-
-    return row_boundaries, num_rows
-
-
-def normalize_text_box_heights(ocr_results: List[Any],
-                              target_height: Optional[int] = None,
-                              height_percentile: float = 50.0) -> List[Any]:
+def detect_column_separators(source_img, template_img, match_threshold=0.9, mask_size_factor=0.9, debug=False):
     """
-    Normalizes bounding box heights to be consistent across all detected text.
-
-    Since all text in tables typically has the same font size, OCR detection variations
-    can create inconsistent box heights. This function standardizes them for better
-    row detection and table structure analysis.
-
+    Detects column separator positions by template matching.
+    
+    Process:
+    1. Creates match heatmap using TM_CCOEFF_NORMED
+    2. Finds all peaks above threshold iteratively
+    3. Masks nearby maxima to get unique matches only
+    
     Args:
-        ocr_results: Original OCR results with varying box heights
-        target_height: Specific height to use (if None, calculates from data)
-        height_percentile: Percentile to use for automatic height calculation (default: 50th percentile)
-
+        source_img: Source image to search
+        template_img: Template image of column separator
+        match_threshold: Minimum confidence threshold (default: 0.9)
+        mask_size_factor: Factor for masking nearby matches (default: 0.9)
+        debug: Enable debug output (default: False)
+    
     Returns:
-        Modified OCR results with normalized box heights
+        List of ((x, y), confidence) tuples
     """
-    if not ocr_results:
-        return ocr_results
-
-    print("Normalizing text box heights for consistent table detection...")
-
-    # Collect all box heights to calculate target height
-    all_heights = []
-    all_boxes_info = []
-
-    for result_idx, result in enumerate(ocr_results):
-        # Extract boxes and texts
-        if hasattr(result, 'rec_boxes') and hasattr(result, 'rec_texts'):
-            boxes = result.rec_boxes
-            texts = result.rec_texts
-        elif hasattr(result, 'dt_polys') and hasattr(result, 'rec_texts'):
-            # Convert polygons to boxes first
-            boxes = []
-            for poly in result.dt_polys:
-                x_coords = [point[0] for point in poly]
-                y_coords = [point[1] for point in poly]
-                boxes.append([min(x_coords), min(y_coords), max(x_coords), max(y_coords)])
-            texts = result.rec_texts
+    template_height, template_width = template_img.shape[:2]
+    
+    # Create match heatmap
+    match_heatmap = cv2.matchTemplate(source_img, template_img, cv2.TM_CCOEFF_NORMED)
+    
+    column_separator_positions = []
+    
+    while True:
+        # Find best remaining match
+        min_val, max_confidence, min_loc, best_match_position = cv2.minMaxLoc(match_heatmap)
+        
+        # Stop if below threshold
+        if max_confidence < match_threshold:
+            break
+        
+        # Record this separator
+        column_separator_positions.append((best_match_position, max_confidence))
+        
+        # Mask nearby area to prevent duplicate detections
+        mask_height = int(template_height * mask_size_factor)
+        mask_width = int(template_width * mask_size_factor)
+        
+        y_start = max(0, best_match_position[1] - mask_height // 2)
+        y_end = min(match_heatmap.shape[0], best_match_position[1] + mask_height // 2)
+        x_start = max(0, best_match_position[0] - mask_width // 2)
+        x_end = min(match_heatmap.shape[1], best_match_position[0] + mask_width // 2)
+        
+        match_heatmap[y_start:y_end, x_start:x_end] = 0
+    
+    if debug:
+        if column_separator_positions:
+            print(f"[DETECT_SEPARATORS] Found {len(column_separator_positions)} separators (threshold: {match_threshold}):")
+            for i, (position, confidence) in enumerate(column_separator_positions, 1):
+                print(f"[DETECT_SEPARATORS] Separator {i}: x={position[0]}, y={position[1]}, confidence={confidence:.3f}")
         else:
-            continue
+            print(f"[DETECT_SEPARATORS] No separators found above threshold {match_threshold}")
+    
+    return column_separator_positions
 
-        for box_idx, box in enumerate(boxes):
-            if len(box) >= 4:
-                x1, y1, x2, y2 = box[:4]
-                height = y2 - y1
-                all_heights.append(height)
-                all_boxes_info.append({
-                    'result_idx': result_idx,
-                    'box_idx': box_idx,
-                    'original_box': box,
-                    'height': height,
-                    'center_x': (x1 + x2) / 2,
-                    'center_y': (y1 + y2) / 2
-                })
+def create_separated_columns_image(source_img, column_separator_positions, template_width, 
+                                   padding_width=10, debug=False):
+    """
+    Creates separated columns image with filtering.
+    
+    Processing steps:
+    1. Calculate column boundaries from separator positions
+    2. Crop all columns
+    3. Filter out first column and last 3 columns
+    4. Add white padding between columns
+    5. Combine into single image
+    
+    Args:
+        source_img: Source image to process
+        column_separator_positions: List of ((x, y), confidence) tuples
+        template_width: Width of separator template
+        padding_width: Width of padding between columns (default: 10)
+        debug: Enable debug output (default: False)
+    
+    Returns:
+        Combined image with separated columns, or None if processing fails
+    """
+    if not column_separator_positions:
+        print("[CREATE_COLUMNS] No column separators found")
+        return None
+    
+    # Calculate column boundaries
+    print(f"[CREATE_COLUMNS] Processing {len(column_separator_positions)} separators")
+    
+    column_split_positions = []
+    for position, score in column_separator_positions:
+        x_position = position[0]
+        split_center = x_position + (template_width // 2)
+        column_split_positions.append(split_center)
+    
+    unique_split_positions = sorted(set(column_split_positions))
+    image_width = source_img.shape[1]
+    all_column_boundaries = [0] + unique_split_positions + [image_width]
+    
+    if debug:
+        print(f"[CREATE_COLUMNS] Column boundaries: {all_column_boundaries}")
+    
+    # Crop all columns
+    print(f"[CREATE_COLUMNS] Cropping {len(all_column_boundaries)-1} columns")
+    
+    all_columns = []
+    for column_index in range(len(all_column_boundaries) - 1):
+        left_edge = all_column_boundaries[column_index]
+        right_edge = all_column_boundaries[column_index + 1]
+        single_column = source_img[:, left_edge:right_edge]
+        all_columns.append(single_column)
+        
+        if debug:
+            column_width = right_edge - left_edge
+            print(f"[CREATE_COLUMNS] Column {column_index+1}: x={left_edge} to x={right_edge} (width={column_width}px)")
+    
+    if not all_columns:
+        print("[CREATE_COLUMNS] No columns extracted")
+        return None
+    
+    # Filter columns (remove first and last 3 columns)
+    total_columns = len(all_columns)
+    print(f"[CREATE_COLUMNS] Filtering columns (total: {total_columns})")
+    
+    filtered_columns = all_columns
+    
+    # Remove last 3 columns
+    if len(filtered_columns) >= 3:
+        filtered_columns = filtered_columns[:-3]
+        print(f"[CREATE_COLUMNS] Removed last 3 columns (totals/empty space)")
+    else:
+        print(f"[CREATE_COLUMNS] Warning: Not enough columns to remove last 3")
+    
+    if not filtered_columns:
+        print("[CREATE_COLUMNS] No columns remaining after filtering")
+        return None
+    
+    print(f"[CREATE_COLUMNS] Keeping {len(filtered_columns)} columns")
+    
+    # Create white padding
+    image_height = source_img.shape[0]
+    white_padding = np.full((image_height, padding_width, 3), 255, dtype=np.uint8)
+    
+    # Combine columns with padding
+    final_parts = [filtered_columns[0]]
+    for next_column in filtered_columns[1:]:
+        final_parts.append(white_padding)
+        final_parts.append(next_column)
+    
+    separated_columns_image = np.hstack(final_parts)
+    
+    final_width = separated_columns_image.shape[1]
+    print(f"[CREATE_COLUMNS] Created separated columns image: {final_width}px wide, {len(filtered_columns)} columns")
+    
+    if debug:
+        cv2.imwrite('separated_columns.png', separated_columns_image)
+        print("[CREATE_COLUMNS] Saved debug image: 'separated_columns.png'")
+    
+    return separated_columns_image
 
-    if not all_heights:
-        print("No text boxes found for height normalization")
-        return ocr_results
+# ============================================================================
+# TABLE ROW SEARCHING
+# ============================================================================
 
-    # Calculate target height
-    if target_height is None:
-        target_height = int(np.percentile(all_heights, height_percentile))
+def search_current_view(target_texts: List[str], deal_number: str, crop_x: int, crop_y: int, 
+                       crop_width: int, crop_height: int, template) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """
+    Search for target row in the current visible table view.
+    
+    Args:
+        target_texts: List of texts to search for [deal_number, advertiser_name, begin_date, end_date]
+        deal_number: Deal number to find
+        crop_x, crop_y: Crop coordinates
+        crop_width, crop_height: Crop dimensions
+        template: Column separator template
+        
+    Returns:
+        Tuple of (found: bool, message: str, match_info: Optional[Dict])
+        match_info contains: {
+            'click_x': int, 'click_y': int, 'button': str,
+            'matched_count': int, 'matched_texts': List[str],
+            'all_texts': List[str]
+        }
+    """
+    try:
+        # Select a row within the separator region
+        select_row_x = crop_x + crop_width // 2
+        select_row_y = crop_y + 100
+        
+        print(f"[SEARCH_VIEW] Clicking row at ({select_row_x}, {select_row_y}) to select for separator detection")
+        success, msg = actions.click_at_position(select_row_x, select_row_y, clicks=1, button='left')
+        if success:
+            time.sleep(0.3)  # Wait for row selection
+        
+        # Take screenshot after row selection
+        image = computer_vision_utils.take_screenshot()
+        if image is None:
+            return False, "Screenshot failed", None
+        
+        # Crop and process
+        cropped_img = computer_vision_utils.crop_image(image, crop_x, crop_y, crop_width, crop_height)
+        if cropped_img is None:
+            return False, "Crop failed", None
+        
+        matches = detect_column_separators(cropped_img, template)
+        if not matches:
+            return False, "No separators found", None
+        
+        separated_columns_img = create_separated_columns_image(cropped_img, matches, template.shape[1])
+        if separated_columns_img is None:
+            return False, "Column separation failed", None
+        
+        # OCR
+        success, data = scanner.get_text_data(separated_columns_img)
+        if not success or not data['text']:
+            return False, "OCR failed or no text", None
+        
+        print(f"[SEARCH_VIEW] OCR found {len(data['text'])} texts")
+        
+        # Match texts
+        positions = match_text_positions(target_texts, data)
+        if not positions:
+            return False, "Targets not found in view", None
+        
+        # Check if deal_number exists
+        if not (positions and deal_number and any(deal_number.lower() in text.lower() for text in data['text'] if text)):
+            return False, "Deal number not found in view", None
+        
+        # Count how many target texts were matched
+        matched_texts = []
+        for target in target_texts:
+            if target and any(target.lower() in text.lower() for text in data['text'] if text):
+                matched_texts.append(target)
+        
+        matched_count = len(matched_texts)
+        print(f"[SEARCH_VIEW] Matched {matched_count}/{len(target_texts)} target texts: {matched_texts}")
+        
+        # Found the row - now find RowExpander
+        x, y, w, h = positions[0]
+        screen_x = x + crop_x
+        screen_y = y + crop_y
+        
+        # Load RowExpander template
+        row_expander_template = computer_vision_utils.load_image("src/workflow_module/actions_2/assets/RowExpander.png")
+        if row_expander_template is None:
+            return False, "Failed to load RowExpander template", None
+        
+        # Define search region along X axis of deal number
+        search_region_x = crop_x
+        search_region_y = screen_y - h
+        search_region_width = image.shape[1] - crop_x
+        search_region_height = h * 3
+        search_region = (search_region_x, search_region_y, search_region_width, search_region_height)
+        
+        # Search for RowExpander
+        found, confidence, expander_position = computer_vision_utils.match_template_in_region(
+            image, row_expander_template, search_region, confidence=0.7
+        )
+        
+        match_info = {
+            'matched_count': matched_count,
+            'matched_texts': matched_texts,
+            'all_texts': data['text']
+        }
+        
+        if found and expander_position:
+            click_x, click_y = expander_position
+            print(f"[SEARCH_VIEW] Found RowExpander at ({click_x}, {click_y}) with confidence {confidence:.2f}")
+            match_info['click_x'] = click_x
+            match_info['click_y'] = click_y
+            match_info['button'] = 'left'
+            return True, f"Row found with RowExpander at ({click_x}, {click_y})", match_info
+        else:
+            # Fallback to deal_number position
+            click_x = screen_x + w // 2 - 20
+            click_y = screen_y + h // 2
+            print(f"[SEARCH_VIEW] RowExpander not found, using deal_number position ({click_x}, {click_y})")
+            match_info['click_x'] = click_x
+            match_info['click_y'] = click_y
+            match_info['button'] = 'right'
+            return True, f"Row found at deal_number position ({click_x}, {click_y})", match_info
+        
+    except Exception as e:
+        return False, f"Error searching view: {e}", None
 
-    print(f"Original height range: {min(all_heights):.1f} - {max(all_heights):.1f} pixels")
-    print(f"Target normalized height: {target_height} pixels")
-    print(f"Normalizing {len(all_boxes_info)} text boxes...")
-
-    # Modify OCR results in-place to normalize heights
-    for result_idx, result in enumerate(ocr_results):
-        if hasattr(result, 'rec_boxes') and hasattr(result, 'rec_texts'):
-            # PaddleOCR format - modify rec_boxes in place
-            for box_idx, box in enumerate(result.rec_boxes):
-                if len(box) >= 4:
-                    x1, y1, x2, y2 = box[:4]
-
-                    # Calculate new y coordinates centered on original center_y
-                    center_y = (y1 + y2) / 2
-                    half_target = target_height / 2
-
-                    new_y1 = center_y - half_target
-                    new_y2 = center_y + half_target
-
-                    # Modify the box in place
-                    box[1] = new_y1  # Update y1
-                    box[3] = new_y2  # Update y2
-
-        elif hasattr(result, 'dt_polys'):
-            # Polygon format - modify dt_polys in place
-            for box_idx, poly in enumerate(result.dt_polys):
-                x_coords = [point[0] for point in poly]
-                y_coords = [point[1] for point in poly]
-
-                # Get bounding box
-                x1, y1, x2, y2 = min(x_coords), min(y_coords), max(x_coords), max(y_coords)
-
-                # Normalize height
-                center_y = (y1 + y2) / 2
-                half_target = target_height / 2
-                new_y1 = center_y - half_target
-                new_y2 = center_y + half_target
-
-                # Update polygon points in place
-                result.dt_polys[box_idx] = [[x1, new_y1], [x2, new_y1], [x2, new_y2], [x1, new_y2]]
-
-    print(f"✅ Height normalization completed")
-    return ocr_results

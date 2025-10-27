@@ -71,13 +71,14 @@ def main():
     
     print("="*70 + "\n")
 
+    #  Step 1: Initialize system
     # success = initialize_system()
     # if not success:
     #     print("Failed startup sequence.")
     #     exit(1)
 
     # Parser instruction file. and return supported
-    success, results = process_objectives_file("objective_file.json")
+    success, results = process_objectives_file("objectives_file.json")
     if not success:
         print(f"Parser Error: {results}")
         exit(1)
