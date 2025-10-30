@@ -3,14 +3,6 @@
         "edit_copy_definition": {
             "description": "Edit Copy Definition - Automated workflow objective",
             "required_fields": {
-                "order_number": {
-                    "type": "number",
-                    "description": "Order Number"
-                },
-                "deal_number": {
-                    "type": "number",
-                    "description": "Deal Number"
-                },
                 "advertiser_name": {
                     "type": "string",
                     "description": "Name of the advertiser"
@@ -18,6 +10,10 @@
                 "agency_name": {
                     "type": "string",
                     "description": "Name of the agency"
+                },
+                "deal_number": {
+                    "type": "number",
+                    "description": "Deal Number"
                 },
                 "begin_date": {
                     "type": "string",
@@ -32,6 +28,10 @@
                 "isci_1": {
                     "type": "string",
                     "description": "Isci 1 code"
+                },
+                "order_number": {
+                    "type": "number",
+                    "description": "Order Number"
                 }
             },
             "optional_fields": {

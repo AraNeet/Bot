@@ -79,7 +79,7 @@ def action(deal_number: str = "", advertiser_name: str = "", begin_date: str = "
         # Search initial view (scroll_attempt = 0)
         print(f"\n[ACTION_HANDLER] ========== Searching initial view (scroll 0) ==========")
         found, msg, match_info = table_utils.search_current_view(target_texts, deal_number, crop_x, crop_y, 
-                                                                  crop_width, crop_height, template)
+                                                                  crop_width, crop_height, template, select_row=False)
         if found and match_info:
             first_match_info = match_info
             first_match_scroll = 0
@@ -124,7 +124,7 @@ def action(deal_number: str = "", advertiser_name: str = "", begin_date: str = "
             
             # Search current view
             found, msg, match_info = table_utils.search_current_view(target_texts, deal_number, crop_x, crop_y,
-                                                                     crop_width, crop_height, template)
+                                                                     crop_width, crop_height, template, select_row=True)
             
             if found and match_info:
                 print(f"[ACTION_HANDLER] ✓ Match found at scroll {scroll_attempt}! Matched {match_info['matched_count']}/{len(target_texts)} targets")

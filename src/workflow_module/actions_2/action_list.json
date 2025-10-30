@@ -11,12 +11,6 @@
     "has_verifier": true,
     "has_error_handler": true
   },
-  "enter_deal_number": {
-    "module": "src.workflow_module.actions_2.handlers.3_enter_deal_number",
-    "description": "Enter deal number in the search field",
-    "has_verifier": true,
-    "has_error_handler": true
-  },
   "enter_agency": {
     "module": "src.workflow_module.actions_2.handlers.4_enter_agency",
     "description": "Enter agency name in the search field",
@@ -53,9 +47,9 @@
     "has_verifier": true,
     "has_error_handler": true
   },
-  "select_edit_multinetwork_instruction": {
-    "module": "src.workflow_module.actions_2.handlers.10_select_edit_multinetwork_instruction",
-    "description": "Select 'Edit Multi-network Instruction' from context menu",
+  "open_multinetwork_by_instructions": {
+    "module": "src.workflow_module.actions_2.handlers.10_open_multinetwork_by_instructions",
+    "description": "Find and double-click on a row in the second table (within expanded row) by begin_date",
     "has_verifier": true,
     "has_error_handler": true
   }

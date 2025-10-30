@@ -7,20 +7,6 @@
                 "parameters": {}
             },            
             {
-                "action_type": "enter_order_number",
-                "description": "Enter order number in search field",
-                "parameters": {
-                    "order_number": ""
-                }
-            },
-            {
-                "action_type":"enter_deal_number",
-                "description":"Enter deal number in search field",
-                "parameters": {
-                    "deal_number": ""
-                }
-            },
-            {
                 "action_type": "enter_advertiser_name",
                 "description": "Enter advertiser name in search field",
                 "parameters": {
@@ -32,20 +18,6 @@
                 "description": "Enter agency name into the field",
                 "parameters": {
                     "agency_name": ""
-                }
-            },
-            {
-                "action_type": "enter_begin_date",
-                "description": "Enter begin date from input",
-                "parameters": {
-                    "begin_date": ""
-                }
-            },
-            {
-                "action_type": "enter_end_date",
-                "description": "Enter end date from input",
-                "parameters": {
-                    "end_date": ""
                 }
             },
             {
@@ -71,22 +43,10 @@
                 }
             },
             {
-                "action_type": "right_click_row",
-                "description": "Right click on the found row",
+                "action_type": "open_multinetwork_by_instructions",
+                "description": "Find and double-click on a row in the second table by begin_date",
                 "parameters": {
-                    "order_number": ""
-                }
-            },
-            {
-                "action_type": "select_edit_multinetwork_instruction",
-                "description": "Select 'Edit Multi-network Instruction' from context menu",
-                "parameters": {}
-            },
-            {
-                "action_type": "is_edit_page_loaded_and_open",
-                "description": "Wait for edit page to finish loading/Check if the page is open.",
-                "parameters": {
-                    "timeout": 5
+                    "begin_date": ""
                 }
             },
             {
