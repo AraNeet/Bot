@@ -21,6 +21,20 @@
                 }
             },
             {
+                "action_type": "enter_begin_date",
+                "description": "Enter begin date into the field",
+                "parameters": {
+                    "begin_date": ""
+                }
+            },
+            {
+                "action_type": "enter_end_date",
+                "description": "Enter end date into the field",
+                "parameters": {
+                    "end_date": ""
+                }
+            },
+            {
                 "action_type": "click_search_button",
                 "description": "Click the search button to submit",
                 "parameters": {}

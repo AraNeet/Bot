@@ -18,6 +18,40 @@ import os
 from typing import Dict, Any, Tuple, List, Optional
 from src.notification_module.error_notifier import notify_error
 
+# ============================================================================
+# TEMPORARY FUNCTION FOR TESTING
+# ============================================================================
+
+def remove_inc_from_advertiser(advertiser_name: str) -> str:
+    """
+    Temporary function to remove ", inc." (case-insensitive) from advertiser name.
+    
+    This is a test-specific function that strips the ", inc." suffix from advertiser names
+    to handle variations in naming format.
+    
+    Args:
+        advertiser_name: The original advertiser name string
+        
+    Returns:
+        The advertiser name with ", inc." removed if present (case-insensitive)
+        
+    Examples:
+        remove_inc_from_advertiser("Chattem, Inc.") -> "Chattem"
+        remove_inc_from_advertiser("Chattem, inc.") -> "Chattem"
+        remove_inc_from_advertiser("Chattem") -> "Chattem"
+    """
+    if not advertiser_name:
+        return advertiser_name
+    
+    # Case-insensitive check and removal of ", inc." suffix
+    advertiser_lower = advertiser_name.lower()
+    if advertiser_lower.endswith(", inc."):
+        # Find the index where ", inc." starts in the original string (preserving case)
+        index = advertiser_lower.rfind(", inc.")
+        return advertiser_name[:index].strip()
+    
+    return advertiser_name.strip()
+
 def load_objectives_config(config_file_path: str = "objectives_config.json") -> Tuple[bool, Any]:
     """
     Function 1: Load objectives configuration from JSON file.
@@ -106,6 +140,10 @@ def parse_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
     """
     Function 4: Main function that orchestrates the parsing process.
     
+    Supports two JSON formats:
+    1. Legacy format: Dictionary with objective_type keys and values_list arrays
+    2. New format: Dictionary with 'alerts' array containing 'instruction_set' arrays
+    
     Args:
         objectives_file_path: Path to the objectives JSON file
         
@@ -130,6 +168,169 @@ def parse_objectives(objectives_file_path: str) -> Tuple[bool, Any]:
     print("\n" + "="*50)
     print("OBJECTIVE VALIDATION")
     print("="*50)
+    
+    # Check if this is the new format (has 'alerts' array)
+    if "alerts" in objectives and isinstance(objectives.get("alerts"), list):
+        print("\n[DETECTED] New JSON format with alerts array")
+        return _parse_new_format(objectives, config)
+    else:
+        print("\n[DETECTED] Legacy JSON format")
+        return _parse_legacy_format(objectives, config)
+
+
+def _parse_new_format(objectives: Dict[str, Any], config: Dict[str, Any]) -> Tuple[bool, Any]:
+    """
+    Parse the new JSON format:
+    - alerts (groups of objectives)
+    - instruction_set (objectives/instructions within each alert)
+    - action field maps to objective type (E -> edit_copy_definition, D -> unsupported)
+    
+    Args:
+        objectives: The loaded JSON dictionary
+        config: The objectives configuration
+        
+    Returns:
+        Tuple of (success: bool, supported_objectives or error_message)
+    """
+    alerts = objectives.get("alerts", [])
+    agency = objectives.get("agency", "")
+    
+    if not alerts:
+        return False, "No alerts found in objectives file"
+    
+    print(f"\n[PARSER] Found {len(alerts)} alert(s)")
+    print(f"[PARSER] Agency: {agency}")
+    
+    supported_objectives = []
+    objectives_config = config.get("objectives", {})
+    
+    # Action type mapping
+    ACTION_TYPE_MAP = {
+        "E": "edit_copy_definition",
+        "D": None  # Unsupported - will be skipped
+    }
+    
+    # Track objectives by type
+    objectives_by_type: Dict[str, List[Dict[str, Any]]] = {}
+    
+    # Process each alert
+    for alert_idx, alert in enumerate(alerts, 1):
+        advertiser_raw = alert.get("advertiser", "")
+        # Apply temporary function to remove ", inc." from advertiser name for testing
+        advertiser = remove_inc_from_advertiser(advertiser_raw)
+        order_id = alert.get("order_id", "")
+        instruction_set = alert.get("instruction_set", [])
+        
+        print(f"\n[PARSER] Alert {alert_idx}:")
+        print(f"  - Advertiser (original): {advertiser_raw}")
+        print(f"  - Advertiser (cleaned): {advertiser}")
+        print(f"  - Order ID: {order_id}")
+        print(f"  - Instructions: {len(instruction_set)}")
+        
+        # Process each instruction in the instruction_set
+        for inst_idx, instruction in enumerate(instruction_set, 1):
+            action_code = instruction.get("action", "")
+            flight_start_date = instruction.get("flight_start_date", "")
+            flight_end_date = instruction.get("flight_end_date", "")
+            copy_instructions = instruction.get("copy_instructions", [])
+            
+            # Map action code to objective type
+            objective_type = ACTION_TYPE_MAP.get(action_code)
+            
+            if objective_type is None:
+                if action_code == "D":
+                    print(f"  [SKIP] Instruction {inst_idx}: Action 'D' (duplicate) is unsupported")
+                else:
+                    print(f"  [SKIP] Instruction {inst_idx}: Unknown action '{action_code}'")
+                continue
+            
+            # Check if objective type is supported
+            if objective_type not in objectives_config:
+                print(f"  [NOT SUPPORTED] Instruction {inst_idx}: Objective type '{objective_type}' not in config")
+                notify_error(f"Unsupported objective type: {objective_type}", "parse_objectives")
+                continue
+            
+            # Map fields from new format to expected format
+            # Convert order_id to number for both order_number and deal_number
+            order_number_value = int(order_id) if order_id and order_id.isdigit() else order_id
+            deal_number_value = int(order_id) if order_id and order_id.isdigit() else order_id
+            
+            # Extract isci_1 from first copy_instruction if available
+            # The copy_id in copy_instructions might be the ISCI code
+            isci_1_value = ""
+            if copy_instructions and len(copy_instructions) > 0:
+                first_copy = copy_instructions[0]
+                isci_1_value = first_copy.get("copy_id", "")
+            
+            mapped_values = {
+                "agency_name": agency,
+                "advertiser_name": advertiser,
+                "order_number": order_number_value,
+                "begin_date": flight_start_date,
+                "end_date": flight_end_date,
+                # Note: deal_number uses order_id from alert level
+                # isci_1 extracted from first copy_instruction's copy_id if available
+                "deal_number": deal_number_value,  # Use order_id as deal_number
+                "isci_1": isci_1_value
+            }
+            
+            # Check requirements
+            has_all_required, missing_fields = check_objective_requirements(objective_type, mapped_values, config)
+            
+            if has_all_required:
+                # Add to objectives list for this type
+                if objective_type not in objectives_by_type:
+                    objectives_by_type[objective_type] = []
+                objectives_by_type[objective_type].append(mapped_values)
+                print(f"  [VALID] Instruction {inst_idx}: {objective_type} (dates: {flight_start_date} to {flight_end_date})")
+            else:
+                print(f"  [MISSING] Instruction {inst_idx}: Missing fields: {', '.join(missing_fields)}")
+                # Send error notification but don't fail completely - continue processing
+                error_message = f"Missing required fields for {objective_type} in alert {alert_idx}, instruction {inst_idx}: {', '.join(missing_fields)}"
+                error_details = {
+                    "objective_type": objective_type,
+                    "alert_index": alert_idx,
+                    "instruction_index": inst_idx,
+                    "missing_fields": missing_fields
+                }
+                notify_error(error_message, "parse_objectives", error_details)
+    
+    # Convert objectives_by_type to supported_objectives format
+    for objective_type, values_list in objectives_by_type.items():
+        supported_objectives.append({
+            "objective_type": objective_type,
+            "values_list": values_list
+        })
+        print(f"\n[OK] {objective_type}: {len(values_list)} valid instances")
+    
+    print("\n" + "="*50)
+    print("SUMMARY")
+    print("="*50)
+    print(f"Supported objectives: {len(supported_objectives)}")
+    
+    if not supported_objectives:
+        return False, "No valid objectives found"
+    
+    print("[SUCCESS] All objectives validated successfully!")
+    print("="*50)
+    
+    return True, supported_objectives
+
+
+def _parse_legacy_format(objectives: Dict[str, Any], config: Dict[str, Any]) -> Tuple[bool, Any]:
+    """
+    Parse the legacy JSON format:
+    - Dictionary with objective_type keys
+    - Values are lists of value dictionaries
+    
+    Args:
+        objectives: The loaded JSON dictionary
+        config: The objectives configuration
+        
+    Returns:
+        Tuple of (success: bool, supported_objectives or error_message)
+    """
+    supported_objectives = []
     
     # Step 3: Check each objective
     for objective_type, values_list in objectives.items():

@@ -78,7 +78,7 @@ def main():
     #     exit(1)
 
     # Parser instruction file. and return supported
-    success, results = process_objectives_file("objectives_file.json")
+    success, results = process_objectives_file("APR2125_DISH CUA_TrafficAlerts_plan.json")
     if not success:
         print(f"Parser Error: {results}")
         exit(1)

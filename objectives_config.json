@@ -11,10 +11,6 @@
                     "type": "string",
                     "description": "Name of the agency"
                 },
-                "deal_number": {
-                    "type": "number",
-                    "description": "Deal Number"
-                },
                 "begin_date": {
                     "type": "string",
                     "description": "Begin Date for the instruction",
@@ -24,6 +20,10 @@
                     "type": "string",
                     "description": "End Date for the instruction",
                     "format": "MM/DD/YYYY"
+                },
+                "deal_number": {
+                    "type": "number",
+                    "description": "Deal Number"
                 },
                 "isci_1": {
                     "type": "string",

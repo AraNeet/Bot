@@ -71,6 +71,9 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """Verify that the search button was clicked successfully."""
     print("[VERIFIER_HANDLER] Verifying search button clicked...")
     
+    # Wait 2 seconds before verification
+    time.sleep(2.0)
+    
     try:
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:

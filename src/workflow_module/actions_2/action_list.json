@@ -1,4 +1,10 @@
 {
+  "open_multinetwork_instructions_page": {
+    "module": "src.workflow_module.actions_2.handlers.open_multinetwork_instructions_page.handler",
+    "description": "Navigate to the Multinetwork Instructions page",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
   "enter_advertiser_name": {
     "module": "src.workflow_module.actions_2.handlers.enter_advertiser_name.handler",
     "description": "Enter advertiser name in the search field",
@@ -51,30 +57,6 @@
     "module": "src.workflow_module.actions_2.handlers.open_multinetwork_by_instructions.handler",
     "description": "Find and double-click on a row in the second table (within expanded row) by begin_date",
     "has_verifier": true,
-    "has_error_handler": true
-  },
-  "open_multinetwork_instructions_page": {
-    "module": "src.workflow_module.actions_2.handlers.open_multinetwork_instructions_page.handler",
-    "description": "Navigate to Multinetwork Instructions page",
-    "has_verifier": true,
-    "has_error_handler": true
-  },
-  "enter_isci_1": {
-    "module": "src.workflow_module.actions_2.handlers.enter_isci_1.handler",
-    "description": "Enter ISCI 1 value",
-    "has_verifier": true,
-    "has_error_handler": true
-  },
-  "save_instruction": {
-    "module": "src.workflow_module.actions_2.handlers.save_instruction.handler",
-    "description": "Save the edited instruction",
-    "has_verifier": true,
-    "has_error_handler": true
-  },
-  "verify_save_successful": {
-    "module": "src.workflow_module.actions_2.handlers.verify_save_successful.handler",
-    "description": "Verify the instruction was saved successfully",
-    "has_verifier": false,
     "has_error_handler": true
   }
 }

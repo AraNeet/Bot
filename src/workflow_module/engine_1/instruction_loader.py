@@ -29,7 +29,7 @@ def load_instruction_file(objective_type: str,
     for the given objective type.
     
     Args:
-        objective_type: The type of objective (e.g., "make_file", "edit_copy_instruction")
+        objective_type: The type of objective (e.g., "edit_copy_definition")
         actions_dir: Directory containing instruction definition JSON files
         
     Returns:
@@ -128,9 +128,13 @@ def extract_and_organize_values(objective_values: Dict[str, Any]) -> Tuple[bool,
     """
     Extract and organize required and optional values from objective data.
     
-    This function handles both new format (with required/optional keys) and
-    legacy format (flat structure). It returns both value sets for the
-    workflow to use.
+    This function handles three formats:
+    1. New format with required/optional keys (old parser format)
+    2. Flat structure from new JSON parser (alerts format - all values as required)
+    3. Legacy format (flat structure from old objectives files)
+    
+    The parser now outputs flat structures from the new alerts-based JSON format,
+    where all mapped values are treated as required fields.
     
     Args:
         objective_values: Single value set from objectives file
@@ -138,7 +142,18 @@ def extract_and_organize_values(objective_values: Dict[str, Any]) -> Tuple[bool,
     Returns:
         Tuple of (success: bool, required_values, optional_values)
         
-    Example input (new format):
+    Example input (new parser format - flat from alerts):
+    {
+        "agency_name": "Cadent Network",
+        "advertiser_name": "Chattem, Inc.",
+        "order_number": 230084,
+        "deal_number": 230084,
+        "begin_date": "04/07/2025",
+        "end_date": "04/09/2025",
+        "isci_1": "SAAGTO50H"
+    }
+    
+    Example input (old parser format with required/optional keys):
     {
         "required": {
             "advertiser_name": "Acme Corp",
@@ -157,7 +172,14 @@ def extract_and_organize_values(objective_values: Dict[str, Any]) -> Tuple[bool,
         "text": "Content"
     }
     
-    Returns (new format):
+    Returns (new parser format - flat):
+    (
+        True,
+        {"agency_name": "Cadent Network", "advertiser_name": "Chattem, Inc.", ...},
+        {}
+    )
+    
+    Returns (old parser format):
     (
         True,
         {"advertiser_name": "Acme Corp", "agency_name": "MediaWorks", "order_number": "ORD-001"},
@@ -191,18 +213,21 @@ def extract_and_organize_values(objective_values: Dict[str, Any]) -> Tuple[bool,
         
         return True, required_values, optional_values
     
-    # Check if we have the legacy format (flat structure)
+    # Check if we have the flat format (new parser output or legacy format)
     elif "required" not in objective_values and "optional" not in objective_values:
-        print("[LOADER] Detected legacy format (flat structure)")
-        # Treat all values as required in legacy format
+        print("[LOADER] Detected flat format (new parser format or legacy)")
+        # Treat all values as required in flat format
+        # This handles both:
+        # - New parser output from alerts JSON (flat mapped_values)
+        # - Legacy objectives file format (flat structure)
         required_values = objective_values.copy()
         optional_values = {}
         
         if not required_values:
-            print("[LOADER ERROR] No values found in legacy format")
+            print("[LOADER ERROR] No values found in flat format")
             return False, {}, {}
         
-        print(f"[LOADER] Found {len(required_values)} values (legacy format)")
+        print(f"[LOADER] Found {len(required_values)} values (flat format - all treated as required)")
         return True, required_values, optional_values
     
     # Invalid format - missing required key
@@ -292,11 +317,12 @@ def load_objective_data(objective_type: str,
         
     Success returns dictionary structure:
     {
-        "objective_type": "edit_copy_instruction",
-        "instructions": [...],  # List of action steps
-        "required_values": {...},  # Required field values
-        "optional_values": {...}   # Optional field values
+        "objective_type": "edit_copy_definition",
+        "instructions": [...],  # List of action steps with filled parameters
     }
+    
+    Note: The instructions list contains merged instructions where all parameter
+    values from objective_values have been filled into the instruction templates.
     """
     print(f"\n[LOADER] Starting load process for objective: {objective_type}")
     
