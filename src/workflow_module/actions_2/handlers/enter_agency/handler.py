@@ -55,6 +55,13 @@ def action(agency_name: str, **kwargs) -> Tuple[bool, str]:
         if not type_success:
             return False, f"Failed to type agency name: {type_msg}"
         
+        time.sleep(0.2)
+        
+        # Press Enter to confirm input
+        enter_success, enter_msg = actions.press_key('enter', presses=1)
+        if not enter_success:
+            print(f"[ACTION_HANDLER] Warning: Failed to press Enter: {enter_msg}")
+        
         time.sleep(0.5)
         return True, f"Successfully entered agency name: '{agency_name}'"
         
@@ -66,7 +73,19 @@ def action(agency_name: str, **kwargs) -> Tuple[bool, str]:
 # ============================================================================
 
 def verifier(agency_name: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """Verify that the agency name was entered correctly."""
+    """
+    Verify that the agency name was entered correctly using OCR similarity check.
+    
+    First checks for the Name search dialog popup and closes it if found.
+    
+    Args:
+        agency_name: Expected agency name to verify
+        
+    Returns:
+        Tuple of (success: bool, message: str, data: Optional[Dict])
+    """
+    print(f"[VERIFIER_HANDLER] Verifying agency name entered: '{agency_name}'")
+    
     if not agency_name:
         return True, "No agency name to verify", None
     
@@ -74,6 +93,34 @@ def verifier(agency_name: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot", None
+        
+        # Check for Name search dialog popup in region (65, 25, 1217, 383)
+        name_dialog_region = (65, 25, 1217, 383)
+        print(f"[VERIFIER_HANDLER] Checking for Name search dialog in region {name_dialog_region}")
+        
+        close_button_found, close_confidence, close_position = computer_vision_utils.find_template_in_region(
+            screenshot,
+            'src/workflow_module/actions_2/handlers/enter_agency/close_name_pop_up.png',
+            name_dialog_region,
+            confidence=0.8
+        )
+        
+        # If popup found, close it and return False immediately (don't do second check)
+        if close_button_found and close_position:
+            print(f"[VERIFIER_HANDLER] ✓ Name search dialog found (confidence: {close_confidence:.2f}), closing it...")
+            click_x, click_y = close_position
+            close_success, close_msg = actions.click_at_position(click_x, click_y)
+            if close_success:
+                print(f"[VERIFIER_HANDLER] ✓ Successfully closed Name search dialog - returning False to trigger retry")
+                time.sleep(0.5)  # Wait for dialog to close
+                # Return False immediately - don't proceed with verification check
+                return False, "Name search dialog appeared and was closed - retrying action", None
+            else:
+                print(f"[VERIFIER_HANDLER] Warning: Failed to click close button: {close_msg}")
+                return False, f"Failed to click close button: {close_msg}", None
+        
+        # Only proceed with verification if popup was NOT found
+        print(f"[VERIFIER_HANDLER] No Name search dialog found (confidence: {close_confidence:.2f}), proceeding with verification")
         
         field_region = (668, 180, 130, 40)
         cropped_image = computer_vision_utils.crop_image(screenshot, *field_region)
@@ -86,14 +133,17 @@ def verifier(agency_name: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[
         
         extracted_agency = extract_string_from_text(extracted_text, agency_name)
         if not extracted_agency:
-            return False, f"Could not extract agency from: '{extracted_text}'", None
+            error_msg = f"The agency name '{agency_name}' was not correct or not written correctly"
+            return False, error_msg, None
         
         similarity = calculate_text_similarity(agency_name, extracted_agency)
         
         if similarity >= 0.80:
             return True, f"✓ Agency verified with {similarity:.2%} similarity", {"similarity": similarity}
         else:
-            return False, f"✗ Agency verification failed. Similarity: {similarity:.2%}", {"similarity": similarity}
+            error_msg = f"The agency name '{agency_name}' was not correct or not written correctly"
+            print(f"[VERIFIER_HANDLER] {error_msg} (Expected: '{agency_name}', Extracted: '{extracted_agency}', Similarity: {similarity:.2%})")
+            return False, error_msg, {"similarity": similarity}
         
     except Exception as e:
         return False, f"Error verifying agency: {e}", None
@@ -104,6 +154,18 @@ def verifier(agency_name: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[
 
 def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> Tuple[bool, str]:
     """Handle errors specific to entering agency."""
+    print(f"[ERROR_HANDLER] Handling error for enter_agency (attempt {attempt}/{max_attempts})")
+    print(f"[ERROR_HANDLER] Error: {error_msg}")
+    
+    # Check if Name search dialog appeared and was closed
+    if "Name search dialog" in error_msg or "retrying action" in error_msg.lower():
+        print(f"[ERROR_HANDLER] Name search dialog detected - will retry action")
+        if attempt < max_attempts:
+            print(f"[ERROR_HANDLER] Will retry entire action...")
+            time.sleep(0.5)
+            return True, "Retrying due to Name search dialog appearance"
+    
+    # Default retry logic
     if attempt < max_attempts:
         time.sleep(0.5)
         return True, "Retrying action"

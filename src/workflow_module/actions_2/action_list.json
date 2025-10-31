@@ -1,56 +1,80 @@
 {
-  "open_multinetwork_instructions_page": {
-    "module": "src.workflow_module.actions_2.handlers.1_open_multinetwork_instructions_page",
-    "description": "Navigate to the Multinetwork Instructions page",
-    "has_verifier": true,
-    "has_error_handler": true
-  },
   "enter_advertiser_name": {
-    "module": "src.workflow_module.actions_2.handlers.2_enter_advertiser_name",
+    "module": "src.workflow_module.actions_2.handlers.enter_advertiser_name.handler",
     "description": "Enter advertiser name in the search field",
     "has_verifier": true,
     "has_error_handler": true
   },
+  "enter_deal_number": {
+    "module": "src.workflow_module.actions_2.handlers.enter_deal_number.handler",
+    "description": "Enter deal number in the search field",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
   "enter_agency": {
-    "module": "src.workflow_module.actions_2.handlers.4_enter_agency",
+    "module": "src.workflow_module.actions_2.handlers.enter_agency.handler",
     "description": "Enter agency name in the search field",
     "has_verifier": true,
     "has_error_handler": true
   },
   "enter_begin_date": {
-    "module": "src.workflow_module.actions_2.handlers.5_enter_begin_date",
+    "module": "src.workflow_module.actions_2.handlers.enter_begin_date.handler",
     "description": "Enter begin date in the date field",
     "has_verifier": true,
     "has_error_handler": true
   },
   "enter_end_date": {
-    "module": "src.workflow_module.actions_2.handlers.6_enter_end_date",
+    "module": "src.workflow_module.actions_2.handlers.enter_end_date.handler",
     "description": "Enter end date in the date field",
     "has_verifier": true,
     "has_error_handler": true
   },
   "click_search_button": {
-    "module": "src.workflow_module.actions_2.handlers.7_click_search_button",
+    "module": "src.workflow_module.actions_2.handlers.click_search_button.handler",
     "description": "Click the search button to submit the search form",
     "has_verifier": true,
     "has_error_handler": true
   },
   "wait_for_search_results": {
-    "module": "src.workflow_module.actions_2.handlers.8_wait_for_search_results",
+    "module": "src.workflow_module.actions_2.handlers.wait_for_search_results.handler",
     "description": "Wait for search results to load",
     "has_verifier": true,
     "has_error_handler": true
   },
   "find_row_by_values": {
-    "module": "src.workflow_module.actions_2.handlers.9_find_row_by_values",
+    "module": "src.workflow_module.actions_2.handlers.find_row_by_values.handler",
     "description": "Find a row matching provided parameters and right-click on it",
     "has_verifier": true,
     "has_error_handler": true
   },
   "open_multinetwork_by_instructions": {
-    "module": "src.workflow_module.actions_2.handlers.10_open_multinetwork_by_instructions",
+    "module": "src.workflow_module.actions_2.handlers.open_multinetwork_by_instructions.handler",
     "description": "Find and double-click on a row in the second table (within expanded row) by begin_date",
     "has_verifier": true,
+    "has_error_handler": true
+  },
+  "open_multinetwork_instructions_page": {
+    "module": "src.workflow_module.actions_2.handlers.open_multinetwork_instructions_page.handler",
+    "description": "Navigate to Multinetwork Instructions page",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
+  "enter_isci_1": {
+    "module": "src.workflow_module.actions_2.handlers.enter_isci_1.handler",
+    "description": "Enter ISCI 1 value",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
+  "save_instruction": {
+    "module": "src.workflow_module.actions_2.handlers.save_instruction.handler",
+    "description": "Save the edited instruction",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
+  "verify_save_successful": {
+    "module": "src.workflow_module.actions_2.handlers.verify_save_successful.handler",
+    "description": "Verify the instruction was saved successfully",
+    "has_verifier": false,
     "has_error_handler": true
   }
 }

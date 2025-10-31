@@ -11,8 +11,11 @@ This module contains:
 from typing import Tuple, Dict, Any, Optional
 from src.workflow_module.actions_2.helpers import actions
 from src.workflow_module.actions_2.helpers import table_utils
+from src.workflow_module.actions_2.helpers import computer_vision_utils
 import time
 import pyautogui
+import cv2
+import numpy as np
 
 # ============================================================================
 # ACTION
@@ -40,19 +43,68 @@ def action(begin_date: str = "", **kwargs) -> Tuple[bool, str]:
     print(f"[ACTION_HANDLER] Searching for begin_date: '{begin_date}' in second table")
     
     try:
-        # Get current mouse position to determine crop region
-        mouse_x, mouse_y = pyautogui.position()
-        print(f"[ACTION_HANDLER] Current mouse position: ({mouse_x}, {mouse_y})")
-        
-        # Get screen size to validate crop region
+        # Get screen size
         screen_width, screen_height = pyautogui.size()
         print(f"[ACTION_HANDLER] Screen size: {screen_width}x{screen_height}")
         
-        # Crop down from mouse position with specified width
-        crop_x = mouse_x  # Start from mouse X position
-        crop_y = mouse_y  # Start from mouse Y position (crop down from here)
-        crop_width = 1550  # Width as specified
-        crop_height = screen_height - crop_y  # Height from mouse to bottom of screen
+        # Detect the blue highlighted row to determine crop region
+        print(f"[ACTION_HANDLER] Detecting blue highlighted row...")
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot"
+        
+        # Convert BGR to HSV for better color detection
+        hsv = cv2.cvtColor(screenshot, cv2.COLOR_BGR2HSV)
+        
+        # Define blue color range in HSV (adjust these values based on your blue color)
+        # Typical blue highlight: lower_blue = (100, 50, 50), upper_blue = (130, 255, 255)
+        lower_blue = np.array([100, 50, 50])
+        upper_blue = np.array([130, 255, 255])
+        
+        # Create mask for blue color
+        mask = cv2.inRange(hsv, lower_blue, upper_blue)
+        
+        # Find contours of blue regions
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # Default crop values (fallback if blue row not found)
+        default_crop_x = 206
+        default_crop_y = 225
+        crop_x = default_crop_x
+        crop_y = default_crop_y
+        
+        if contours:
+            # Find the largest blue region (likely the selected row)
+            largest_contour = max(contours, key=cv2.contourArea)
+            x, y, w, h = cv2.boundingRect(largest_contour)
+            
+            # Use the top-left corner of the blue region as crop start
+            crop_x = x
+            crop_y = y
+            print(f"[ACTION_HANDLER] Found blue highlighted row at ({crop_x}, {crop_y}) with size {w}x{h}")
+        else:
+            print(f"[ACTION_HANDLER] Blue highlighted row not found in view, using default position ({default_crop_x}, {default_crop_y})")
+        
+        # Set crop dimensions
+        crop_width = 1445  # Fixed width as specified
+        
+        # Detect the black/dark line that marks the end of the second table
+        print(f"[ACTION_HANDLER] Detecting table bottom line (black border)...")
+        bottom_line_y = table_utils.detect_table_bottom_line(
+            screenshot, 
+            start_y=crop_y, 
+            crop_x=crop_x, 
+            crop_width=crop_width
+        )
+        
+        if bottom_line_y is not None:
+            # Use the detected line as the end point
+            crop_height = bottom_line_y - crop_y
+            print(f"[ACTION_HANDLER] Found table bottom line at Y={bottom_line_y}, crop_height={crop_height}")
+        else:
+            # Fallback to bottom of screen if line not found
+            crop_height = screen_height - crop_y
+            print(f"[ACTION_HANDLER] Table bottom line not found, using screen bottom. crop_height={crop_height}")
         
         # Validate and adjust crop region to stay within screen bounds
         if crop_x < 0:
@@ -68,7 +120,7 @@ def action(begin_date: str = "", **kwargs) -> Tuple[bool, str]:
         
         # Height is already calculated to bottom of screen, but validate it's positive
         if crop_height <= 0:
-            return False, f"Invalid crop_height: {crop_height} (mouse_y={mouse_y}, screen_height={screen_height})"
+            return False, f"Invalid crop_height: {crop_height} (crop_y={crop_y}, screen_height={screen_height})"
         
         print(f"[ACTION_HANDLER] Final crop region: x={crop_x}, y={crop_y}, w={crop_width}, h={crop_height}")
         
@@ -257,9 +309,89 @@ def action(begin_date: str = "", **kwargs) -> Tuple[bool, str]:
 # ============================================================================
 
 def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """Verify that the row was found and clicked."""
-    # For this action, success of the action itself is the verification
-    return True, "Row found and double-clicked", None
+    """
+    Verify that the network page is loading by detecting a loading circle/spinner.
+    
+    After double-clicking a row, waits for the network page to start loading.
+    Looks for a loading circle in the center of the screen based on color detection.
+    
+    Returns:
+        Tuple of (success: bool, message: str, data: Optional[Dict])
+    """
+    print("[VERIFIER_HANDLER] Verifying network page is loading by detecting loading circle...")
+    
+    try:
+        # Wait a moment for the page to start loading after the double-click
+        time.sleep(1.0)
+        
+        # Take screenshot to check for loading circle
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot for verification", None
+        
+        # Detect loading circle in the center of the screen
+        found, circle_info = computer_vision_utils.detect_loading_circle(
+            screenshot,
+            center_region_ratio=0.4,  # Search middle 40% of screen
+            min_radius=15,
+            max_radius=100,
+            brightness_threshold=180  # Bright colors (white/light gray)
+        )
+        
+        verification_data = {
+            "loading_circle_found": found,
+            "circle_info": circle_info,
+            "screenshot_taken": True
+        }
+        
+        if found and circle_info:
+            x, y, radius = circle_info
+            success_msg = f"✓ Network page is loading. Loading circle detected at ({x}, {y}), radius: {radius}px"
+            print(f"[VERIFIER_HANDLER] {success_msg}")
+            verification_data["message"] = success_msg
+            return True, success_msg, verification_data
+        else:
+            # Loading circle not found - might be loading very fast, or page already loaded
+            # Try checking again after a short delay
+            print(f"[VERIFIER_HANDLER] Loading circle not found on first attempt, waiting and checking again...")
+            time.sleep(1.5)
+            
+            # Take another screenshot and check again
+            screenshot2 = computer_vision_utils.take_screenshot()
+            if screenshot2 is not None:
+                found2, circle_info2 = computer_vision_utils.detect_loading_circle(
+                    screenshot2,
+                    center_region_ratio=0.4,
+                    min_radius=15,
+                    max_radius=100,
+                    brightness_threshold=180
+                )
+                
+                verification_data["second_check"] = {
+                    "loading_circle_found": found2,
+                    "circle_info": circle_info2
+                }
+                
+                if found2 and circle_info2:
+                    x, y, radius = circle_info2
+                    success_msg = f"✓ Network page is loading. Loading circle detected on second check at ({x}, {y}), radius: {radius}px"
+                    print(f"[VERIFIER_HANDLER] {success_msg}")
+                    verification_data["message"] = success_msg
+                    return True, success_msg, verification_data
+        
+        # If we get here, no loading circle was detected
+        # This might mean the page loaded very quickly, or there's an issue
+        warning_msg = f"⚠ Loading circle not detected. Page may have loaded very quickly, or loading indicator may not be visible."
+        print(f"[VERIFIER_HANDLER] {warning_msg}")
+        verification_data["message"] = warning_msg
+        
+        # Return True anyway to not block workflow - page might load very fast or use different loading indicator
+        return True, warning_msg, verification_data
+        
+    except Exception as e:
+        error_msg = f"Error verifying network page loading: {e}"
+        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
+        return False, error_msg, None
 
 # ============================================================================
 # ERROR HANDLER

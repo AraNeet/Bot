@@ -41,7 +41,7 @@ def action(deal_number: str = "", advertiser_name: str = "", begin_date: str = "
 
     try:
         # Load template once
-        template = computer_vision_utils.load_image("src/workflow_module/actions_2/assets/ColumnLine.png")
+        template = computer_vision_utils.load_image("src/workflow_module/actions_2/handlers/find_row_by_values/ColumnLine.png")
         if template is None:
             return False, "Template load failed"
 
@@ -53,7 +53,7 @@ def action(deal_number: str = "", advertiser_name: str = "", begin_date: str = "
         
         # Scrolling configuration
         max_scroll_attempts = 50  # Maximum scrolls to perform
-        scroll_amount = -20  # Negative = scroll down (increased by 1.5x)
+        scroll_amount = -35  # Negative = scroll down (increased by 1.5x)
         scrolls_per_page = 11  # Number of scrolls to move one full page
         
         # Check results count first

@@ -738,3 +738,124 @@ def search_second_table_by_date(begin_date: str, crop_x: int, crop_y: int,
     except Exception as e:
         return False, f"Error searching second table: {e}", []
 
+# ============================================================================
+# TABLE BOUNDARY DETECTION (BLACK LINE DETECTION)
+# ============================================================================
+
+def detect_table_bottom_line(image: np.ndarray, start_y: int, crop_x: int, 
+                             crop_width: int, min_line_thickness: int = 2,
+                             dark_threshold: int = 80) -> Optional[int]:
+    """
+    Detects a horizontal black/dark line below the start position that marks the end of the second table.
+    
+    Searches from start_y downward to find a horizontal dark line that spans across the crop width.
+    This line typically marks the bottom border of the table.
+    
+    Args:
+        image: Full screenshot image (BGR format)
+        start_y: Y coordinate to start searching from (top of selected row)
+        crop_x: X coordinate of crop region (left edge)
+        crop_width: Width of crop region to search within
+        min_line_thickness: Minimum thickness of line in pixels to be considered (default: 2)
+        dark_threshold: Maximum brightness value (0-255) to consider as "dark" (default: 80)
+        
+    Returns:
+        Y coordinate of the detected line, or None if no line found
+    """
+    try:
+        image_height, image_width = image.shape[:2]
+        
+        # Validate region bounds
+        if start_y < 0 or start_y >= image_height:
+            print(f"[DETECT_TABLE_BOTTOM] Invalid start_y: {start_y} (image height: {image_height})")
+            return None
+        
+        # Ensure crop region is within image bounds
+        end_x = min(crop_x + crop_width, image_width)
+        actual_crop_width = end_x - crop_x
+        
+        if actual_crop_width <= 0:
+            print(f"[DETECT_TABLE_BOTTOM] Invalid crop width: {actual_crop_width}")
+            return None
+        
+        # Search region: from start_y to bottom of image, within crop_x to crop_x+crop_width
+        search_start_y = start_y
+        search_end_y = image_height
+        
+        print(f"[DETECT_TABLE_BOTTOM] Searching for dark line from Y={search_start_y} to Y={search_end_y}")
+        print(f"[DETECT_TABLE_BOTTOM] Search region: X={crop_x} to X={end_x} (width={actual_crop_width})")
+        
+        # Crop the search region
+        search_region = image[search_start_y:search_end_y, crop_x:end_x]
+        
+        if search_region.size == 0:
+            print(f"[DETECT_TABLE_BOTTOM] Empty search region")
+            return None
+        
+        # Convert to grayscale for easier dark line detection
+        gray = cv2.cvtColor(search_region, cv2.COLOR_BGR2GRAY)
+        
+        # Detect dark horizontal lines by:
+        # 1. Find rows where most pixels are dark
+        # 2. Check if consecutive dark rows form a line of sufficient thickness
+        
+        dark_line_positions = []
+        
+        # Scan each row from top to bottom
+        for y_offset in range(gray.shape[0]):
+            row = gray[y_offset]
+            
+            # Count how many pixels in this row are dark (below threshold)
+            dark_pixel_count = np.sum(row < dark_threshold)
+            total_pixels = len(row)
+            dark_ratio = dark_pixel_count / total_pixels
+            
+            # If a significant portion of the row is dark (e.g., >70%), mark it
+            if dark_ratio > 0.7:
+                absolute_y = search_start_y + y_offset
+                dark_line_positions.append(absolute_y)
+        
+        if not dark_line_positions:
+            print(f"[DETECT_TABLE_BOTTOM] No dark line found below Y={start_y}")
+            return None
+        
+        # Group consecutive dark rows into lines
+        lines = []
+        current_line_start = dark_line_positions[0]
+        current_line_end = dark_line_positions[0]
+        
+        for i in range(1, len(dark_line_positions)):
+            if dark_line_positions[i] - current_line_end <= min_line_thickness + 1:
+                # Continuation of current line
+                current_line_end = dark_line_positions[i]
+            else:
+                # Gap detected - save current line and start new one
+                line_thickness = current_line_end - current_line_start + 1
+                if line_thickness >= min_line_thickness:
+                    lines.append((current_line_start, current_line_end))
+                current_line_start = dark_line_positions[i]
+                current_line_end = dark_line_positions[i]
+        
+        # Don't forget the last line
+        line_thickness = current_line_end - current_line_start + 1
+        if line_thickness >= min_line_thickness:
+            lines.append((current_line_start, current_line_end))
+        
+        if not lines:
+            print(f"[DETECT_TABLE_BOTTOM] No lines found with sufficient thickness (>= {min_line_thickness}px)")
+            return None
+        
+        # Return the Y position of the first (topmost) line's center
+        # This is the table bottom border
+        first_line_top, first_line_bottom = lines[0]
+        first_line_center = (first_line_top + first_line_bottom) // 2
+        
+        print(f"[DETECT_TABLE_BOTTOM] Found dark line at Y={first_line_center} (line from {first_line_top} to {first_line_bottom}, thickness={first_line_bottom - first_line_top + 1}px)")
+        print(f"[DETECT_TABLE_BOTTOM] Total lines detected: {len(lines)}")
+        
+        return first_line_center
+        
+    except Exception as e:
+        print(f"[DETECT_TABLE_BOTTOM] Error detecting table bottom line: {e}")
+        return None
+

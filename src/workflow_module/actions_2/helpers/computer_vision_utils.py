@@ -340,3 +340,128 @@ def find_template_in_region(screenshot: np.ndarray,
     except Exception as e:
         print(f"[CV ERROR] Template finding failed: {e}")
         return False, 0.0, None
+
+def detect_loading_circle(screenshot: np.ndarray,
+                         center_region_ratio: float = 0.4,
+                         min_radius: int = 15,
+                         max_radius: int = 100,
+                         brightness_threshold: int = 180) -> Tuple[bool, Optional[Tuple[int, int, int]]]:
+    """
+    Detect a loading circle/spinner in the center region of the screen.
+    
+    Looks for circular shapes with bright/light colors (typical loading spinner appearance).
+    The spinner is usually white/light gray on a darker background, or colored.
+    
+    Args:
+        screenshot: Screenshot image as numpy array (BGR format)
+        center_region_ratio: Ratio of screen to search (0.4 = 40% from center, default: 0.4)
+        min_radius: Minimum circle radius in pixels (default: 15)
+        max_radius: Maximum circle radius in pixels (default: 100)
+        brightness_threshold: Minimum brightness value (0-255) for spinner color (default: 180)
+        
+    Returns:
+        Tuple of (found: bool, circle_info: Optional[Tuple[x, y, radius]])
+        circle_info contains (center_x, center_y, radius) if found
+    """
+    try:
+        screen_height, screen_width = screenshot.shape[:2]
+        
+        # Define center region to search (middle portion of screen)
+        region_width = int(screen_width * center_region_ratio)
+        region_height = int(screen_height * center_region_ratio)
+        region_x = (screen_width - region_width) // 2
+        region_y = (screen_height - region_height) // 2
+        
+        print(f"[CV] Searching for loading circle in center region: ({region_x}, {region_y}, {region_width}, {region_height})")
+        
+        # Crop to center region
+        center_region = crop_image(screenshot, region_x, region_y, region_width, region_height)
+        if center_region is None:
+            print(f"[CV ERROR] Failed to crop center region for loading circle detection")
+            return False, None
+        
+        # Convert to grayscale
+        gray = cv2.cvtColor(center_region, cv2.COLOR_BGR2GRAY)
+        
+        # Method 1: Detect bright circular shapes using HoughCircles
+        # This detects actual circles in the image
+        circles = cv2.HoughCircles(
+            gray,
+            cv2.HOUGH_GRADIENT,
+            dp=1,
+            minDist=max_radius * 2,
+            param1=50,  # Upper threshold for edge detection
+            param2=30,  # Accumulator threshold for center detection
+            minRadius=min_radius,
+            maxRadius=max_radius
+        )
+        
+        if circles is not None:
+            circles = np.round(circles[0, :]).astype("int")
+            
+            # Check each detected circle to see if it matches loading spinner characteristics
+            for (x, y, r) in circles:
+                # Convert to absolute screen coordinates
+                abs_x = region_x + x
+                abs_y = region_y + y
+                
+                # Check if the circle has bright colors (typical of loading spinners)
+                # Extract region around circle
+                circle_region = center_region[max(0, y-r):min(center_region.shape[0], y+r),
+                                              max(0, x-r):min(center_region.shape[1], x+r)]
+                
+                if circle_region.size > 0:
+                    # Calculate average brightness in the circle region
+                    gray_region = cv2.cvtColor(circle_region, cv2.COLOR_BGR2GRAY)
+                    avg_brightness = np.mean(gray_region)
+                    
+                    print(f"[CV] Found circle at ({abs_x}, {abs_y}), radius={r}, avg_brightness={avg_brightness:.1f}")
+                    
+                    # Loading spinners are typically bright (white/light colors)
+                    if avg_brightness >= brightness_threshold:
+                        print(f"[CV] ✓ Loading circle detected! Position: ({abs_x}, {abs_y}), radius: {r}")
+                        return True, (abs_x, abs_y, r)
+        
+        # Method 2: Color-based detection - look for bright circular regions
+        # Convert to HSV for better color detection
+        hsv = cv2.cvtColor(center_region, cv2.COLOR_BGR2HSV)
+        
+        # Create mask for bright/white colors (high value in HSV)
+        # Bright colors have high V (value) component
+        bright_mask = cv2.inRange(hsv, (0, 0, brightness_threshold), (180, 30, 255))
+        
+        # Find contours of bright regions
+        contours, _ = cv2.findContours(bright_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        for contour in contours:
+            # Check if contour is roughly circular
+            area = cv2.contourArea(contour)
+            
+            # Filter by area (should be roughly pi * r^2 for a circle)
+            expected_area_min = np.pi * (min_radius ** 2)
+            expected_area_max = np.pi * (max_radius ** 2)
+            
+            if expected_area_min <= area <= expected_area_max:
+                # Fit a circle to the contour
+                (x, y), r = cv2.minEnclosingCircle(contour)
+                x, y, r = int(x), int(y), int(r)
+                
+                # Check circularity (how close the contour is to a perfect circle)
+                perimeter = cv2.arcLength(contour, True)
+                if perimeter > 0:
+                    circularity = 4 * np.pi * area / (perimeter ** 2)
+                    
+                    # High circularity (close to 1.0) indicates a circle
+                    if circularity > 0.6 and min_radius <= r <= max_radius:
+                        abs_x = region_x + x
+                        abs_y = region_y + y
+                        
+                        print(f"[CV] ✓ Loading circle detected via color! Position: ({abs_x}, {abs_y}), radius: {r}, circularity: {circularity:.2f}")
+                        return True, (abs_x, abs_y, r)
+        
+        print(f"[CV] No loading circle detected in center region")
+        return False, None
+        
+    except Exception as e:
+        print(f"[CV ERROR] Error detecting loading circle: {e}")
+        return False, None
