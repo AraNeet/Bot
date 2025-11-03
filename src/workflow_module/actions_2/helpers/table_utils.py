@@ -135,14 +135,13 @@ def detect_column_separators(source_img, template_img, match_threshold=0.9, mask
 def create_separated_columns_image(source_img, column_separator_positions, template_width, 
                                    padding_width=10, debug=False):
     """
-    Creates separated columns image with filtering.
+    Creates separated columns image without filtering.
     
     Processing steps:
     1. Calculate column boundaries from separator positions
     2. Crop all columns
-    3. Filter out first column and last 3 columns
-    4. Add white padding between columns
-    5. Combine into single image
+    3. Add white padding between columns
+    4. Combine into single image
     
     Args:
         source_img: Source image to process
@@ -192,39 +191,24 @@ def create_separated_columns_image(source_img, column_separator_positions, templ
         print("[CREATE_COLUMNS] No columns extracted")
         return None
     
-    # Filter columns (remove first and last 3 columns)
+    # Keep all columns (no filtering)
     total_columns = len(all_columns)
-    print(f"[CREATE_COLUMNS] Filtering columns (total: {total_columns})")
-    
-    filtered_columns = all_columns
-    
-    # Remove last 3 columns
-    if len(filtered_columns) >= 3:
-        filtered_columns = filtered_columns[:-3]
-        print(f"[CREATE_COLUMNS] Removed last 3 columns (totals/empty space)")
-    else:
-        print(f"[CREATE_COLUMNS] Warning: Not enough columns to remove last 3")
-    
-    if not filtered_columns:
-        print("[CREATE_COLUMNS] No columns remaining after filtering")
-        return None
-    
-    print(f"[CREATE_COLUMNS] Keeping {len(filtered_columns)} columns")
+    print(f"[CREATE_COLUMNS] Using all {total_columns} columns (no filtering)")
     
     # Create white padding
     image_height = source_img.shape[0]
     white_padding = np.full((image_height, padding_width, 3), 255, dtype=np.uint8)
     
     # Combine columns with padding
-    final_parts = [filtered_columns[0]]
-    for next_column in filtered_columns[1:]:
+    final_parts = [all_columns[0]]
+    for next_column in all_columns[1:]:
         final_parts.append(white_padding)
         final_parts.append(next_column)
     
     separated_columns_image = np.hstack(final_parts)
     
     final_width = separated_columns_image.shape[1]
-    print(f"[CREATE_COLUMNS] Created separated columns image: {final_width}px wide, {len(filtered_columns)} columns")
+    print(f"[CREATE_COLUMNS] Created separated columns image: {final_width}px wide, {len(all_columns)} columns")
     
     if debug:
         cv2.imwrite('separated_columns.png', separated_columns_image)
@@ -301,15 +285,18 @@ def search_current_view(target_texts: List[str], deal_number: str, crop_x: int, 
         if not positions:
             return False, "Targets not found in view", None
         
-        # Check if deal_number exists
-        if not (positions and deal_number and any(deal_number.lower() in text.lower() for text in data['text'] if text)):
+        # Check if deal_number exists (convert to string to handle integers)
+        deal_number_str = str(deal_number)
+        if not (positions and deal_number and any(deal_number_str.lower() in text.lower() for text in data['text'] if text)):
             return False, "Deal number not found in view", None
         
         # Count how many target texts were matched
         matched_texts = []
         for target in target_texts:
-            if target and any(target.lower() in text.lower() for text in data['text'] if text):
-                matched_texts.append(target)
+            if target:
+                target_str = str(target)  # Convert to string to handle integers
+                if any(target_str.lower() in text.lower() for text in data['text'] if text):
+                    matched_texts.append(target_str)
         
         matched_count = len(matched_texts)
         print(f"[SEARCH_VIEW] Matched {matched_count}/{len(target_texts)} target texts: {matched_texts}")
@@ -318,16 +305,18 @@ def search_current_view(target_texts: List[str], deal_number: str, crop_x: int, 
         # We need to find which position corresponds to the deal_number
         deal_number_position = None
         for i, target in enumerate(target_texts):
-            if target and target.lower() == deal_number.lower():
-                # Find the position that matches this target by checking OCR data
-                for j, text in enumerate(data['text']):
-                    if text and deal_number.lower() in text.lower():
-                        bbox = data['bbox'][j]
-                        deal_number_position = (bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1])
-                        print(f"[SEARCH_VIEW] Found deal_number '{deal_number}' at position {deal_number_position}")
+            if target:
+                target_str = str(target)  # Convert to string to handle integers
+                if target_str.lower() == deal_number_str.lower():
+                    # Find the position that matches this target by checking OCR data
+                    for j, text in enumerate(data['text']):
+                        if text and deal_number_str.lower() in text.lower():
+                            bbox = data['bbox'][j]
+                            deal_number_position = (bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1])
+                            print(f"[SEARCH_VIEW] Found deal_number '{deal_number}' at position {deal_number_position}")
+                            break
+                    if deal_number_position:
                         break
-                if deal_number_position:
-                    break
         
         # If we couldn't find deal_number specifically, use first position
         if not deal_number_position and positions:
@@ -508,7 +497,9 @@ def search_second_table_by_date(begin_date: str, crop_x: int, crop_y: int,
         }
     """
     try:
-        print(f"[SEARCH_SECOND_TABLE] Searching for begin_date: '{begin_date}'")
+        # Convert begin_date to string to handle integers
+        begin_date_str = str(begin_date)
+        print(f"[SEARCH_SECOND_TABLE] Searching for begin_date: '{begin_date_str}'")
         
         # Load column separator template for second table
         template = computer_vision_utils.load_image("src/workflow_module/actions_2/assets/ColumnLineSecondTable.png")
@@ -572,13 +563,23 @@ def search_second_table_by_date(begin_date: str, crop_x: int, crop_y: int,
         if row_count == 0:
             return False, "No rows detected", []
         
-        # Normalize begin_date for matching (handle different formats)
-        # Remove slashes, dashes, and spaces for comparison
-        date_normalized = begin_date.replace('/', '').replace('-', '').replace(' ', '').lower()
+        # Normalize begin_date for matching by removing leading zeros
+        # Example: 09/16/2025 → 9/16/2025
+        def normalize_date(date_str):
+            """Remove leading zeros from date components."""
+            # Remove leading zeros from each numeric component
+            normalized = re.sub(r'\b0+(\d)', r'\1', date_str)
+            return normalized.lower()
+        
+        begin_date_normalized = normalize_date(begin_date_str)
+        print(f"[SEARCH_SECOND_TABLE] Searching for begin_date: '{begin_date_str}' → normalized: '{begin_date_normalized}'")
+        
+        # Also create a version without separators for flexible matching
+        date_normalized = begin_date_normalized.replace('/', '').replace('-', '').replace(' ', '')
         
         # Extract digits from begin_date to help identify date values
-        date_digits = re.sub(r'[^\d]', '', begin_date)
-        print(f"[SEARCH_SECOND_TABLE] Searching for begin_date: '{begin_date}' (digits: '{date_digits}')")
+        date_digits = re.sub(r'[^\d]', '', begin_date_normalized)
+        print(f"[SEARCH_SECOND_TABLE] Date digits: '{date_digits}'")
         
         # Words to exclude (like "begin", "date", "end")
         exclude_words = ['begin', 'date', 'end', 'start', 'from', 'to']
@@ -600,14 +601,16 @@ def search_second_table_by_date(begin_date: str, crop_x: int, crop_y: int,
             
             # Check if any text in this row matches the begin_date
             row_text_combined = ' '.join(row_texts)
-            # Normalize row text for comparison
-            row_text_normalized = row_text_combined.replace('/', '').replace('-', '').replace(' ', '').lower()
+            # Normalize row text for comparison (remove leading zeros too)
+            row_text_normalized_with_sep = normalize_date(row_text_combined)
+            row_text_normalized = row_text_normalized_with_sep.replace('/', '').replace('-', '').replace(' ', '')
             
             # Check if the normalized date is in the normalized row text
-            if date_normalized in row_text_normalized:
+            # Also check with separators for more flexible matching
+            if date_normalized in row_text_normalized or begin_date_normalized in row_text_normalized_with_sep:
                 print(f"[SEARCH_SECOND_TABLE] Found matching row {row_idx + 1}/{row_count}")
                 print(f"[SEARCH_SECOND_TABLE] Row text: '{row_text_combined}'")
-                print(f"[SEARCH_SECOND_TABLE] Looking for begin_date: '{begin_date}' (normalized: '{date_normalized}')")
+                print(f"[SEARCH_SECOND_TABLE] Looking for begin_date: '{begin_date_str}' (normalized: '{date_normalized}')")
                 
                 # Find the actual bbox that contains the begin_date VALUE (not the word "begin" or "date")
                 # Prioritize text that contains digits and matches the date
@@ -622,7 +625,9 @@ def search_second_table_by_date(begin_date: str, crop_x: int, crop_y: int,
                     
                     # Check if this box is in the matching row
                     if row_top <= center_y <= row_bottom:
-                        text_normalized = text.replace('/', '').replace('-', '').replace(' ', '').lower()
+                        # Normalize OCR text (remove leading zeros too)
+                        text_normalized_with_sep = normalize_date(text)
+                        text_normalized = text_normalized_with_sep.replace('/', '').replace('-', '').replace(' ', '')
                         text_lower = text.lower()
                         
                         # Skip if this is a label word like "begin", "date", etc.
@@ -634,12 +639,12 @@ def search_second_table_by_date(begin_date: str, crop_x: int, crop_y: int,
                         if not text_digits:
                             continue  # Skip text without digits
                         
-                        # Check for exact match
-                        if date_normalized == text_normalized:
+                        # Check for exact match (with or without separators)
+                        if date_normalized == text_normalized or begin_date_normalized == text_normalized_with_sep:
                             begin_date_bbox = (x1, y1, x2, y2)
                             print(f"[SEARCH_SECOND_TABLE] Found exact begin_date match: '{text}' at bbox ({x1}, {y1}, {x2}, {y2})")
                             break
-                        elif date_normalized in text_normalized:
+                        elif date_normalized in text_normalized or begin_date_normalized in text_normalized_with_sep:
                             # Partial match - check how many digits match
                             matching_digits = sum(1 for d in date_digits if d in text_digits)
                             if matching_digits > best_match_score:
@@ -733,7 +738,7 @@ def search_second_table_by_date(begin_date: str, crop_x: int, crop_y: int,
             print(f"[SEARCH_SECOND_TABLE] Found {len(all_matches)} matching rows")
             return True, f"Found {len(all_matches)} matching rows", all_matches
         else:
-            return False, f"Begin date '{begin_date}' not found in any row", []
+            return False, f"Begin date '{begin_date_str}' not found in any row", []
         
     except Exception as e:
         return False, f"Error searching second table: {e}", []

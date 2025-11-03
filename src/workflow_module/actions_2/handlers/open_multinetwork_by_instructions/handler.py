@@ -21,6 +21,9 @@ import numpy as np
 # ACTION
 # ============================================================================
 
+# Module-level variable to store last known RowExpander position
+_last_row_expander_position = None
+
 def action(begin_date: str = "", **kwargs) -> Tuple[bool, str]:
     """
     Find and double-click on a row in the second table (within expanded row) by begin_date.
@@ -28,8 +31,9 @@ def action(begin_date: str = "", **kwargs) -> Tuple[bool, str]:
     The second table appears within the expanded row from the first table search.
     This function uses row boundary detection to handle variable height rows.
     
-    - If there are multiple matches, double-clicks the second match
-    - If there's only one match, double-clicks that match
+    - Uses RowExpander position to determine crop region
+    - If RowExpander is not visible, uses last known position
+    - Filters out RowExpanders below the black border line
     
     Args:
         begin_date: Begin date to find (from input file)
@@ -37,94 +41,134 @@ def action(begin_date: str = "", **kwargs) -> Tuple[bool, str]:
     Returns:
         Tuple of (success: bool, message: str)
     """
+    global _last_row_expander_position
+    
     if not begin_date:
         return False, "Missing begin_date parameter"
     
     print(f"[ACTION_HANDLER] Searching for begin_date: '{begin_date}' in second table")
     
     try:
-        # Get screen size
-        screen_width, screen_height = pyautogui.size()
-        print(f"[ACTION_HANDLER] Screen size: {screen_width}x{screen_height}")
-        
-        # Detect the blue highlighted row to determine crop region
-        print(f"[ACTION_HANDLER] Detecting blue highlighted row...")
+        # Take screenshot
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot"
         
-        # Convert BGR to HSV for better color detection
+        screen_height, screen_width = screenshot.shape[:2]
+        print(f"[ACTION_HANDLER] Screen size: {screen_width}x{screen_height}")
+        
+        # Step 1: Detect the blue highlighted row (expanded row)
+        print(f"[ACTION_HANDLER] Detecting blue highlighted row (expanded row)...")
+        
+        # Convert BGR to HSV for better blue color detection
         hsv = cv2.cvtColor(screenshot, cv2.COLOR_BGR2HSV)
         
-        # Define blue color range in HSV (adjust these values based on your blue color)
-        # Typical blue highlight: lower_blue = (100, 50, 50), upper_blue = (130, 255, 255)
+        # Define blue color range in HSV (adjust these values based on your specific blue)
+        # Typical blue highlight: H=100-130, S=50-255, V=50-255
         lower_blue = np.array([100, 50, 50])
         upper_blue = np.array([130, 255, 255])
         
         # Create mask for blue color
-        mask = cv2.inRange(hsv, lower_blue, upper_blue)
+        blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)
         
         # Find contours of blue regions
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(blue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
-        # Default crop values (fallback if blue row not found)
-        default_crop_x = 206
-        default_crop_y = 225
-        crop_x = default_crop_x
-        crop_y = default_crop_y
+        if not contours:
+            return False, "Could not find blue highlighted row (expanded row not visible)"
         
-        if contours:
-            # Find the largest blue region (likely the selected row)
-            largest_contour = max(contours, key=cv2.contourArea)
-            x, y, w, h = cv2.boundingRect(largest_contour)
-            
-            # Use the top-left corner of the blue region as crop start
-            crop_x = x
-            crop_y = y
-            print(f"[ACTION_HANDLER] Found blue highlighted row at ({crop_x}, {crop_y}) with size {w}x{h}")
-        else:
-            print(f"[ACTION_HANDLER] Blue highlighted row not found in view, using default position ({default_crop_x}, {default_crop_y})")
+        # Find the largest blue region (the expanded row)
+        largest_contour = max(contours, key=cv2.contourArea)
+        blue_x, blue_y, blue_w, blue_h = cv2.boundingRect(largest_contour)
         
-        # Set crop dimensions
-        crop_width = 1445  # Fixed width as specified
+        print(f"[ACTION_HANDLER] Found blue highlighted row at ({blue_x}, {blue_y}) with size {blue_w}x{blue_h}")
         
-        # Detect the black/dark line that marks the end of the second table
-        print(f"[ACTION_HANDLER] Detecting table bottom line (black border)...")
-        bottom_line_y = table_utils.detect_table_bottom_line(
-            screenshot, 
-            start_y=crop_y, 
-            crop_x=crop_x, 
-            crop_width=crop_width
+        # Step 2: Find RowExpander position
+        print(f"[ACTION_HANDLER] Searching for RowExpander...")
+        row_expander_template = computer_vision_utils.load_image("src/workflow_module/actions_2/assets/RowExpander.png")
+        if row_expander_template is None:
+            return False, "Failed to load RowExpander template"
+        
+        # Search for RowExpander in the left portion of the blue region
+        search_region = (blue_x, blue_y, 300, blue_h)  # Left 300px of blue region
+        found, confidence, expander_position = computer_vision_utils.match_template_in_region(
+            screenshot, row_expander_template, search_region, confidence=0.7
         )
         
-        if bottom_line_y is not None:
-            # Use the detected line as the end point
-            crop_height = bottom_line_y - crop_y
-            print(f"[ACTION_HANDLER] Found table bottom line at Y={bottom_line_y}, crop_height={crop_height}")
+        if not found or not expander_position:
+            # Use last known position if available
+            if _last_row_expander_position is not None:
+                exp_x, exp_y = _last_row_expander_position
+                print(f"[ACTION_HANDLER] RowExpander not visible, using last known position: ({exp_x}, {exp_y})")
+            else:
+                return False, "Could not find RowExpander and no previous position available"
         else:
-            # Fallback to bottom of screen if line not found
-            crop_height = screen_height - crop_y
-            print(f"[ACTION_HANDLER] Table bottom line not found, using screen bottom. crop_height={crop_height}")
+            exp_x, exp_y = expander_position
+            print(f"[ACTION_HANDLER] Found RowExpander at ({exp_x}, {exp_y}) with confidence {confidence:.2f}")
+            # Store this position for future use
+            _last_row_expander_position = (exp_x, exp_y)
         
-        # Validate and adjust crop region to stay within screen bounds
-        if crop_x < 0:
-            crop_x = 0
+        # Step 3: Find the black border below the selected row
+        print(f"[ACTION_HANDLER] Detecting black border below selected row...")
         
-        if crop_y < 0:
-            crop_y = 0
+        # Search for horizontal black line below the blue region
+        bottom_border_y_screen = None
         
-        # Adjust width if it extends beyond screen
+        # Start searching from the bottom of the blue region
+        search_start_y = blue_y + blue_h
+        search_end_y = min(search_start_y + 200, screen_height)  # Search up to 200px below
+        
+        # Convert to grayscale for line detection
+        gray = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
+        
+        for y in range(search_start_y, search_end_y):
+            # Check the row across a wide area (1500px width from RowExpander)
+            check_x_start = exp_x
+            check_x_end = min(exp_x + 1500, screen_width)
+            row = gray[y, check_x_start:check_x_end]
+            
+            # Count dark pixels (< 50 = dark/black)
+            dark_pixel_count = np.sum(row < 50)
+            dark_ratio = dark_pixel_count / len(row)
+            
+            # If >70% of the row is dark, it's the black border
+            if dark_ratio > 0.7:
+                bottom_border_y_screen = y
+                print(f"[ACTION_HANDLER] Found bottom black border at screen Y={y} ({dark_ratio:.1%} dark)")
+                break
+        
+        if bottom_border_y_screen is None:
+            # Fallback: use a default distance below
+            bottom_border_y_screen = search_start_y + 100
+            print(f"[ACTION_HANDLER] WARNING: Black border not found, using fallback: Y={bottom_border_y_screen}")
+        
+        # Step 4: Define inner table crop region based on RowExpander and black border
+        # X & Y: RowExpander position
+        # Width: Fixed 1500 pixels
+        # Height: Distance from RowExpander to black border
+        crop_x = exp_x
+        crop_y = exp_y
+        crop_width = 1500
+        crop_height = bottom_border_y_screen - exp_y
+        
+        print(f"[ACTION_HANDLER] RowExpander position: ({exp_x}, {exp_y})")
+        print(f"[ACTION_HANDLER] Black border: Y={bottom_border_y_screen}")
+        print(f"[ACTION_HANDLER] Inner table region: x={crop_x}, y={crop_y}, w={crop_width}, h={crop_height}")
+        
+        # Validate crop region
+        if crop_height <= 0 or crop_width <= 0:
+            return False, f"Invalid crop dimensions: width={crop_width}, height={crop_height}"
+        
+        # Ensure crop region is within screen bounds
         if crop_x + crop_width > screen_width:
             crop_width = screen_width - crop_x
             print(f"[ACTION_HANDLER] Adjusted crop_width to {crop_width} to stay within screen bounds")
         
-        # Height is already calculated to bottom of screen, but validate it's positive
-        if crop_height <= 0:
-            return False, f"Invalid crop_height: {crop_height} (crop_y={crop_y}, screen_height={screen_height})"
+        if crop_y + crop_height > screen_height:
+            crop_height = screen_height - crop_y
+            print(f"[ACTION_HANDLER] Adjusted crop_height to {crop_height} to stay within screen bounds")
         
-        print(f"[ACTION_HANDLER] Final crop region: x={crop_x}, y={crop_y}, w={crop_width}, h={crop_height}")
-        
-        # Search the second table for the begin_date (returns all matches)
+        # Search the second table for the begin_date (no scrolling)
         found, msg, matches = table_utils.search_second_table_by_date(
             begin_date=begin_date,
             crop_x=crop_x,
@@ -133,167 +177,39 @@ def action(begin_date: str = "", **kwargs) -> Tuple[bool, str]:
             crop_height=crop_height
         )
         
-        # If not found, try scrolling down and searching again
-        max_scroll_attempts = 3
-        scroll_amount = -50  # Negative = scroll down
-        current_crop_y = crop_y
-        
         if not found or not matches:
-            print(f"[ACTION_HANDLER] Begin date not found in initial view: {msg}")
-            print(f"[ACTION_HANDLER] Attempting to scroll down to find begin_date...")
-            
-            # Move mouse to the center of the crop region for scrolling
-            scroll_center_x = crop_x + crop_width // 2
-            scroll_center_y = current_crop_y + crop_height // 2
-            pyautogui.moveTo(scroll_center_x, scroll_center_y, duration=0.2)
-            time.sleep(0.3)
-            
-            for scroll_attempt in range(1, max_scroll_attempts + 1):
-                print(f"[ACTION_HANDLER] Scroll attempt {scroll_attempt}/{max_scroll_attempts}")
-                
-                # Scroll down
-                pyautogui.scroll(scroll_amount)
-                time.sleep(0.5)  # Wait for content to update
-                
-                # Update crop_y since we scrolled (content moved up, so visible region changed)
-                # The scroll moves content up, so we need to adjust crop_y
-                current_crop_y = crop_y  # Keep original crop_y, scrolling reveals more content below
-                
-                # Search again with updated crop region
-                found, msg, matches = table_utils.search_second_table_by_date(
-                    begin_date=begin_date,
-                    crop_x=crop_x,
-                    crop_y=current_crop_y,
-                    crop_width=crop_width,
-                    crop_height=crop_height
-                )
-                
-                if found and matches:
-                    print(f"[ACTION_HANDLER] Found begin_date after {scroll_attempt} scroll(s)")
-                    break
-                else:
-                    print(f"[ACTION_HANDLER] Still not found after scroll {scroll_attempt}: {msg}")
-        
-        if not found or not matches:
-            return False, f"Begin date not found after scrolling: {msg}"
+            return False, f"Begin date not found in second table: {msg}"
         
         print(f"[ACTION_HANDLER] Found {len(matches)} matching row(s)")
         
-        # If we're selecting the last match, verify it's truly the last one by scrolling down
-        if len(matches) > 1:
-            # Multiple matches - need to verify the last match is truly the last
-            print(f"[ACTION_HANDLER] Multiple matches found ({len(matches)}), verifying last match is truly the last...")
-            
-            # Move mouse to center of crop region for scrolling
-            scroll_center_x = crop_x + crop_width // 2
-            scroll_center_y = crop_y + crop_height // 2
-            pyautogui.moveTo(scroll_center_x, scroll_center_y, duration=0.2)
-            time.sleep(0.3)
-            
-            # Keep scrolling and checking until we find the true last match
-            max_verification_scrolls = 5
-            all_matches_found = matches.copy()  # Track all matches found across scrolls
-            last_match = matches[-1]
-            
-            for verification_scroll in range(max_verification_scrolls):
-                print(f"[ACTION_HANDLER] Verification scroll {verification_scroll + 1}/{max_verification_scrolls}")
-                
-                # Scroll down more to reveal content below - scroll multiple times for more movement
-                for _ in range(3):  # Scroll 3 times per verification check
-                    pyautogui.scroll(-50)  # Scroll down 50 pixels each time
-                    time.sleep(0.1)  # Small delay between scrolls
-                time.sleep(0.5)  # Wait for content to update after all scrolls
-                
-                # Search again to see if there are more matches below
-                found_more, msg_more, more_matches = table_utils.search_second_table_by_date(
-                    begin_date=begin_date,
-                    crop_x=crop_x,
-                    crop_y=crop_y,
-                    crop_width=crop_width,
-                    crop_height=crop_height
-                )
-                
-                if found_more and more_matches:
-                    # Check if we found any NEW matches (not already in our list)
-                    # Compare by Y coordinate to see if there are matches lower on screen
-                    current_last_y = last_match['click_y']
-                    matches_below = [m for m in more_matches if m['click_y'] > current_last_y]
-                    
-                    if matches_below:
-                        # Found matches below our current last match - add them to our collection
-                        # Sort by Y coordinate and take the one with highest Y (lowest on screen)
-                        matches_below.sort(key=lambda m: m['click_y'], reverse=True)
-                        new_last_match = matches_below[0]
-                        
-                        # Only update if this is truly a new match (check by Y coordinate)
-                        if new_last_match['click_y'] > last_match['click_y']:
-                            last_match = new_last_match
-                            all_matches_found.extend(matches_below)
-                            print(f"[ACTION_HANDLER] Found {len(matches_below)} more match(es) below current last match")
-                            print(f"[ACTION_HANDLER] Updated last match to Y={last_match['click_y']} (row {last_match['row_index'] + 1})")
-                        else:
-                            # No new matches found below - we have the true last match
-                            print(f"[ACTION_HANDLER] No new matches found below - verified as true last match")
-                            break
-                    else:
-                        # No new matches found below current last match - we have the true last match
-                        print(f"[ACTION_HANDLER] No more matches found below current last match - verified as true last match")
-                        break
-                else:
-                    # No more matches found - we have the true last match
-                    print(f"[ACTION_HANDLER] No more matches found - verified as true last match")
-                    break
-            
-            match_to_click = last_match
-            print(f"[ACTION_HANDLER] Double-clicking LAST match (row {match_to_click['row_index'] + 1}, Y={match_to_click['click_y']})")
-            
-            # After verification scrolling, re-search to get fresh coordinates for the last match
-            print(f"[ACTION_HANDLER] Re-searching to get fresh coordinates after verification scrolls...")
-            found_final, msg_final, final_matches = table_utils.search_second_table_by_date(
-                begin_date=begin_date,
-                crop_x=crop_x,
-                crop_y=crop_y,
-                crop_width=crop_width,
-                crop_height=crop_height
-            )
-            
-            if found_final and final_matches:
-                # Find the match with the highest Y coordinate (lowest on screen)
-                final_matches.sort(key=lambda m: m['click_y'], reverse=True)
-                match_to_click = final_matches[0]
-                print(f"[ACTION_HANDLER] Updated match coordinates from final search: Y={match_to_click['click_y']}")
-        else:
-            # Single match - double click it
-            match_to_click = matches[0]
-            print(f"[ACTION_HANDLER] Single match found, double-clicking it (row {match_to_click['row_index'] + 1})")
+        # Select match to click (first match for now, can be adjusted later)
+        match_to_click = matches[0]
+        print(f"[ACTION_HANDLER] Using first match (row {match_to_click['row_index'] + 1})")
         
-        # Double click on the chosen match
+        # Double click on the chosen match (coordinates point to the center of the begin_date text)
         click_x = match_to_click['click_x']
         click_y = match_to_click['click_y']
         
-        print(f"[ACTION_HANDLER] Match to click - X: {click_x}, Y: {click_y}")
+        print(f"[ACTION_HANDLER] Date position - X: {click_x}, Y: {click_y}")
         print(f"[ACTION_HANDLER] Match details: row_index={match_to_click.get('row_index', 'N/A')}, text='{match_to_click.get('matched_text', 'N/A')[:50]}...'")
         
         # Ensure coordinates are valid
         if click_x is None or click_y is None:
             return False, f"Invalid click coordinates: x={click_x}, y={click_y}"
         
-        # Apply 10px downward adjustment to fix click offset
-        click_y = click_y + 10
-        print(f"[ACTION_HANDLER] Adjusted click position: ({click_x}, {click_y}) (+10px Y offset)")
+        print(f"[ACTION_HANDLER] Double-clicking on begin_date at ({click_x}, {click_y})")
         
-        # Move mouse to position first to ensure it's visible
-        print(f"[ACTION_HANDLER] Moving mouse to ({click_x}, {click_y})")
+        # Move mouse to date position first to ensure it's visible
         pyautogui.moveTo(click_x, click_y, duration=0.2)
         time.sleep(0.2)
         
-        print(f"[ACTION_HANDLER] Double-clicking on row at ({click_x}, {click_y})")
+        # Double-click on the date
         success, action_msg = actions.click_at_position(click_x, click_y, clicks=2, button='left')
         
         if not success:
-            return False, f"Failed to double-click at position: {action_msg}"
+            return False, f"Failed to double-click on date: {action_msg}"
         
-        print(f"[ACTION_HANDLER] Double-click completed successfully")
+        print(f"[ACTION_HANDLER] ✓ Double-click on date completed successfully")
         
         # Wait a moment for any UI update
         time.sleep(0.5)

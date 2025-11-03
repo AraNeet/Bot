@@ -244,26 +244,6 @@ def execute_workflow(prepared_objectives: List[Dict[str, Any]],
         for obj in prepared_objectives
     )
     
-    # Step 1: Verify workspace is ready
-    print("\n[EXECUTOR] Verifying workspace is ready...")
-    # workspace_ready, workspace_msg = verifier.check_workspace_ready(
-    #     corner_templates=corner_templates,
-    #     expected_page_text=expected_page_text
-    # )
-    
-    # if not workspace_ready:
-    #     error_msg = f"Workspace verification failed: {workspace_msg}"
-    #     print(f"[EXECUTOR ERROR] {error_msg}")
-    #     notify_error(
-    #         "Workspace not ready for workflow execution",
-    #         "workflow_executor.execute_workflow",
-    #         {"error": workspace_msg}
-    #     )
-    #     return False, results
-    
-    # print(f"[EXECUTOR SUCCESS] ✓ {workspace_msg}")
-    print(f"[EXECUTOR] Workspace is ready - starting execution...")
-    
     # Step 2: Execute each prepared objective
     for obj_index, objective in enumerate(prepared_objectives, start=1):
         success, result_details = execute_single_objective(

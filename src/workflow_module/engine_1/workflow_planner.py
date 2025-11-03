@@ -143,12 +143,6 @@ def _prepare_all_objectives(supported_objectives: List[Dict[str, Any]],
     print("[PLANNER] PREPARING ALL OBJECTIVES")
     print("="*70)
     
-    # Validate input
-    if not isinstance(supported_objectives, list):
-        error_msg = f"'supported_objectives' must be a list, got: {type(supported_objectives)}"
-        print(f"[PLANNER ERROR] {error_msg}")
-        return False, {"error": error_msg}
-    
     if not supported_objectives:
         warning_msg = "No supported objectives to prepare"
         print(f"[PLANNER WARNING] {warning_msg}")
@@ -338,8 +332,7 @@ def _print_preparation_summary(prepared_objectives: List[Dict[str, Any]]) -> Non
 # MAIN PLANNING FUNCTION
 # ============================================================================
 
-def plan_workflow(parser_results: Dict[str, Any],
-                 actions_dir: str = "src/workflow_module/objective_definitions") -> Tuple[bool, Any]:
+def plan_workflow(parser_results: Dict[str, Any], actions_dir: str = "src/workflow_module/objective_definitions") -> Tuple[bool, Any]:
     """
     Main planning function - validates and prepares all objectives (RESILIENT).
     

@@ -310,12 +310,12 @@ def match_text_positions(target_texts: List[str], data: Dict[str, List]) -> List
     """
     Match target texts in OCR data and return first position per matched target.
     
-    This function:
-    1. Defines lower_targets for case-insensitive matching.
-    2. Loops through data["text"] to find first match per target (case-insensitive).
-    3. Saves first matched word and position per target in a dict.
-    4. Returns list of first positions [(x, y, w, h), ...] for matched targets, sorted by x.
-    5. Only fails (returns []) if 3 or more targets are unmatched.
+    Improved matching logic:
+    1. Normalizes dates by removing leading zeros (09/16/2025 → 9/16/2025)
+    2. Prevents multiple targets from matching the same OCR text box
+    3. Prioritizes more specific matches (longer strings, exact matches)
+    4. Returns list of unique positions for each matched target
+    5. Only fails if 3 or more targets are unmatched
     
     Args:
         target_texts: List of search terms (e.g., [deal_number, advertiser_name, begin_date, end_date])
@@ -325,47 +325,115 @@ def match_text_positions(target_texts: List[str], data: Dict[str, List]) -> List
         List of (x, y, w, h) tuples for first match of each matched target, sorted by x.
         Empty list if 3 or more targets are unmatched.
     """
-    # Define lower_targets (lowercase for matching, map to original)
-    target_lowers = {t.lower(): t for t in target_texts if t}  # E.g., {'418498': '418498', 'blue apron': 'Blue Apron'}
-    if len(target_lowers) != len(target_texts):
-        print(f"[ACTION_HANDLER] Not all {len(target_texts)} targets valid—got {len(target_lowers)}!")
+    import re
+    
+    def normalize_for_matching(text: str) -> str:
+        """Normalize text for matching - remove leading zeros from dates."""
+        # Convert to string and lowercase
+        text = str(text).lower()
+        # Remove leading zeros from date components (09 → 9, 01 → 1)
+        # Match patterns like 09/16/2025 or 01-15-2024
+        text = re.sub(r'\b0+(\d)', r'\1', text)
+        return text
+    
+    # Convert all targets to strings and normalize
+    target_normalized = {}  # Key: normalized target, Value: original target string
+    for t in target_texts:
+        if t:
+            original = str(t)
+            normalized = normalize_for_matching(original)
+            target_normalized[normalized] = original
+    
+    if len(target_normalized) != len(target_texts):
+        print(f"[MATCH] Not all {len(target_texts)} targets valid—got {len(target_normalized)}!")
         return []
-    print(f"[ACTION_HANDLER] Matching targets: {list(target_lowers.values())}")
-
-    # Match across all OCR text (no row tolerance—pure text search!)
-    match_info = {}  # Key: lowercase target, Value: (word, (x, y, w, h)) for FIRST match only
-    for i, text in enumerate(data['text']):
-        if not text.strip():  # Skip empty—clean and respectful!
-            continue
-        text_lower = text.lower()  # Case-insensitive match
-        bbox = data['bbox'][i]  # [x1, y1, x2, y2]
-        pos = (bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1])  # (x, y, w, h)
+    
+    print(f"[MATCH] Matching targets: {list(target_normalized.values())}")
+    
+    # Track which OCR text indices have been used to prevent duplicate matches
+    used_indices = set()
+    
+    # First pass: Find matches for each target
+    # Store potential matches with scores
+    all_matches = {}  # Key: normalized target, Value: list of (score, index, text, pos)
+    
+    for target_norm, target_orig in target_normalized.items():
+        all_matches[target_norm] = []
         
-        # Check if text matches ANY search term (save FIRST match only)
-        for target in target_lowers:
-            if target not in match_info and target in text_lower:  # Only if not already matched
-                match_info[target] = (text, pos)  # Save first (word, pos)
-                print(f"[DEBUG] First match for '{target_lowers[target]}': '{text}' at pos {pos}")
-
-    # Check if too many targets are missing (3 or more)
-    missing = [target_lowers[t] for t in target_lowers if t not in match_info]
-    if len(missing) >= 3:
-        print(f"[ACTION_HANDLER] Too many targets missing ({len(missing)}): {missing}. Failing!")
-        return []
-
-    # Collect first position per matched target (in order of target_texts)
-    positions = []
-    for target in target_lowers:
-        if target in match_info:
-            matched_word, first_pos = match_info[target]  # First (and only) match
-            print(f"[ACTION_HANDLER] Target '{target_lowers[target]}' matched with '{matched_word}' at {first_pos}")
-            positions.append(first_pos)
+        for i, text in enumerate(data['text']):
+            if not text.strip() or i in used_indices:
+                continue
+            
+            text_normalized = normalize_for_matching(text)
+            bbox = data['bbox'][i]
+            pos = (bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1])
+            
+            # Check if target matches this text
+            if target_norm in text_normalized:
+                # Calculate match score (higher is better)
+                # Prioritize: exact match > target is most of text > target is small part of text
+                score = 0
+                
+                if target_norm == text_normalized:
+                    # Exact match
+                    score = 1000
+                elif text_normalized == target_norm.strip():
+                    # Exact match after strip
+                    score = 900
+                else:
+                    # Partial match - score based on how much of the text is the target
+                    # Longer target strings get higher scores
+                    target_ratio = len(target_norm) / len(text_normalized)
+                    score = int(target_ratio * 100) + len(target_norm)
+                
+                all_matches[target_norm].append((score, i, text, pos))
+    
+    # Second pass: Assign best unique match for each target
+    # Sort targets by specificity (longer targets first to get first pick)
+    sorted_targets = sorted(target_normalized.keys(), key=lambda t: len(t), reverse=True)
+    
+    match_info = {}  # Key: normalized target, Value: (text, pos, index)
+    
+    for target_norm in sorted_targets:
+        target_orig = target_normalized[target_norm]
+        matches = all_matches.get(target_norm, [])
+        
+        if not matches:
+            print(f"[MATCH] No matches found for '{target_orig}'")
+            continue
+        
+        # Sort by score (highest first) and filter out used indices
+        matches = [(score, idx, text, pos) for score, idx, text, pos in matches if idx not in used_indices]
+        matches.sort(reverse=True, key=lambda m: m[0])
+        
+        if matches:
+            score, idx, text, pos = matches[0]
+            match_info[target_norm] = (text, pos, idx)
+            used_indices.add(idx)  # Mark this OCR text as used
+            print(f"[MATCH] '{target_orig}' matched to '{text}' at {pos} (score: {score})")
         else:
-            print(f"[ACTION_HANDLER] Target '{target_lowers[target]}' not matched—skipping!")
-
-    # Sort by x for left-to-right order (wise for later clicking!)
+            print(f"[MATCH] All potential matches for '{target_orig}' already used by other targets")
+    
+    # Check if too many targets are missing (3 or more)
+    missing = [target_normalized[t] for t in target_normalized if t not in match_info]
+    if len(missing) >= 3:
+        print(f"[MATCH] Too many targets missing ({len(missing)}): {missing}. Failing!")
+        return []
+    
+    # Collect positions in order of original target_texts
+    positions = []
+    for t in target_texts:
+        if t:
+            target_norm = normalize_for_matching(str(t))
+            if target_norm in match_info:
+                text, pos, idx = match_info[target_norm]
+                positions.append(pos)
+            else:
+                print(f"[MATCH] Target '{t}' not matched—skipping!")
+    
+    # Sort by x for left-to-right order
     if positions:
         positions.sort(key=lambda p: p[0])
-        print(f"[ACTION_HANDLER] Positions for use later: {positions}")
+        print(f"[MATCH] Final {len(positions)} unique positions (sorted by x): {positions}")
     
     return positions
