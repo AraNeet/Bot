@@ -1,0 +1,219 @@
+#!/usr/bin/env python3
+"""
+Handler for: Open Multinetwork Row by Date
+
+Find and double-click on a row in the second table (within expanded row) by begin_date.
+"""
+
+from typing import Tuple, Dict, Any, Optional
+from src.workflow_module.actions.helpers import actions
+from src.workflow_module.actions.helpers import table_utils
+from src.workflow_module.actions.helpers import computer_vision_utils
+import time
+import pyautogui
+import cv2
+import numpy as np
+
+
+def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[bool, str]:
+    global _last_row_expander_position
+    if not begin_date:
+        return False, "Missing begin_date parameter"
+    print(f"[ACTION_HANDLER] Searching for begin_date: '{begin_date}' in second table")
+    print(f"[ACTION_HANDLER] Estimate number for reference: '{estimate_number}'")
+    try:
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot"
+        screen_height, screen_width = screenshot.shape[:2]
+        print(f"[ACTION_HANDLER] Screen size: {screen_width}x{screen_height}")
+        print(f"[ACTION_HANDLER] Detecting blue highlighted row (expanded row)...")
+        hsv = cv2.cvtColor(screenshot, cv2.COLOR_BGR2HSV)
+        lower_blue = np.array([100, 50, 50])
+        upper_blue = np.array([130, 255, 255])
+        blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)
+        contours, _ = cv2.findContours(blue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            return False, "Could not find blue highlighted row (expanded row not visible)"
+        bottom_exclusion_y = max(0, screen_height - 100)
+        candidate_contours = []
+        for cnt in contours:
+            x, y, w, h = cv2.boundingRect(cnt)
+            if y >= bottom_exclusion_y:
+                continue
+            if h < 18 or h > 40:
+                continue
+            if w < 300:
+                continue
+            candidate_contours.append((cnt, x, y, w, h))
+        if candidate_contours:
+            candidate_contours.sort(key=lambda item: (item[3], cv2.contourArea(item[0])), reverse=True)
+            chosen_cnt, blue_x, blue_y, blue_w, blue_h = candidate_contours[0]
+        else:
+            largest_contour = max(contours, key=cv2.contourArea)
+            blue_x, blue_y, blue_w, blue_h = cv2.boundingRect(largest_contour)
+            if blue_y >= bottom_exclusion_y:
+                blue_y = max(0, bottom_exclusion_y - max(blue_h, 40))
+        print(f"[ACTION_HANDLER] Found blue highlighted row at ({blue_x}, {blue_y}) with size {blue_w}x{blue_h}")
+        print(f"[ACTION_HANDLER] Searching for estimate number to determine crop Y position...")
+        estimate_number_y = None
+        if estimate_number:
+            from src.workflow_module.actions.helpers.ocr_utils import TextScanner
+            scanner = TextScanner()
+            search_region = screenshot[blue_y:blue_y + blue_h, blue_x:blue_x + blue_w]
+            success, data = scanner.get_text_data(search_region)
+            if success and data['text']:
+                estimate_number_str = str(estimate_number)
+                for i, text in enumerate(data['text']):
+                    if text and estimate_number_str in text:
+                        bbox = data['bbox'][i]
+                        estimate_number_y = blue_y + bbox[1]
+                        print(f"[ACTION_HANDLER] Found estimate number at screen Y={estimate_number_y}")
+                        break
+        if estimate_number_y is None:
+            estimate_number_y = blue_y
+            print(f"[ACTION_HANDLER] Estimate number not found, using blue region Y={blue_y}")
+        print(f"[ACTION_HANDLER] Detecting black border below selected row...")
+        bottom_border_y_screen = None
+        search_start_y = blue_y + blue_h
+        search_end_y = min(search_start_y + 200, screen_height)
+        gray = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
+        crop_x_fixed = 205
+        crop_width_fixed = 1500
+        for y in range(search_start_y, search_end_y):
+            check_x_start = crop_x_fixed
+            check_x_end = min(crop_x_fixed + crop_width_fixed, screen_width)
+            row = gray[y, check_x_start:check_x_end]
+            dark_pixel_count = np.sum(row < 50)
+            dark_ratio = dark_pixel_count / len(row)
+            if dark_ratio > 0.7:
+                bottom_border_y_screen = y
+                print(f"[ACTION_HANDLER] Found bottom black border at screen Y={y} ({dark_ratio:.1%} dark)")
+                break
+        if bottom_border_y_screen is None:
+            fallback_y = search_start_y + 100
+            bottom_exclusion_y = max(0, screen_height - 100)
+            bottom_border_y_screen = min(fallback_y, bottom_exclusion_y - 2)
+            print(f"[ACTION_HANDLER] WARNING: Black border not found, using fallback: Y={bottom_border_y_screen}")
+        crop_x = 205
+        crop_y = estimate_number_y
+        crop_width = 1500
+        crop_height = bottom_border_y_screen - estimate_number_y
+        print(f"[ACTION_HANDLER] Estimate number Y position: {estimate_number_y}")
+        print(f"[ACTION_HANDLER] Black border: Y={bottom_border_y_screen}")
+        print(f"[ACTION_HANDLER] Inner table region: x={crop_x}, y={crop_y}, w={crop_width}, h={crop_height}")
+        if crop_height <= 0 or crop_width <= 0:
+            return False, f"Invalid crop dimensions: width={crop_width}, height={crop_height}"
+        if crop_x + crop_width > screen_width:
+            crop_width = screen_width - crop_x
+            print(f"[ACTION_HANDLER] Adjusted crop_width to {crop_width} to stay within screen bounds")
+        if crop_y + crop_height > screen_height:
+            crop_height = screen_height - crop_y
+            print(f"[ACTION_HANDLER] Adjusted crop_height to {crop_height} to stay within screen bounds")
+        max_bottom_y = max(0, screen_height - 100)
+        if crop_y + crop_height > max_bottom_y:
+            crop_height = max(0, max_bottom_y - crop_y)
+            print(f"[ACTION_HANDLER] Adjusted crop_height to {crop_height} to avoid taskbar region")
+        cropped_inner_table = computer_vision_utils.crop_image(screenshot, crop_x, crop_y, crop_width, crop_height)
+        if cropped_inner_table is not None:
+            import os
+            debug_path = "debug_images/inner_table_cropped.png"
+            os.makedirs("debug_images", exist_ok=True)
+            cv2.imwrite(debug_path, cropped_inner_table)
+            print(f"[ACTION_HANDLER] Saved cropped inner table image to: {debug_path}")
+        found, msg, matches = table_utils.search_second_table_by_date(
+            begin_date=begin_date,
+            crop_x=crop_x,
+            crop_y=crop_y,
+            crop_width=crop_width,
+            crop_height=crop_height
+        )
+        if not found or not matches:
+            return False, f"Begin date not found in second table: {msg}"
+        print(f"[ACTION_HANDLER] Found {len(matches)} matching row(s)")
+        match_to_click = matches[0]
+        print(f"[ACTION_HANDLER] Using first match (row {match_to_click['row_index'] + 1})")
+        click_x = match_to_click['click_x']
+        click_y = match_to_click['click_y']
+        print(f"[ACTION_HANDLER] Date position - X: {click_x}, Y: {click_y}")
+        print(f"[ACTION_HANDLER] Match details: row_index={match_to_click.get('row_index', 'N/A')}, text='{match_to_click.get('matched_text', 'N/A')[:50]}...'")
+        if click_x is None or click_y is None:
+            return False, f"Invalid click coordinates: x={click_x}, y={click_y}"
+        print(f"[ACTION_HANDLER] Double-clicking on begin_date at ({click_x}, {click_y})")
+        pyautogui.moveTo(click_x, click_y, duration=0.2)
+        time.sleep(0.2)
+        success, action_msg = actions.click_at_position(click_x, click_y, clicks=2, button='left')
+        if not success:
+            return False, f"Failed to double-click on date: {action_msg}"
+        print(f"[ACTION_HANDLER] ✓ Double-click on date completed successfully")
+        time.sleep(0.5)
+        match_count_str = f"{len(matches)} match" + ("es" if len(matches) != 1 else "")
+        return True, f"Row found and double-clicked! Begin date: '{begin_date}' ({match_count_str})"
+    except Exception as e:
+        return False, f"Error finding row by begin_date: {e}"
+
+
+def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    print("[VERIFIER_HANDLER] Verifying network page is loading by detecting loading circle...")
+    try:
+        time.sleep(1.0)
+        screenshot = computer_vision_utils.take_screenshot()
+        if screenshot is None:
+            return False, "Failed to take screenshot for verification", None
+        found, circle_info = computer_vision_utils.detect_loading_circle(
+            screenshot,
+            center_region_ratio=0.4,
+            min_radius=15,
+            max_radius=100,
+            brightness_threshold=180
+        )
+        verification_data = {
+            "loading_circle_found": found,
+            "circle_info": circle_info,
+            "screenshot_taken": True
+        }
+        if found and circle_info:
+            x, y, radius = circle_info
+            success_msg = f"✓ Network page is loading. Loading circle detected at ({x}, {y}), radius: {radius}px"
+            print(f"[VERIFIER_HANDLER] {success_msg}")
+            verification_data["message"] = success_msg
+            return True, success_msg, verification_data
+        else:
+            print(f"[VERIFIER_HANDLER] Loading circle not found on first attempt, waiting and checking again...")
+            time.sleep(1.5)
+            screenshot2 = computer_vision_utils.take_screenshot()
+            if screenshot2 is not None:
+                found2, circle_info2 = computer_vision_utils.detect_loading_circle(
+                    screenshot2,
+                    center_region_ratio=0.4,
+                    min_radius=15,
+                    max_radius=100,
+                    brightness_threshold=180
+                )
+                verification_data["second_check"] = {
+                    "loading_circle_found": found2,
+                    "circle_info": circle_info2
+                }
+                if found2 and circle_info2:
+                    x, y, radius = circle_info2
+                    success_msg = f"✓ Network page is loading. Loading circle detected on second check at ({x}, {y}), radius: {radius}px"
+                    print(f"[VERIFIER_HANDLER] {success_msg}")
+                    verification_data["message"] = success_msg
+                    return True, success_msg, verification_data
+        warning_msg = f"⚠ Loading circle not detected. Page may have loaded very quickly, or loading indicator may not be visible."
+        print(f"[VERIFIER_HANDLER] {warning_msg}")
+        verification_data["message"] = warning_msg
+        return True, warning_msg, verification_data
+    except Exception as e:
+        error_msg = f"Error verifying network page loading: {e}"
+        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
+        return False, error_msg, None
+
+
+def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> Tuple[bool, str]:
+    if attempt < max_attempts:
+        time.sleep(1.0)
+        return True, "Retrying action"
+    return False, f"Failed after {max_attempts} attempts"
+
+

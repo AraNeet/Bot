@@ -2,33 +2,33 @@
     "definitions": {
         "edit_copy_definition": [
             {
-                "action_type": "open_multinetwork_instructions_page",
+                "action_type": "open_instructions_page",
                 "description": "Navigate to Multinetwork Instructions page",
                 "parameters": {}
             },            
             {
-                "action_type": "enter_advertiser_name",
+                "action_type": "type_advertiser_name",
                 "description": "Enter advertiser name in search field",
                 "parameters": {
                     "advertiser_name": ""
                 }
             },
             {
-                "action_type": "enter_agency",
+                "action_type": "type_agency_name",
                 "description": "Enter agency name into the field",
                 "parameters": {
                     "agency_name": ""
                 }
             },
             {
-                "action_type": "enter_begin_date",
+                "action_type": "set_begin_date",
                 "description": "Enter begin date into the field",
                 "parameters": {
                     "begin_date": ""
                 }
             },
             {
-                "action_type": "enter_end_date",
+                "action_type": "set_end_date",
                 "description": "Enter end date into the field",
                 "parameters": {
                     "end_date": ""
@@ -40,14 +40,14 @@
                 "parameters": {}
             },
             {
-                "action_type": "wait_for_search_results",
+                "action_type": "wait_for_results",
                 "description": "Wait for search results to load",
                 "parameters": {
                     "timeout": 10
                 }
             },
             {
-                "action_type": "find_row_by_values",
+                "action_type": "select_row_by_values",
                 "description": "Search through table rows to find matching estimate number",
                 "parameters": {
                     "estimate_number": "",
@@ -57,14 +57,14 @@
                 }
             },
             {
-                "action_type": "open_multinetwork_by_instructions",
+                "action_type": "open_multinetwork_row_by_date",
                 "description": "Find and double-click on a row in the second table by begin_date",
                 "parameters": {
                     "begin_date": ""
                 }
             },
             {
-                "action_type": "enter_isci_1",
+                "action_type": "type_isci_code",
                 "description": "Enter ISCI 1 value",
                 "parameters": {
                     "isci_1": ""
@@ -76,7 +76,7 @@
                 "parameters": {}
             },
             {
-                "action_type": "verify_save_successful",
+                "action_type": "verify_save",
                 "description": "Verify the instruction was saved successfully",
                 "parameters": {}
             }
