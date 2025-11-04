@@ -21,17 +21,13 @@
                     "description": "End Date for the instruction",
                     "format": "MM/DD/YYYY"
                 },
-                "deal_number": {
+                "estimate_number": {
                     "type": "number",
-                    "description": "Deal Number"
+                    "description": "Estimate Number"
                 },
                 "isci_1": {
                     "type": "string",
                     "description": "Isci 1 code"
-                },
-                "order_number": {
-                    "type": "number",
-                    "description": "Order Number"
                 }
             },
             "optional_fields": {

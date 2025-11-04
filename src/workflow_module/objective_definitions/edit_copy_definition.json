@@ -48,9 +48,9 @@
             },
             {
                 "action_type": "find_row_by_values",
-                "description": "Search through table rows to find matching deal number",
+                "description": "Search through table rows to find matching estimate number",
                 "parameters": {
-                    "deal_number": "",
+                    "estimate_number": "",
                     "advertiser_name": "",
                     "begin_date": "",
                     "end_date": ""
@@ -78,9 +78,7 @@
             {
                 "action_type": "verify_save_successful",
                 "description": "Verify the instruction was saved successfully",
-                "parameters": {
-                    "order_number": ""
-                }
+                "parameters": {}
             }
         ]
     }

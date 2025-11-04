@@ -251,9 +251,8 @@ def _parse_new_format(objectives: Dict[str, Any], config: Dict[str, Any]) -> Tup
                 continue
             
             # Map fields from new format to expected format
-            # Convert order_id to number for both order_number and deal_number
-            order_number_value = int(order_id) if order_id and order_id.isdigit() else order_id
-            deal_number_value = int(order_id) if order_id and order_id.isdigit() else order_id
+            # Convert order_id to number for estimate_number
+            estimate_number_value = int(order_id) if order_id and order_id.isdigit() else order_id
             
             # Extract isci_1 from first copy_instruction if available
             # The copy_id in copy_instructions might be the ISCI code
@@ -265,12 +264,11 @@ def _parse_new_format(objectives: Dict[str, Any], config: Dict[str, Any]) -> Tup
             mapped_values = {
                 "agency_name": agency,
                 "advertiser_name": advertiser,
-                "order_number": order_number_value,
                 "begin_date": flight_start_date,
                 "end_date": flight_end_date,
-                # Note: deal_number uses order_id from alert level
+                # Note: estimate_number uses order_id from alert level
                 # isci_1 extracted from first copy_instruction's copy_id if available
-                "deal_number": deal_number_value,  # Use order_id as deal_number
+                "estimate_number": estimate_number_value,  # Use order_id as estimate_number
                 "isci_1": isci_1_value
             }
             

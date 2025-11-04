@@ -8,39 +8,39 @@ The Workflow Module provides a unified system for executing automated workflows 
 
 ```
 workflow_module/
-├── engine_1/                     # Workflow orchestration
-│   ├── process_input.py          # Main entry point (process_input_workflow)
-│   ├── workflow_executor.py      # Execution engine (execute instructions/objectives/workflow)
-│   ├── workflow_planner.py       # Objective planning and preparation
-│   └── instruction_loader.py     # Instruction loading and parameter filling
-├── actions_2/                    # Action execution system
-│   ├── unified_executor.py       # Main executor (action + verification + error handling)
-│   ├── action_list.json          # List of all actions that can be completed
-│   ├── handlers/                 # Individual action handlers (numbered)
-│   │   ├── 1_open_multinetwork_instructions_page.py
-│   │   ├── 2_enter_advertiser_name.py
-│   │   ├── 3_enter_deal_number.py
-│   │   ├── 4_enter_agency.py
-│   │   ├── 5_enter_begin_date.py
-│   │   ├── 6_enter_end_date.py
-│   │   ├── 7_click_search_button.py
-│   │   ├── 8_wait_for_search_results.py
-│   │   ├── 9_find_row_by_values.py
-│   │   └── 10_select_edit_multinetwork_instruction.py
-│   ├── helpers/                  # Utility modules used by handlers
-│   │   ├── actions.py            # Low-level automation (keyboard, mouse)
+├── engine/                         # Workflow orchestration
+│   ├── process_input.py            # Main entry point (process_input_workflow)
+│   ├── workflow_executor.py        # Execution engine (execute instructions/objectives/workflow)
+│   ├── workflow_planner.py         # Objective planning and preparation
+│   └── instruction_loader.py      # Instruction loading and parameter filling
+├── actions/                        # Action execution system
+│   ├── unified_executor.py         # Main executor (action + verification + error handling)
+│   ├── action_list.json           # List of all actions that can be completed
+│   ├── handlers/                   # Individual action handlers (directory-based)
+│   │   ├── open_multinetwork_instructions_page/
+│   │   ├── enter_advertiser_name/
+│   │   ├── enter_estimate_number/
+│   │   ├── enter_agency/
+│   │   ├── enter_begin_date/
+│   │   ├── enter_end_date/
+│   │   ├── click_search_button/
+│   │   ├── wait_for_search_results/
+│   │   ├── find_row_by_values/
+│   │   └── open_multinetwork_by_instructions/
+│   ├── helpers/                    # Utility modules used by handlers
+│   │   ├── actions.py              # Low-level automation (keyboard, mouse)
 │   │   ├── verification_utils.py # Verification utilities (OCR extraction, similarity)
 │   │   ├── computer_vision_utils.py  # Computer vision utilities
-│   │   ├── ocr_utils.py          # OCR utilities
-│   │   └── table_utils.py        # Table processing utilities
-│   └── assets/                   # Image assets for template matching
-└── objective_definitions/        # Objective definition JSON files
+│   │   ├── ocr_utils.py           # OCR utilities
+│   │   └── table_utils.py         # Table processing utilities
+│   └── assets/                     # Image assets for template matching
+└── objective_definitions/          # Objective definition JSON files
     └── edit_copy_definition.json
 ```
 
 ## Components
 
-### 1. Engine Module (`engine_1/`)
+### 1. Engine Module (`engine/`)
 
 **Purpose**: High-level workflow orchestration and planning
 
@@ -56,19 +56,21 @@ workflow_module/
 3. **workflow_planner.py**: Loads objectives, prepares instructions with parameters
 4. **instruction_loader.py**: Loads and processes instruction JSON files
 
-### 2. Action Module (`actions_2/`)
+### 2. Action Module (`actions/`)
 
 **Purpose**: Action execution with integrated verification and error handling
 
 **Files**:
 - `unified_executor.py`: Main executor that handles action → verification → error handling flow
 - `action_list.json`: List of all actions that can be completed, mapping action types to handler modules
-- `handlers/`: Individual handler files (one per action type)
+- `handlers/`: Individual handler directories (one per action type)
 
-**Handler Structure**: Each handler file (e.g., `1_open_multinetwork_instructions_page.py`) contains:
-1. `action()` - Executes the action
-2. `verifier()` - Verifies the action completed successfully
-3. `error_handler()` - Handles errors specific to that action
+**Handler Structure**: Each handler directory contains:
+- `handler.py` file with:
+  1. `action()` - Executes the action
+  2. `verifier()` - Verifies the action completed successfully
+  3. `error_handler()` - Handles errors specific to that action
+- Optional: Handler-specific assets (images, templates) in the same directory
 
 **Helpers Folder** (`helpers/`): Utility modules used by handlers
 - `actions.py`: Low-level automation functions (typing, clicking, key presses)
@@ -119,7 +121,7 @@ workflow_module/
 
 ### From main.py:
 ```python
-from src.workflow_module.engine_1.process_input import process_input_workflow
+from src.workflow_module.engine.process_input import process_input_workflow
 
 success, results = process_input_workflow(
     parser_results=parser_results,
@@ -130,7 +132,8 @@ success, results = process_input_workflow(
 
 ### Adding New Actions:
 
-1. Create new handler file: `actions_2/handlers/11_new_action.py`
+1. Create new handler directory: `actions/handlers/new_action/`
+   Create `handler.py` file:
    ```python
    def action(**kwargs) -> Tuple[bool, str]:
        # Implement action logic
@@ -149,7 +152,7 @@ success, results = process_input_workflow(
    ```json
    {
      "new_action_type": {
-       "module": "src.workflow_module.actions_2.handlers.11_new_action",
+       "module": "src.workflow_module.actions.handlers.new_action.handler",
        "description": "Description of the action",
        "has_verifier": true,
        "has_error_handler": true
@@ -197,5 +200,5 @@ success, results = process_input_workflow(
 - **v2.0.0**: Organized folder structure with helpers subfolder
 - **v3.0.0**: Separated process_input and workflow_executor
 - **v4.0.0**: Removed __init__.py files, integrated summary into process_input_workflow()
-- **v5.0.0**: Current version - renamed folders to `engine_1` and `actions_2` for better organization and valid Python module names
+- **v6.0.0**: Current version - cleaned up directory names: `engine_1` → `engine`, `actions_2` → `actions`, removed obsolete directories, standardized handler structure
 
