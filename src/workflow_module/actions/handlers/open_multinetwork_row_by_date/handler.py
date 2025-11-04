@@ -157,63 +157,6 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         return False, f"Error finding row by begin_date: {e}"
 
 
-def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    print("[VERIFIER_HANDLER] Verifying network page is loading by detecting loading circle...")
-    try:
-        time.sleep(1.0)
-        screenshot = computer_vision_utils.take_screenshot()
-        if screenshot is None:
-            return False, "Failed to take screenshot for verification", None
-        found, circle_info = computer_vision_utils.detect_loading_circle(
-            screenshot,
-            center_region_ratio=0.4,
-            min_radius=15,
-            max_radius=100,
-            brightness_threshold=180
-        )
-        verification_data = {
-            "loading_circle_found": found,
-            "circle_info": circle_info,
-            "screenshot_taken": True
-        }
-        if found and circle_info:
-            x, y, radius = circle_info
-            success_msg = f"✓ Network page is loading. Loading circle detected at ({x}, {y}), radius: {radius}px"
-            print(f"[VERIFIER_HANDLER] {success_msg}")
-            verification_data["message"] = success_msg
-            return True, success_msg, verification_data
-        else:
-            print(f"[VERIFIER_HANDLER] Loading circle not found on first attempt, waiting and checking again...")
-            time.sleep(1.5)
-            screenshot2 = computer_vision_utils.take_screenshot()
-            if screenshot2 is not None:
-                found2, circle_info2 = computer_vision_utils.detect_loading_circle(
-                    screenshot2,
-                    center_region_ratio=0.4,
-                    min_radius=15,
-                    max_radius=100,
-                    brightness_threshold=180
-                )
-                verification_data["second_check"] = {
-                    "loading_circle_found": found2,
-                    "circle_info": circle_info2
-                }
-                if found2 and circle_info2:
-                    x, y, radius = circle_info2
-                    success_msg = f"✓ Network page is loading. Loading circle detected on second check at ({x}, {y}), radius: {radius}px"
-                    print(f"[VERIFIER_HANDLER] {success_msg}")
-                    verification_data["message"] = success_msg
-                    return True, success_msg, verification_data
-        warning_msg = f"⚠ Loading circle not detected. Page may have loaded very quickly, or loading indicator may not be visible."
-        print(f"[VERIFIER_HANDLER] {warning_msg}")
-        verification_data["message"] = warning_msg
-        return True, warning_msg, verification_data
-    except Exception as e:
-        error_msg = f"Error verifying network page loading: {e}"
-        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
-        return False, error_msg, None
-
-
 def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> Tuple[bool, str]:
     if attempt < max_attempts:
         time.sleep(1.0)

@@ -56,6 +56,12 @@
   "open_multinetwork_row_by_date": {
     "module": "src.workflow_module.actions.handlers.open_multinetwork_row_by_date.handler",
     "description": "Find and double-click on a row in the second table (within expanded row) by begin_date",
+    "has_verifier": false,
+    "has_error_handler": true
+  },
+  "multinetwork_popup": {
+    "module": "src.workflow_module.actions.handlers.multinetwork_popup.handler",
+    "description": "Detect and handle the Multi-Network instruction popup dialog",
     "has_verifier": true,
     "has_error_handler": true
   },

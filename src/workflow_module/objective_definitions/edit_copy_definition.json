@@ -64,6 +64,11 @@
                 }
             },
             {
+                "action_type": "multinetwork_popup",
+                "description": "Handle Multi-Network popup if it appears",
+                "parameters": {}
+            },
+            {
                 "action_type": "type_isci_code",
                 "description": "Enter ISCI 1 value",
                 "parameters": {
