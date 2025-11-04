@@ -74,11 +74,36 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         
         if not contours:
             return False, "Could not find blue highlighted row (expanded row not visible)"
-        
-        # Find the largest blue region (the expanded row)
-        largest_contour = max(contours, key=cv2.contourArea)
-        blue_x, blue_y, blue_w, blue_h = cv2.boundingRect(largest_contour)
-        
+
+        # Filter out false positives such as the Windows taskbar or tiny blue UI elements.
+        # Heuristics:
+        # - Exclude regions within the bottom 100px of the screen (taskbar area)
+        # - Keep rows with a plausible height (18-40px)
+        # - Keep reasonably wide regions (>300px) so small icons are ignored
+        bottom_exclusion_y = max(0, screen_height - 100)
+        candidate_contours = []
+        for cnt in contours:
+            x, y, w, h = cv2.boundingRect(cnt)
+            if y >= bottom_exclusion_y:
+                continue
+            if h < 18 or h > 40:
+                continue
+            if w < 300:
+                continue
+            candidate_contours.append((cnt, x, y, w, h))
+
+        if candidate_contours:
+            # Prefer the widest plausible row; ties broken by area
+            candidate_contours.sort(key=lambda item: (item[3], cv2.contourArea(item[0])), reverse=True)
+            chosen_cnt, blue_x, blue_y, blue_w, blue_h = candidate_contours[0]
+        else:
+            # Fallback: still choose the largest contour but clamp away from taskbar if it lands there
+            largest_contour = max(contours, key=cv2.contourArea)
+            blue_x, blue_y, blue_w, blue_h = cv2.boundingRect(largest_contour)
+            if blue_y >= bottom_exclusion_y:
+                # Move search upward just above the excluded zone
+                blue_y = max(0, bottom_exclusion_y - max(blue_h, 40))
+
         print(f"[ACTION_HANDLER] Found blue highlighted row at ({blue_x}, {blue_y}) with size {blue_w}x{blue_h}")
         
         # Step 2: Find the estimate number's Y position within the blue region
@@ -143,8 +168,10 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
                 break
         
         if bottom_border_y_screen is None:
-            # Fallback: use a default distance below
-            bottom_border_y_screen = search_start_y + 100
+            # Fallback: use a default distance below but never enter the taskbar zone
+            fallback_y = search_start_y + 100
+            bottom_exclusion_y = max(0, screen_height - 100)
+            bottom_border_y_screen = min(fallback_y, bottom_exclusion_y - 2)
             print(f"[ACTION_HANDLER] WARNING: Black border not found, using fallback: Y={bottom_border_y_screen}")
         
         # Step 4: Define inner table crop region based on estimate number position and black border
@@ -173,6 +200,12 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         if crop_y + crop_height > screen_height:
             crop_height = screen_height - crop_y
             print(f"[ACTION_HANDLER] Adjusted crop_height to {crop_height} to stay within screen bounds")
+
+        # Prevent cropping into the taskbar; clamp bottom to above bottom 100px zone
+        max_bottom_y = max(0, screen_height - 100)
+        if crop_y + crop_height > max_bottom_y:
+            crop_height = max(0, max_bottom_y - crop_y)
+            print(f"[ACTION_HANDLER] Adjusted crop_height to {crop_height} to avoid taskbar region")
         
         # Save a copy of the cropped image for debugging
         cropped_inner_table = computer_vision_utils.crop_image(screenshot, crop_x, crop_y, crop_width, crop_height)
