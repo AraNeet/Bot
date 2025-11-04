@@ -64,12 +64,16 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
             success, data = scanner.get_text_data(search_region)
             if success and data['text']:
                 estimate_number_str = str(estimate_number)
+                # Choose the first estimate number in visual reading order: top-most, then left-most
+                best_local_bbox = None  # (x1, y1, x2, y2)
                 for i, text in enumerate(data['text']):
                     if text and estimate_number_str in text:
-                        bbox = data['bbox'][i]
-                        estimate_number_y = blue_y + bbox[1]
-                        print(f"[ACTION_HANDLER] Found estimate number at screen Y={estimate_number_y}")
-                        break
+                        x1, y1, x2, y2 = map(int, data['bbox'][i])
+                        if best_local_bbox is None or y1 < best_local_bbox[1] or (y1 == best_local_bbox[1] and x1 < best_local_bbox[0]):
+                            best_local_bbox = (x1, y1, x2, y2)
+                if best_local_bbox is not None:
+                    estimate_number_y = blue_y + best_local_bbox[1]
+                    print(f"[ACTION_HANDLER] Found top-most estimate number at screen Y={estimate_number_y} (local bbox={best_local_bbox})")
         if estimate_number_y is None:
             estimate_number_y = blue_y
             print(f"[ACTION_HANDLER] Estimate number not found, using blue region Y={blue_y}")
