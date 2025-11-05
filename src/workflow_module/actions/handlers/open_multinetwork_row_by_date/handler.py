@@ -9,6 +9,7 @@ from typing import Tuple, Dict, Any, Optional
 from src.workflow_module.actions.helpers import actions
 from src.workflow_module.actions.helpers import table_utils
 from src.workflow_module.actions.helpers import computer_vision_utils
+from src.workflow_module.actions.helpers import ocr_utils
 import time
 import pyautogui
 import cv2
@@ -16,89 +17,91 @@ import numpy as np
 
 
 def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[bool, str]:
-    global _last_row_expander_position
     if not begin_date:
         return False, "Missing begin_date parameter"
+    
     print(f"[ACTION_HANDLER] Searching for begin_date: '{begin_date}' in second table")
     print(f"[ACTION_HANDLER] Estimate number for reference: '{estimate_number}'")
+    
     try:
+        time.sleep(2)
+        # Take screenshot
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot"
+        
         screen_height, screen_width = screenshot.shape[:2]
         print(f"[ACTION_HANDLER] Screen size: {screen_width}x{screen_height}")
+        
+        # Step 1: Find blue highlighted row using computer vision utils
         print(f"[ACTION_HANDLER] Detecting blue highlighted row (expanded row)...")
-        hsv = cv2.cvtColor(screenshot, cv2.COLOR_BGR2HSV)
-        lower_blue = np.array([100, 50, 50])
-        upper_blue = np.array([130, 255, 255])
-        blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)
-        contours, _ = cv2.findContours(blue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if not contours:
+        found_blue, row_info = computer_vision_utils.find_blue_highlighted_row(screenshot, exclude_bottom_pixels=100)
+        
+        if not found_blue or row_info is None:
             return False, "Could not find blue highlighted row (expanded row not visible)"
-        bottom_exclusion_y = max(0, screen_height - 100)
-        candidate_contours = []
-        for cnt in contours:
-            x, y, w, h = cv2.boundingRect(cnt)
-            if y >= bottom_exclusion_y:
-                continue
-            if h < 18 or h > 40:
-                continue
-            if w < 300:
-                continue
-            candidate_contours.append((cnt, x, y, w, h))
-        if candidate_contours:
-            candidate_contours.sort(key=lambda item: (item[3], cv2.contourArea(item[0])), reverse=True)
-            chosen_cnt, blue_x, blue_y, blue_w, blue_h = candidate_contours[0]
-        else:
-            largest_contour = max(contours, key=cv2.contourArea)
-            blue_x, blue_y, blue_w, blue_h = cv2.boundingRect(largest_contour)
-            if blue_y >= bottom_exclusion_y:
-                blue_y = max(0, bottom_exclusion_y - max(blue_h, 40))
+        
+        blue_x = row_info['x']
+        blue_y = row_info['y']
+        blue_w = row_info['width']
+        blue_h = row_info['height']
+        
         print(f"[ACTION_HANDLER] Found blue highlighted row at ({blue_x}, {blue_y}) with size {blue_w}x{blue_h}")
+        
+        # Step 2: Find estimate number Y position using OCR utils
         print(f"[ACTION_HANDLER] Searching for estimate number to determine crop Y position...")
         estimate_number_y = None
+        
         if estimate_number:
-            from src.workflow_module.actions.helpers.ocr_utils import TextScanner
-            scanner = TextScanner()
             search_region = screenshot[blue_y:blue_y + blue_h, blue_x:blue_x + blue_w]
-            success, data = scanner.get_text_data(search_region)
-            if success and data['text']:
-                estimate_number_str = str(estimate_number)
-                # Choose the first estimate number in visual reading order: top-most, then left-most
-                best_local_bbox = None  # (x1, y1, x2, y2)
-                for i, text in enumerate(data['text']):
-                    if text and estimate_number_str in text:
-                        x1, y1, x2, y2 = map(int, data['bbox'][i])
-                        if best_local_bbox is None or y1 < best_local_bbox[1] or (y1 == best_local_bbox[1] and x1 < best_local_bbox[0]):
-                            best_local_bbox = (x1, y1, x2, y2)
-                if best_local_bbox is not None:
-                    estimate_number_y = blue_y + best_local_bbox[1]
-                    print(f"[ACTION_HANDLER] Found top-most estimate number at screen Y={estimate_number_y} (local bbox={best_local_bbox})")
+            found_text, y_pos = ocr_utils.find_topmost_text_position(
+                estimate_number, 
+                search_region, 
+                blue_x, 
+                blue_y
+            )
+            
+            if found_text and y_pos is not None:
+                estimate_number_y = y_pos
+                print(f"[ACTION_HANDLER] Found estimate number at screen Y={estimate_number_y}")
+        
         if estimate_number_y is None:
             estimate_number_y = blue_y
             print(f"[ACTION_HANDLER] Estimate number not found, using blue region Y={blue_y}")
-        print(f"[ACTION_HANDLER] Detecting black border below selected row...")
+        
+        # Step 3: Detect bottom border using template matching
+        print(f"[ACTION_HANDLER] Detecting black border below selected row using template matching...")
         bottom_border_y_screen = None
         search_start_y = blue_y + blue_h
         search_end_y = min(search_start_y + 200, screen_height)
-        gray = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
         crop_x_fixed = 205
         crop_width_fixed = 1500
-        for y in range(search_start_y, search_end_y):
-            check_x_start = crop_x_fixed
-            check_x_end = min(crop_x_fixed + crop_width_fixed, screen_width)
-            row = gray[y, check_x_start:check_x_end]
-            dark_pixel_count = np.sum(row < 50)
-            dark_ratio = dark_pixel_count / len(row)
-            if dark_ratio > 0.7:
-                bottom_border_y_screen = y
-                print(f"[ACTION_HANDLER] Found bottom black border at screen Y={y} ({dark_ratio:.1%} dark)")
-                break
-        if bottom_border_y_screen is None:
+        
+        # Define search region for template matching
+        search_region_x = crop_x_fixed
+        search_region_y = search_start_y
+        search_region_width = min(crop_width_fixed, screen_width - crop_x_fixed)
+        search_region_height = search_end_y - search_start_y
+        
+        # Load and match BorderLine template
+        border_line_template_path = "src/workflow_module/actions/handlers/open_multinetwork_row_by_date/BorderLine.png"
+        found, confidence, position = computer_vision_utils.find_template_in_region(
+            screenshot,
+            border_line_template_path,
+            (search_region_x, search_region_y, search_region_width, search_region_height),
+            confidence=0.7
+        )
+        
+        if found and position is not None:
+            # Position is (center_x, center_y) in global coordinates
+            _, bottom_border_y_screen = position
+            print(f"[ACTION_HANDLER] Found bottom black border at screen Y={bottom_border_y_screen} (confidence: {confidence:.2f})")
+        else:
             fallback_y = search_start_y + 100
             bottom_exclusion_y = max(0, screen_height - 100)
             bottom_border_y_screen = min(fallback_y, bottom_exclusion_y - 2)
-            print(f"[ACTION_HANDLER] WARNING: Black border not found, using fallback: Y={bottom_border_y_screen}")
+            print(f"[ACTION_HANDLER] WARNING: Black border not found via template matching, using fallback: Y={bottom_border_y_screen}")
+        
+        # Step 4: Calculate crop region for inner table
         crop_x = 205
         crop_y = estimate_number_y
         crop_width = 1500
@@ -160,6 +163,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         except Exception as e:
             print(f"[ACTION_HANDLER] Warning: Failed to save debug image: {e}")
         
+        # Step 5: Search for date in inner table and click
         found, msg, matches = table_utils.search_second_table_by_date(
             begin_date=begin_date,
             crop_x=crop_x,

@@ -341,6 +341,104 @@ def find_template_in_region(screenshot: np.ndarray,
         print(f"[CV ERROR] Template finding failed: {e}")
         return False, 0.0, None
 
+def find_blue_highlighted_row(screenshot: np.ndarray,
+                             exclude_bottom_pixels: int = 100) -> Tuple[bool, Optional[Dict[str, int]]]:
+    """
+    Find a blue highlighted row in the screenshot using HSV color detection.
+    
+    This function detects expanded/selected rows that have a blue background color.
+    It filters contours by size and position to find the most likely blue row.
+    
+    Args:
+        screenshot: Screenshot image as numpy array (BGR format)
+        exclude_bottom_pixels: Number of pixels from bottom to exclude (default: 100, for taskbar)
+        
+    Returns:
+        Tuple of (found: bool, row_info: Optional[Dict])
+        row_info contains {'x': int, 'y': int, 'width': int, 'height': int} if found
+        
+    Example:
+        screenshot = take_screenshot()
+        found, row_info = find_blue_highlighted_row(screenshot)
+        if found:
+            print(f"Blue row at ({row_info['x']}, {row_info['y']})")
+    """
+    try:
+        screen_height, screen_width = screenshot.shape[:2]
+        bottom_exclusion_y = max(0, screen_height - exclude_bottom_pixels)
+        
+        print(f"[CV] Detecting blue highlighted row...")
+        print(f"[CV] Screen size: {screen_width}x{screen_height}")
+        print(f"[CV] Excluding bottom {exclude_bottom_pixels}px (Y >= {bottom_exclusion_y})")
+        
+        # Convert to HSV and create blue mask
+        hsv = cv2.cvtColor(screenshot, cv2.COLOR_BGR2HSV)
+        lower_blue = np.array([100, 50, 50])
+        upper_blue = np.array([130, 255, 255])
+        blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)
+        
+        # Find contours in blue mask
+        contours, _ = cv2.findContours(blue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        if not contours:
+            print(f"[CV] No blue contours found")
+            return False, None
+        
+        print(f"[CV] Found {len(contours)} blue contour(s)")
+        
+        # Filter candidate contours by size and position
+        candidate_contours = []
+        for cnt in contours:
+            x, y, w, h = cv2.boundingRect(cnt)
+            
+            # Skip if in bottom exclusion zone
+            if y >= bottom_exclusion_y:
+                continue
+            
+            # Filter by height (typical row height range)
+            if h < 18 or h > 40:
+                continue
+            
+            # Filter by width (should be reasonably wide for a table row)
+            if w < 300:
+                continue
+            
+            candidate_contours.append((cnt, x, y, w, h))
+        
+        # Choose best candidate
+        blue_x, blue_y, blue_w, blue_h = None, None, None, None
+        
+        if candidate_contours:
+            # Sort by width and area (prioritize wider rows)
+            candidate_contours.sort(key=lambda item: (item[3], cv2.contourArea(item[0])), reverse=True)
+            chosen_cnt, blue_x, blue_y, blue_w, blue_h = candidate_contours[0]
+            print(f"[CV] Selected candidate from {len(candidate_contours)} filtered contour(s)")
+        else:
+            # Fallback: use largest contour regardless of filters
+            largest_contour = max(contours, key=cv2.contourArea)
+            blue_x, blue_y, blue_w, blue_h = cv2.boundingRect(largest_contour)
+            
+            # If in exclusion zone, adjust Y position
+            if blue_y >= bottom_exclusion_y:
+                blue_y = max(0, bottom_exclusion_y - max(blue_h, 40))
+            
+            print(f"[CV] No candidates passed filters, using largest contour with adjusted position")
+        
+        row_info = {
+            'x': blue_x,
+            'y': blue_y,
+            'width': blue_w,
+            'height': blue_h
+        }
+        
+        print(f"[CV] ✓ Found blue highlighted row at ({blue_x}, {blue_y}) with size {blue_w}x{blue_h}")
+        return True, row_info
+        
+    except Exception as e:
+        print(f"[CV ERROR] Error finding blue highlighted row: {e}")
+        return False, None
+
+
 def detect_loading_circle(screenshot: np.ndarray,
                          center_region_ratio: float = 0.4,
                          min_radius: int = 15,

@@ -171,25 +171,88 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         if screenshot is None:
             return False, "Failed to take screenshot for verification", None
         
-        # Look for loading circle in center region
-        # Adjusted parameters for typical dot-based loading spinners
-        found, circle_info = computer_vision_utils.detect_loading_circle(
+        # Method 1: Try template matching first (allows for variations)
+        screen_height, screen_width = screenshot.shape[:2]
+        
+        # Focus on content area center (offset from screen center)
+        # The content area is typically offset to the right due to sidebar
+        center_region_ratio = 0.35  # Smaller focused region
+        region_width = int(screen_width * center_region_ratio)
+        region_height = int(screen_height * center_region_ratio)
+        # Offset region to the right and up to focus on content area
+        region_x = int(screen_width * 0.40)  # Start at 40% from left (past sidebar)
+        region_y = int(screen_height * 0.25)  # Start at 25% from top
+        
+        template_path = "src/workflow_module/actions/assets/loading_template.png"
+        template_found, template_confidence, template_position = computer_vision_utils.find_template_in_region(
             screenshot,
-            center_region_ratio=0.5,  # Search larger area
-            min_radius=8,              # Smaller minimum for compact spinners
-            max_radius=40,             # Smaller maximum - most spinners are 20-30px
-            brightness_threshold=180
+            template_path,
+            (region_x, region_y, region_width, region_height),
+            confidence=0.4  # Lower threshold since spinner is animated
         )
         
+        print(f"[VERIFIER_HANDLER] Template matching result: found={template_found}, confidence={template_confidence:.2f}")
+        
+        # Method 2: Look for loading circle in center region using circle detection
+        # Adjusted parameters for the specific dot-based loading spinner
+        circle_found, circle_info = computer_vision_utils.detect_loading_circle(
+            screenshot,
+            center_region_ratio=0.35,  # Focused search area
+            min_radius=10,             # Small spinner (15-20px typical)
+            max_radius=25,             # Prevent detecting large false positives
+            brightness_threshold=100   # Lower threshold for dark dot spinner
+        )
+        
+        print(f"[VERIFIER_HANDLER] Circle detection result: found={circle_found}, circle_info={circle_info}")
+        
+        # Validate circle position - reject if in table area (left side)
+        circle_position_valid = False
+        if circle_found and circle_info:
+            x, y, radius = circle_info
+            # Reject circles on the far left (table area) or far right (sidebar)
+            # Valid range: 30-70% horizontally, 20-80% vertically
+            horizontal_valid = (screen_width * 0.30) < x < (screen_width * 0.70)
+            vertical_valid = (screen_height * 0.20) < y < (screen_height * 0.80)
+            size_valid = 10 <= radius <= 25  # Strict size validation
+            
+            circle_position_valid = horizontal_valid and vertical_valid and size_valid
+            
+            print(f"[VERIFIER_HANDLER] Circle validation: pos=({x},{y}), r={radius}")
+            print(f"[VERIFIER_HANDLER]   - horizontal_valid: {horizontal_valid}")
+            print(f"[VERIFIER_HANDLER]   - vertical_valid: {vertical_valid}")
+            print(f"[VERIFIER_HANDLER]   - size_valid: {size_valid}")
+            print(f"[VERIFIER_HANDLER]   - overall_valid: {circle_position_valid}")
+            
+            if not circle_position_valid:
+                print(f"[VERIFIER_HANDLER] Rejecting circle - likely false positive")
+                circle_found = False
+                circle_info = None
+        
+        # Prioritize template matching, then use validated circle detection
+        found = template_found or (circle_found and circle_position_valid)
+        
+        # Use template position if found, otherwise use validated circle info
+        if template_found and template_position:
+            x, y = template_position
+            radius = 18  # Approximate radius for template match
+            circle_info = (x, y, radius)
+        
         verification_data = {
-            "loading_circle_found": found,
+            "loading_circle_found": circle_found and circle_position_valid,
+            "template_found": template_found,
+            "template_confidence": template_confidence,
             "circle_info": circle_info,
-            "screenshot_taken": True
+            "circle_position_valid": circle_position_valid if circle_found else None,
+            "screenshot_taken": True,
+            "detection_method": "template" if template_found else ("circle" if (circle_found and circle_position_valid) else "none")
         }
         
         if found and circle_info:
             x, y, radius = circle_info
-            success_msg = f"✓ Network page is loading. Loading circle detected at ({x}, {y}), radius: {radius}px"
+            detection_method = verification_data["detection_method"]
+            success_msg = f"✓ Network page is loading. Loading indicator detected via {detection_method} at ({x}, {y}), radius: {radius}px"
+            if template_found:
+                success_msg += f" (template confidence: {template_confidence:.2f})"
             print(f"[VERIFIER_HANDLER] {success_msg}")
             
             # Save debug screenshot with loading circle highlighted
@@ -271,20 +334,41 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
             
             screenshot2 = computer_vision_utils.take_screenshot()
             if screenshot2 is not None:
+                # Use same improved parameters as first check
                 found2, circle_info2 = computer_vision_utils.detect_loading_circle(
                     screenshot2,
-                    center_region_ratio=0.5,  # Search larger area
-                    min_radius=8,              # Smaller minimum for compact spinners
-                    max_radius=40,             # Smaller maximum - most spinners are 20-30px
-                    brightness_threshold=180
+                    center_region_ratio=0.35,  # Focused search area
+                    min_radius=10,             # Small spinner (15-20px typical)
+                    max_radius=25,             # Prevent detecting large false positives
+                    brightness_threshold=100   # Lower threshold for dark dot spinner
                 )
                 
+                # Apply same validation as first check
+                circle_position_valid2 = False
+                if found2 and circle_info2:
+                    x2, y2, radius2 = circle_info2
+                    screen_height2, screen_width2 = screenshot2.shape[:2]
+                    horizontal_valid2 = (screen_width2 * 0.30) < x2 < (screen_width2 * 0.70)
+                    vertical_valid2 = (screen_height2 * 0.20) < y2 < (screen_height2 * 0.80)
+                    size_valid2 = 10 <= radius2 <= 25
+                    
+                    circle_position_valid2 = horizontal_valid2 and vertical_valid2 and size_valid2
+                    
+                    print(f"[VERIFIER_HANDLER] Second check validation: pos=({x2},{y2}), r={radius2}")
+                    print(f"[VERIFIER_HANDLER]   - valid: {circle_position_valid2}")
+                    
+                    if not circle_position_valid2:
+                        print(f"[VERIFIER_HANDLER] Rejecting circle on second check - false positive")
+                        found2 = False
+                        circle_info2 = None
+                
                 verification_data["second_check"] = {
-                    "loading_circle_found": found2,
-                    "circle_info": circle_info2
+                    "loading_circle_found": found2 and circle_position_valid2,
+                    "circle_info": circle_info2,
+                    "circle_position_valid": circle_position_valid2 if found2 else None
                 }
                 
-                if found2 and circle_info2:
+                if found2 and circle_info2 and circle_position_valid2:
                     x, y, radius = circle_info2
                     success_msg = f"✓ Network page is loading. Loading circle detected on second check at ({x}, {y}), radius: {radius}px"
                     print(f"[VERIFIER_HANDLER] {success_msg}")
