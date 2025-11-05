@@ -69,6 +69,11 @@
                 "parameters": {}
             },
             {
+                "action_type": "get_multinet_window",
+                "description": "Verify Multi-Network window is open",
+                "parameters": {}
+            },
+            {
                 "action_type": "type_isci_code",
                 "description": "Enter ISCI 1 value",
                 "parameters": {

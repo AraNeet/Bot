@@ -65,6 +65,12 @@
     "has_verifier": true,
     "has_error_handler": true
   },
+  "get_multinet_window": {
+    "module": "src.workflow_module.actions.handlers.get_multinet_window.handler",
+    "description": "Verify that the Multi-Network window is open by checking for 'multinet' text",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
   "type_isci_code": {
     "module": "src.workflow_module.actions.handlers.type_isci_code.handler",
     "description": "Enter ISCI code into the field",

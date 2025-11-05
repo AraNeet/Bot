@@ -103,9 +103,13 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         crop_y = estimate_number_y
         crop_width = 1500
         crop_height = bottom_border_y_screen - estimate_number_y
+        print(f"[ACTION_HANDLER] === Crop Region Calculation ===")
+        print(f"[ACTION_HANDLER] Screen dimensions: {screen_width}x{screen_height}")
+        print(f"[ACTION_HANDLER] Blue row position: Y={blue_y}, H={blue_h}")
         print(f"[ACTION_HANDLER] Estimate number Y position: {estimate_number_y}")
-        print(f"[ACTION_HANDLER] Black border: Y={bottom_border_y_screen}")
-        print(f"[ACTION_HANDLER] Inner table region: x={crop_x}, y={crop_y}, w={crop_width}, h={crop_height}")
+        print(f"[ACTION_HANDLER] Black border detected at: Y={bottom_border_y_screen}")
+        print(f"[ACTION_HANDLER] Initial crop region: x={crop_x}, y={crop_y}, w={crop_width}, h={crop_height}")
+        print(f"[ACTION_HANDLER] Max bottom Y (screen - 100): {max(0, screen_height - 100)}")
         if crop_height <= 0 or crop_width <= 0:
             return False, f"Invalid crop dimensions: width={crop_width}, height={crop_height}"
         if crop_x + crop_width > screen_width:
@@ -118,13 +122,44 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         if crop_y + crop_height > max_bottom_y:
             crop_height = max(0, max_bottom_y - crop_y)
             print(f"[ACTION_HANDLER] Adjusted crop_height to {crop_height} to avoid taskbar region")
+        
+        # Final validation after all adjustments
+        print(f"[ACTION_HANDLER] === After Adjustments ===")
+        print(f"[ACTION_HANDLER] Final crop region: x={crop_x}, y={crop_y}, w={crop_width}, h={crop_height}")
+        
+        if crop_height <= 0 or crop_width <= 0:
+            error_msg = f"Invalid crop dimensions after adjustments: width={crop_width}, height={crop_height}. "
+            error_msg += f"Estimate Y: {estimate_number_y}, Bottom border Y: {bottom_border_y_screen}. "
+            error_msg += "The inner table region is too small or collapsed. The expanded row may not have enough content."
+            print(f"[ACTION_HANDLER] ERROR: {error_msg}")
+            return False, error_msg
+        
+        if crop_y < 0 or crop_x < 0:
+            return False, f"Invalid crop position: x={crop_x}, y={crop_y}. Position cannot be negative."
+        
+        # Check minimum height requirement (at least 20 pixels for a meaningful table)
+        if crop_height < 20:
+            warning_msg = f"Warning: Crop height is very small ({crop_height}px). Inner table may not be fully visible."
+            print(f"[ACTION_HANDLER] {warning_msg}")
+        
         cropped_inner_table = computer_vision_utils.crop_image(screenshot, crop_x, crop_y, crop_width, crop_height)
-        if cropped_inner_table is not None:
+        
+        if cropped_inner_table is None:
+            error_msg = f"Failed to crop inner table region. Region: x={crop_x}, y={crop_y}, w={crop_width}, h={crop_height}"
+            print(f"[ACTION_HANDLER] ERROR: {error_msg}")
+            return False, error_msg
+        
+        # Save debug image
+        try:
             import os
             debug_path = "debug_images/inner_table_cropped.png"
             os.makedirs("debug_images", exist_ok=True)
             cv2.imwrite(debug_path, cropped_inner_table)
-            print(f"[ACTION_HANDLER] Saved cropped inner table image to: {debug_path}")
+            abs_path = os.path.abspath(debug_path)
+            print(f"[ACTION_HANDLER] Saved cropped inner table image to: {abs_path}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] Warning: Failed to save debug image: {e}")
+        
         found, msg, matches = table_utils.search_second_table_by_date(
             begin_date=begin_date,
             crop_x=crop_x,

@@ -20,6 +20,26 @@ from src.workflow_module.actions.helpers.ocr_utils import TextScanner, match_tex
 scanner = TextScanner()
 
 # ============================================================================
+# DATE UTILITIES
+# ============================================================================
+
+def normalize_date(date_str: str) -> str:
+    """
+    Remove leading zeros from date components for flexible date matching.
+    
+    Example: 09/16/2025 → 9/16/2025
+    
+    Args:
+        date_str: Date string to normalize
+        
+    Returns:
+        Normalized date string with leading zeros removed
+    """
+    # Remove leading zeros from each numeric component
+    normalized = re.sub(r'\b0+(\d)', r'\1', date_str)
+    return normalized.lower()
+
+# ============================================================================
 # RESULTS COUNT EXTRACTION
 # ============================================================================
 
@@ -506,6 +526,7 @@ def search_second_table_by_date(begin_date: str, crop_x: int, crop_y: int,
         if template is None:
             return False, "Failed to load ColumnLineSecondTable template", []
         
+        time.sleep(2)
         # Take screenshot
         image = computer_vision_utils.take_screenshot()
         if image is None:
@@ -565,12 +586,6 @@ def search_second_table_by_date(begin_date: str, crop_x: int, crop_y: int,
         
         # Normalize begin_date for matching by removing leading zeros
         # Example: 09/16/2025 → 9/16/2025
-        def normalize_date(date_str):
-            """Remove leading zeros from date components."""
-            # Remove leading zeros from each numeric component
-            normalized = re.sub(r'\b0+(\d)', r'\1', date_str)
-            return normalized.lower()
-        
         begin_date_normalized = normalize_date(begin_date_str)
         print(f"[SEARCH_SECOND_TABLE] Searching for begin_date: '{begin_date_str}' → normalized: '{begin_date_normalized}'")
         
