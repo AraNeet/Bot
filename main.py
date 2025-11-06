@@ -72,10 +72,10 @@ def main():
     print("="*70 + "\n")
 
     #  Step 1: Initialize system
-    # success = initialize_system()
-    # if not success:
-    #     print("Failed startup sequence.")
-    #     exit(1)
+    success = initialize_system()
+    if not success:
+        print("Failed startup sequence.")
+        exit(1)
 
     # Parser instruction file. and return supported
     success, results = process_objectives_file("APR2125_DISH CUA_TrafficAlerts_plan.json")

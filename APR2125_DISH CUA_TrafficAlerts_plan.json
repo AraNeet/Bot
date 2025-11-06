@@ -3,20 +3,20 @@
   "document_title": "APR2125 TRAFFIC ALERT\n\nDISH CUA",
   "revision_number": "APR2125",
   "sales_id": "CUA",
-  "agency": "Cadent Network",
+  "agency": "Bliss Point Media",
   "document_date": "04/08/2025",
   "alerts": [
     {
       "alert_id": 1,
-      "advertiser": "Chattem, Inc.",
-      "order_id": "230084",
+      "advertiser": "Blue Apron",
+      "order_id": "418489",
       "product": "Chattem X",
       "description_of_traffic_alert": "You are currently running 3 copies for this order, please make copy change effective 4/10.",
       "instruction_set": [
         {
           "instruction_id": 1,
-          "flight_start_date": "04/07/2025",
-          "flight_end_date": "04/09/2025",
+          "flight_start_date": "11/03/2025",
+          "flight_end_date": "12/03/2025",
           "networks_to_run": "HD NETWORKS",
           "action": "E",
           "copy_instructions": [

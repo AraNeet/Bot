@@ -24,7 +24,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
     print(f"[ACTION_HANDLER] Estimate number for reference: '{estimate_number}'")
     
     try:
-        time.sleep(2)
+        time.sleep(4)
         # Take screenshot
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
