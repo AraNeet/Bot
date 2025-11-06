@@ -48,11 +48,89 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         print(f"[ACTION_HANDLER] Found blue highlighted row at ({blue_x}, {blue_y}) with size {blue_w}x{blue_h}")
         
         # Step 2: Find estimate number Y position using OCR utils
+        print(f"[ACTION_HANDLER] ===== ESTIMATE NUMBER DEBUG =====")
+        print(f"[ACTION_HANDLER] Estimate number parameter value: '{estimate_number}'")
+        print(f"[ACTION_HANDLER] Estimate number type: {type(estimate_number)}")
+        print(f"[ACTION_HANDLER] Estimate number is truthy: {bool(estimate_number)}")
         print(f"[ACTION_HANDLER] Searching for estimate number to determine crop Y position...")
         estimate_number_y = None
         
-        if estimate_number:
-            search_region = screenshot[blue_y:blue_y + blue_h, blue_x:blue_x + blue_w]
+        # Always save debug images to see what OCR detects in the blue row region
+        search_region = screenshot[blue_y:blue_y + blue_h, blue_x:blue_x + blue_w]
+        
+        # Save debug image of the search region
+        try:
+            import os
+            debug_path = "debug_images/estimate_search_region.png"
+            os.makedirs("debug_images", exist_ok=True)
+            cv2.imwrite(debug_path, search_region)
+            abs_path = os.path.abspath(debug_path)
+            print(f"[ACTION_HANDLER] DEBUG: Saved estimate search region to: {abs_path}")
+            print(f"[ACTION_HANDLER] DEBUG: Search region size: {search_region.shape[1]}x{search_region.shape[0]}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] WARNING: Failed to save estimate search region: {e}")
+        
+        # Get OCR data to see what text is detected
+        print(f"[ACTION_HANDLER] DEBUG: Running OCR to detect all text in search region...")
+        print(f"[ACTION_HANDLER] DEBUG: Looking for estimate number: '{estimate_number}'")
+        
+        scanner = ocr_utils.TextScanner()
+        ocr_success, ocr_data = scanner.get_text_data(search_region)
+        
+        if ocr_success and ocr_data and ocr_data.get('text'):
+            print(f"[ACTION_HANDLER] DEBUG: OCR detected {len(ocr_data['text'])} text elements:")
+            for i, (text, bbox, conf) in enumerate(zip(ocr_data['text'], ocr_data['bbox'], ocr_data['confidence'])):
+                x1, y1, x2, y2 = map(int, bbox)
+                print(f"[ACTION_HANDLER] DEBUG:   [{i}] Text: '{text}' | Bbox: ({x1},{y1})-({x2},{y2}) | Confidence: {conf:.2f}")
+            
+            # Create annotated image showing detected text
+            try:
+                annotated_region = search_region.copy()
+                for i, (text, bbox) in enumerate(zip(ocr_data['text'], ocr_data['bbox'])):
+                    x1, y1, x2, y2 = map(int, bbox)
+                    # Draw bounding box
+                    cv2.rectangle(annotated_region, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    # Add text label
+                    label = f"{i}:{text[:20]}"
+                    cv2.putText(annotated_region, label, (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                
+                debug_path = "debug_images/estimate_search_annotated.png"
+                cv2.imwrite(debug_path, annotated_region)
+                abs_path = os.path.abspath(debug_path)
+                print(f"[ACTION_HANDLER] DEBUG: Saved annotated search region to: {abs_path}")
+            except Exception as e:
+                print(f"[ACTION_HANDLER] WARNING: Failed to save annotated image: {e}")
+        else:
+            print(f"[ACTION_HANDLER] DEBUG: OCR failed or detected no text in search region")
+            print(f"[ACTION_HANDLER] DEBUG: OCR success: {ocr_success}")
+            print(f"[ACTION_HANDLER] DEBUG: OCR data: {ocr_data}")
+        
+        # Only proceed with matching if estimate_number is provided
+        if estimate_number and ocr_success and ocr_data and ocr_data.get('text'):
+            # Check for exact and partial matches
+            print(f"[ACTION_HANDLER] DEBUG: Checking for matches with estimate number '{estimate_number}':")
+            exact_matches = []
+            partial_matches = []
+            for i, text in enumerate(ocr_data['text']):
+                if text == estimate_number:
+                    exact_matches.append((i, text))
+                    print(f"[ACTION_HANDLER] DEBUG:   ✓ EXACT match at index {i}: '{text}'")
+                elif estimate_number in text:
+                    partial_matches.append((i, text))
+                    print(f"[ACTION_HANDLER] DEBUG:   ~ Partial match at index {i}: '{text}' contains '{estimate_number}'")
+                elif text in estimate_number:
+                    partial_matches.append((i, text))
+                    print(f"[ACTION_HANDLER] DEBUG:   ~ Partial match at index {i}: '{estimate_number}' contains '{text}'")
+            
+            if not exact_matches and not partial_matches:
+                print(f"[ACTION_HANDLER] DEBUG:   ✗ NO MATCHES FOUND for '{estimate_number}'")
+                print(f"[ACTION_HANDLER] DEBUG: Possible reasons:")
+                print(f"[ACTION_HANDLER] DEBUG:   - OCR may have misread the estimate number")
+                print(f"[ACTION_HANDLER] DEBUG:   - Estimate number may not be visible in the search region")
+                print(f"[ACTION_HANDLER] DEBUG:   - Text may be too small, blurry, or low contrast")
+                print(f"[ACTION_HANDLER] DEBUG:   - Check the saved images above to verify")
+            
+            # Now call the actual function to find the position
             found_text, y_pos = ocr_utils.find_topmost_text_position(
                 estimate_number, 
                 search_region, 
@@ -62,11 +140,13 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
             
             if found_text and y_pos is not None:
                 estimate_number_y = y_pos
-                print(f"[ACTION_HANDLER] Found estimate number at screen Y={estimate_number_y}")
+                print(f"[ACTION_HANDLER] ✓ Found estimate number at screen Y={estimate_number_y}")
+            else:
+                print(f"[ACTION_HANDLER] ✗ Estimate number '{estimate_number}' NOT found in search region")
         
         if estimate_number_y is None:
             estimate_number_y = blue_y
-            print(f"[ACTION_HANDLER] Estimate number not found, using blue region Y={blue_y}")
+            print(f"[ACTION_HANDLER] WARNING: Estimate number not found, using blue region Y={blue_y} as fallback")
         
         # Step 3: Detect bottom border using template matching
         print(f"[ACTION_HANDLER] Detecting black border below selected row using template matching...")

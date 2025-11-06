@@ -9,6 +9,7 @@ and clicks on "Open as Multi-Network Instruction" option.
 from typing import Tuple, Dict, Any, Optional
 from src.workflow_module.actions.helpers import actions
 from src.workflow_module.actions.helpers import computer_vision_utils
+from src.workflow_module.actions.helpers import ocr_utils
 import time
 import pyautogui
 import cv2
@@ -66,68 +67,235 @@ def action(**kwargs) -> Tuple[bool, str]:
         popup_x, popup_y = position
         print(f"[ACTION_HANDLER] ✓ Multi-Network popup detected at ({popup_x}, {popup_y}) with confidence {confidence:.2f}")
         
-        # The "Open as Multi-Network Instruction" button is approximately 
-        # 140 pixels below the center of the popup template
-        # and centered horizontally
-        click_offset_y = 70  # Offset from popup center to button
-        click_x = popup_x
-        click_y = popup_y + click_offset_y
+        # Use OCR to find the exact position of "Open as Multi-Network Instruction" button
+        print(f"[ACTION_HANDLER] Using OCR to locate 'Open as Multi-Network Instruction' button...")
+        
+        # Load template to get popup dimensions
+        template = computer_vision_utils.load_image(template_path)
+        if template is None:
+            return False, "Failed to load popup template for dimension calculation"
+        
+        template_height, template_width = template.shape[:2]
+        
+        # Define search region around the popup (expand a bit to ensure we capture the buttons)
+        search_padding = 50
+        search_x = max(0, popup_x - template_width // 2 - search_padding)
+        search_y = max(0, popup_y - template_height // 2 - search_padding)
+        search_w = min(template_width + 2 * search_padding, screen_width - search_x)
+        search_h = min(template_height + 2 * search_padding, screen_height - search_y)
+        
+        popup_region = screenshot[search_y:search_y + search_h, search_x:search_x + search_w]
+        
+        # Save popup region for debugging
+        try:
+            debug_dir = "debug_images"
+            os.makedirs(debug_dir, exist_ok=True)
+            popup_region_path = os.path.join(debug_dir, "multinetwork_popup_region.png")
+            cv2.imwrite(popup_region_path, popup_region)
+            print(f"[ACTION_HANDLER] DEBUG: Saved popup region to: {os.path.abspath(popup_region_path)}")
+            print(f"[ACTION_HANDLER] DEBUG: Popup region crop: x={search_x}, y={search_y}, w={search_w}, h={search_h}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] WARNING: Failed to save popup region: {e}")
+        
+        # Use OCR to find all text in the popup region
+        scanner = ocr_utils.TextScanner()
+        ocr_success, ocr_data = scanner.get_text_data(popup_region)
+        
+        if not ocr_success or not ocr_data or not ocr_data.get('text'):
+            print(f"[ACTION_HANDLER] WARNING: OCR failed to detect text in popup region")
+            print(f"[ACTION_HANDLER] Falling back to fixed offset method")
+            click_offset_y = 70
+            click_x = popup_x
+            click_y = popup_y + click_offset_y
+        else:
+            print(f"[ACTION_HANDLER] DEBUG: OCR detected {len(ocr_data['text'])} text elements in popup:")
+            for i, (text, bbox, conf) in enumerate(zip(ocr_data['text'], ocr_data['bbox'], ocr_data['confidence'])):
+                x1, y1, x2, y2 = map(int, bbox)
+                print(f"[ACTION_HANDLER] DEBUG:   [{i}] Text: '{text}' | Bbox: ({x1},{y1})-({x2},{y2}) | Confidence: {conf:.2f}")
+            
+            # Create annotated popup region showing detected text
+            try:
+                annotated_popup = popup_region.copy()
+                for i, (text, bbox) in enumerate(zip(ocr_data['text'], ocr_data['bbox'])):
+                    x1, y1, x2, y2 = map(int, bbox)
+                    # Draw box around text
+                    cv2.rectangle(annotated_popup, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    # Add index label
+                    cv2.putText(annotated_popup, f"{i}", (x1, y1-5), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                
+                annotated_path = os.path.join(debug_dir, "multinetwork_popup_region_annotated.png")
+                cv2.imwrite(annotated_path, annotated_popup)
+                print(f"[ACTION_HANDLER] DEBUG: Saved annotated popup region to: {os.path.abspath(annotated_path)}")
+            except Exception as e:
+                print(f"[ACTION_HANDLER] WARNING: Failed to save annotated popup region: {e}")
+            
+            # Look for "Open as Multi-Network Instruction" button
+            # IMPORTANT: Must contain "Open" to avoid matching the title "Multi-Network Instruction"
+            target_phrases = [
+                "Open as Multi-Network Instruction",
+                "Open as Multi-Network",
+                "Open as MultiNetwork Instruction",  # In case hyphen is missing
+                "Open as MultiNetwork"
+            ]
+            
+            button_found = False
+            click_x = None
+            click_y = None
+            best_match = None
+            best_match_score = 0
+            
+            # Find the best match (longest/most specific match)
+            for i, text in enumerate(ocr_data['text']):
+                text_lower = text.lower()
+                
+                # MUST contain "open" to avoid matching the title
+                if "open" not in text_lower:
+                    continue
+                
+                # Check each phrase
+                for phrase in target_phrases:
+                    phrase_lower = phrase.lower()
+                    
+                    # Case-insensitive partial match
+                    if phrase_lower in text_lower or text_lower in phrase_lower:
+                        # Score based on length of match (prefer longer/more specific matches)
+                        match_score = len(text)
+                        
+                        if match_score > best_match_score:
+                            best_match = i
+                            best_match_score = match_score
+                            print(f"[ACTION_HANDLER] DEBUG: Found better match at index {i}: '{text}' (score: {match_score})")
+            
+            if best_match is not None:
+                i = best_match
+                text = ocr_data['text'][i]
+                x1, y1, x2, y2 = map(int, ocr_data['bbox'][i])
+                
+                # Calculate center of text box in LOCAL (cropped region) coordinates
+                local_center_x = (x1 + x2) // 2
+                local_center_y = (y1 + y2) // 2
+                
+                print(f"[ACTION_HANDLER] DEBUG: Using match at index {i}: '{text}'")
+                print(f"[ACTION_HANDLER] DEBUG: Text bbox in local coords: ({x1},{y1})-({x2},{y2})")
+                print(f"[ACTION_HANDLER] DEBUG: Text center in local coords: ({local_center_x}, {local_center_y})")
+                print(f"[ACTION_HANDLER] DEBUG: Crop offset (search region): ({search_x}, {search_y})")
+                
+                # Convert to SCREEN coordinates by adding crop offset
+                click_x = search_x + local_center_x
+                click_y = search_y + local_center_y
+                
+                print(f"[ACTION_HANDLER] ✓ Found 'Open as Multi-Network Instruction' button: '{text}'")
+                print(f"[ACTION_HANDLER] ✓ Click position in SCREEN coordinates: ({click_x}, {click_y})")
+                
+                button_found = True
+            
+            if not button_found:
+                print(f"[ACTION_HANDLER] WARNING: Could not find 'Multi-Network Instruction' text via OCR")
+                print(f"[ACTION_HANDLER] Falling back to fixed offset method")
+                click_offset_y = 70
+                click_x = popup_x
+                click_y = popup_y + click_offset_y
         
         # Create debug screenshot with annotations
         try:
             print(f"[ACTION_HANDLER] Creating debug screenshot...")
+            print(f"[ACTION_HANDLER] DEBUG: Variables for visualization:")
+            print(f"[ACTION_HANDLER] DEBUG:   - search_x={search_x}, search_y={search_y}")
+            print(f"[ACTION_HANDLER] DEBUG:   - search_w={search_w}, search_h={search_h}")
+            print(f"[ACTION_HANDLER] DEBUG:   - ocr_success={ocr_success}")
+            print(f"[ACTION_HANDLER] DEBUG:   - click_x={click_x}, click_y={click_y}")
+            
             debug_screenshot = screenshot.copy()
             
-            # Load template to get its dimensions
-            template = computer_vision_utils.load_image(template_path)
-            if template is not None:
-                template_height, template_width = template.shape[:2]
-                print(f"[ACTION_HANDLER] Template size: {template_width}x{template_height}")
-                
-                # Draw rectangle around detected popup (green)
-                top_left_x = popup_x - template_width // 2
-                top_left_y = popup_y - template_height // 2
-                bottom_right_x = popup_x + template_width // 2
-                bottom_right_y = popup_y + template_height // 2
-                cv2.rectangle(debug_screenshot, 
-                            (top_left_x, top_left_y), 
-                            (bottom_right_x, bottom_right_y), 
-                            (0, 255, 0), 3)  # Green rectangle
-                
-                # Draw circle at popup center (blue)
-                cv2.circle(debug_screenshot, (popup_x, popup_y), 10, (255, 0, 0), -1)
-                
-                # Draw circle at click position (red)
-                cv2.circle(debug_screenshot, (click_x, click_y), 15, (0, 0, 255), -1)
-                
-                # Draw line from popup center to click position (yellow)
-                cv2.line(debug_screenshot, (popup_x, popup_y), (click_x, click_y), (0, 255, 255), 2)
-                
-                # Add text labels
-                cv2.putText(debug_screenshot, f"Popup detected ({confidence:.2f})", 
-                           (top_left_x, top_left_y - 10),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                cv2.putText(debug_screenshot, "Click position", 
-                           (click_x + 20, click_y),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                
-                # Save debug screenshot
-                debug_dir = "debug_images"
-                os.makedirs(debug_dir, exist_ok=True)
-                debug_path = os.path.join(debug_dir, "multinetwork_popup_detected.png")
-                
-                # Save with error checking
-                save_result = cv2.imwrite(debug_path, debug_screenshot)
-                if save_result:
-                    abs_path = os.path.abspath(debug_path)
-                    print(f"[ACTION_HANDLER] ✓ Debug screenshot saved to: {abs_path}")
-                    print(f"[ACTION_HANDLER]   - Green box: Detected popup area")
-                    print(f"[ACTION_HANDLER]   - Blue dot: Popup center ({popup_x}, {popup_y})")
-                    print(f"[ACTION_HANDLER]   - Red dot: Click position ({click_x}, {click_y})")
-                else:
-                    print(f"[ACTION_HANDLER] ✗ Failed to save debug screenshot to: {debug_path}")
+            template_height, template_width = template.shape[:2]
+            print(f"[ACTION_HANDLER] Template size: {template_width}x{template_height}")
+            
+            # Draw rectangle showing the OCR search region/crop (yellow dashed-style)
+            print(f"[ACTION_HANDLER] DEBUG: Drawing OCR search region box...")
+            for offset in [0, 4, 8]:
+                cv2.rectangle(debug_screenshot,
+                            (search_x + offset, search_y + offset),
+                            (search_x + search_w - offset, search_y + search_h - offset),
+                            (0, 255, 255), 1)
+            cv2.putText(debug_screenshot, "OCR Search Region", 
+                       (search_x + 10, search_y + 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+            
+            # Draw rectangle around detected popup template (green)
+            top_left_x = popup_x - template_width // 2
+            top_left_y = popup_y - template_height // 2
+            bottom_right_x = popup_x + template_width // 2
+            bottom_right_y = popup_y + template_height // 2
+            cv2.rectangle(debug_screenshot, 
+                        (top_left_x, top_left_y), 
+                        (bottom_right_x, bottom_right_y), 
+                        (0, 255, 0), 3)  # Green rectangle
+            
+            # Draw OCR detected text boxes (cyan)
+            print(f"[ACTION_HANDLER] DEBUG: Drawing OCR text boxes...")
+            if ocr_success and ocr_data and ocr_data.get('text'):
+                print(f"[ACTION_HANDLER] DEBUG: Drawing {len(ocr_data['text'])} text boxes...")
+                for i, (text, bbox) in enumerate(zip(ocr_data['text'], ocr_data['bbox'])):
+                    x1, y1, x2, y2 = map(int, bbox)
+                    # Convert local coordinates to screen coordinates
+                    screen_x1 = search_x + x1
+                    screen_y1 = search_y + y1
+                    screen_x2 = search_x + x2
+                    screen_y2 = search_y + y2
+                    
+                    # Draw cyan box around all detected text
+                    cv2.rectangle(debug_screenshot, (screen_x1, screen_y1), (screen_x2, screen_y2), (255, 255, 0), 2)
+                    
+                    # Highlight the target button text in magenta if found
+                    if "multi-network" in text.lower() and "open" in text.lower():
+                        print(f"[ACTION_HANDLER] DEBUG: Found target text, drawing magenta box at ({screen_x1},{screen_y1})-({screen_x2},{screen_y2})")
+                        cv2.rectangle(debug_screenshot, (screen_x1, screen_y1), (screen_x2, screen_y2), (255, 0, 255), 3)
+                        cv2.putText(debug_screenshot, "TARGET", (screen_x1, screen_y1 - 10),
+                                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 255), 2)
             else:
-                print(f"[ACTION_HANDLER] Warning: Could not load template for debug visualization")
+                print(f"[ACTION_HANDLER] DEBUG: Not drawing text boxes - ocr_success={ocr_success}, has data={ocr_data is not None and ocr_data.get('text') is not None}")
+            
+            # Draw circle at popup center (blue)
+            cv2.circle(debug_screenshot, (popup_x, popup_y), 10, (255, 0, 0), -1)
+            
+            # Draw circle at click position (red)
+            cv2.circle(debug_screenshot, (click_x, click_y), 15, (0, 0, 255), -1)
+            
+            # Draw line from popup center to click position (yellow)
+            cv2.line(debug_screenshot, (popup_x, popup_y), (click_x, click_y), (0, 255, 255), 2)
+            
+            # Add text labels
+            cv2.putText(debug_screenshot, f"Popup detected ({confidence:.2f})", 
+                       (top_left_x, top_left_y - 10),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            cv2.putText(debug_screenshot, f"Click: ({click_x},{click_y})", 
+                       (click_x + 20, click_y),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            
+            # Save debug screenshot
+            print(f"[ACTION_HANDLER] DEBUG: All annotations drawn, preparing to save...")
+            debug_dir = "debug_images"
+            os.makedirs(debug_dir, exist_ok=True)
+            debug_path = os.path.join(debug_dir, "multinetwork_popup_detected.png")
+            
+            print(f"[ACTION_HANDLER] DEBUG: Saving debug screenshot to: {debug_path}")
+            # Save with error checking
+            save_result = cv2.imwrite(debug_path, debug_screenshot)
+            print(f"[ACTION_HANDLER] DEBUG: Save result: {save_result}")
+            if save_result:
+                abs_path = os.path.abspath(debug_path)
+                print(f"[ACTION_HANDLER] ✓ Debug screenshot saved to: {abs_path}")
+                print(f"[ACTION_HANDLER]   Legend:")
+                print(f"[ACTION_HANDLER]   - Yellow box: OCR search region (crop area)")
+                print(f"[ACTION_HANDLER]   - Green box: Detected popup template area")
+                print(f"[ACTION_HANDLER]   - Cyan boxes: OCR detected text (in screen coordinates)")
+                print(f"[ACTION_HANDLER]   - Magenta box: Target button text (Multi-Network)")
+                print(f"[ACTION_HANDLER]   - Blue dot: Popup center ({popup_x}, {popup_y})")
+                print(f"[ACTION_HANDLER]   - Red dot: Click position ({click_x}, {click_y})")
+                print(f"[ACTION_HANDLER]   - Yellow line: Path from popup center to click")
+            else:
+                print(f"[ACTION_HANDLER] ✗ Failed to save debug screenshot to: {debug_path}")
         except Exception as e:
             import traceback
             print(f"[ACTION_HANDLER] Warning: Failed to save debug screenshot: {e}")
