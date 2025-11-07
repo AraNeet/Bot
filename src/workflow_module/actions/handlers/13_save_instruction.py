@@ -72,3 +72,4 @@ def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> 
         return True, "Retrying action"
     return False, f"Failed after {max_attempts} attempts"
 
+

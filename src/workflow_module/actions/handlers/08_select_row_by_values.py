@@ -7,6 +7,7 @@ from typing import Tuple, Dict, Any, Optional
 from src.workflow_module.actions.helpers import actions
 from src.workflow_module.actions.helpers import computer_vision_utils
 from src.workflow_module.actions.helpers import table_utils
+from src.workflow_module.actions.helpers.ocr_utils import TextScanner
 import time
 import pyautogui
 
@@ -22,17 +23,18 @@ TARGET_REGION_HEIGHT = 250
 SCROLLBAR_CONFIDENCE = 0.95
 
 
-def scroll_to_table_top(scrollbar_template, table_center_x: int, table_center_y: int) -> None:
+def scroll_to_table_top(table_center_x: int, table_center_y: int) -> None:
     """
-    Scroll the table to the top position by checking scrollbar template after each scroll.
+    Scroll the table to the top position by looking for 'Network Code' or 'Estimate' text.
+    Stops scrolling when either of these texts is found (indicating we're at the top).
     
     Args:
-        scrollbar_template: Template image for top scrollbar position
         table_center_x: X coordinate for mouse position during scrolling
         table_center_y: Y coordinate for mouse position during scrolling
     """
-    print(f"[ACTION_HANDLER] ✗ Scrollbar is NOT at top, scrolling up to beginning...")
+    print(f"[ACTION_HANDLER] Scrolling up to beginning (looking for 'Network Code' or 'Estimate')...")
     
+    scanner = TextScanner()
     pyautogui.moveTo(table_center_x, table_center_y, duration=0.2)
     time.sleep(0.2)
     
@@ -45,16 +47,30 @@ def scroll_to_table_top(scrollbar_template, table_center_x: int, table_center_y:
         
         check_screenshot = computer_vision_utils.take_screenshot()
         if check_screenshot is not None:
-            check_found, _, _ = computer_vision_utils.match_template_in_region(
-                check_screenshot, scrollbar_template, SCROLLBAR_CHECK_REGION, confidence=SCROLLBAR_CONFIDENCE
-            )
+            # Crop the table header region to search for text
+            header_region = check_screenshot[TABLE_CROP_Y:TABLE_CROP_Y+100, TABLE_CROP_X:TABLE_CROP_X+TABLE_CROP_WIDTH]
             
-            if check_found:
-                print(f"[ACTION_HANDLER] ✓ Scrollbar reached top position after {scroll_num} scroll(s)")
-                at_top = True
-                break
+            # Extract text from the header region
+            success, extracted_text = scanner.extract_text(header_region)
+            
+            if success:
+                # Check if we found either "Network Code" or "Estimate"
+                found_network_code = "network code" in extracted_text.lower()
+                found_estimate = "estimate" in extracted_text.lower()
+                
+                if found_network_code or found_estimate:
+                    found_text = []
+                    if found_network_code:
+                        found_text.append("'Network Code'")
+                    if found_estimate:
+                        found_text.append("'Estimate'")
+                    print(f"[ACTION_HANDLER] ✓ Found {' and '.join(found_text)} - reached top position after {scroll_num} scroll(s)")
+                    at_top = True
+                    break
+                elif scroll_num % 10 == 0:
+                    print(f"[ACTION_HANDLER] Not at top yet (no 'Network Code' or 'Estimate' found), scrolled {scroll_num} times, continuing...")
             elif scroll_num % 10 == 0:
-                print(f"[ACTION_HANDLER] Not at top yet, scrolled {scroll_num} times, continuing...")
+                print(f"[ACTION_HANDLER] Warning: OCR extraction failed at scroll {scroll_num}, continuing...")
         else:
             print(f"[ACTION_HANDLER] Warning: Failed to take screenshot at scroll {scroll_num}")
     
@@ -88,7 +104,7 @@ def position_row_in_target_region(click_x: int, click_y: int,
     target_region_bottom = TARGET_REGION_Y + TARGET_REGION_HEIGHT
     
     # Wait for the row to be highlighted in blue after clicking
-    time.sleep(0.2)
+    time.sleep(0.3)
     
     # Detect blue highlighted row
     screenshot = computer_vision_utils.take_screenshot()
@@ -104,17 +120,24 @@ def position_row_in_target_region(click_x: int, click_y: int,
     blue_row_y = row_info['y']
     blue_row_height = row_info['height']
     blue_row_center_y = blue_row_y + (blue_row_height // 2)
+    blue_row_top = blue_row_y
+    blue_row_bottom = blue_row_y + blue_row_height
     
-    print(f"[ACTION_HANDLER] Blue highlighted row detected at y={blue_row_y}, center_y={blue_row_center_y}")
+    print(f"[ACTION_HANDLER] Blue highlighted row detected at y={blue_row_y}, center_y={blue_row_center_y}, height={blue_row_height}")
+    print(f"[ACTION_HANDLER] Blue row bounds: top={blue_row_top}, bottom={blue_row_bottom}")
+    print(f"[ACTION_HANDLER] Target region bounds: top={TARGET_REGION_Y}, bottom={target_region_bottom}")
     
-    # Check if row is already in target region
-    if TARGET_REGION_Y <= blue_row_center_y <= target_region_bottom:
-        print(f"[ACTION_HANDLER] ✓ Row already in target region (y={blue_row_center_y}, target={TARGET_REGION_Y}-{target_region_bottom})")
+    # Check if the entire row (or at least most of it) is already within the target region
+    # Consider the row "in region" if its top is below target top and its center is above target bottom
+    row_in_region = (blue_row_top >= TARGET_REGION_Y) and (blue_row_center_y <= target_region_bottom)
+    
+    if row_in_region:
+        print(f"[ACTION_HANDLER] ✓ Row already in target region (top={blue_row_top}, center={blue_row_center_y})")
+        print(f"[ACTION_HANDLER] ✓ No scrolling needed - row is already positioned correctly")
         return True, "Row already in target region"
     
-    # Row needs to be scrolled into target region
-    print(f"[ACTION_HANDLER] Row at y={blue_row_center_y} needs to be scrolled into target region {TARGET_REGION_Y}-{target_region_bottom}")
-    print(f"[ACTION_HANDLER] Scrolling down to position row in target region...")
+    print(f"[ACTION_HANDLER] ✗ Row NOT in target region (top={blue_row_top} vs target_top={TARGET_REGION_Y}, center={blue_row_center_y} vs target_bottom={target_region_bottom})")
+    print(f"[ACTION_HANDLER] Scrolling down to position row in target region {TARGET_REGION_Y}-{target_region_bottom}...")
     
     # Load end scrollbar template to detect when we can't scroll anymore
     end_scrollbar_template = computer_vision_utils.load_image("src/workflow_module/actions/assets/EndScrollbar.png")
@@ -234,25 +257,36 @@ def action(estimate_number: str = "", advertiser_name: str = "", begin_date: str
         table_center_x = TABLE_CROP_X + TABLE_CROP_WIDTH // 2
         table_center_y = TABLE_CROP_Y + TABLE_CROP_HEIGHT // 2
         
-        # Check if scrollbar is at the top position first
-        print(f"[ACTION_HANDLER] Checking if scrollbar is at top position...")
-        scrollbar_template = computer_vision_utils.load_image("src/workflow_module/actions/assets/ScrollBar.png")
+        # Check if we're at the top by looking for header text
+        print(f"[ACTION_HANDLER] Checking if table is at top position...")
+        scanner = TextScanner()
+        screenshot = computer_vision_utils.take_screenshot()
         
-        if scrollbar_template is None:
-            print(f"[ACTION_HANDLER] Warning: ScrollBar template not found, skipping scrollbar check")
+        if screenshot is None:
+            print(f"[ACTION_HANDLER] Warning: Failed to take screenshot, will scroll to top to be safe")
+            scroll_to_table_top(table_center_x, table_center_y)
         else:
-            screenshot = computer_vision_utils.take_screenshot()
-            if screenshot is None:
-                print(f"[ACTION_HANDLER] Warning: Failed to take screenshot, skipping scrollbar check")
-            else:
-                found, _, _ = computer_vision_utils.match_template_in_region(
-                    screenshot, scrollbar_template, SCROLLBAR_CHECK_REGION, confidence=SCROLLBAR_CONFIDENCE
-                )
+            # Check header region for "Network Code" or "Estimate"
+            header_region = screenshot[TABLE_CROP_Y:TABLE_CROP_Y+100, TABLE_CROP_X:TABLE_CROP_X+TABLE_CROP_WIDTH]
+            success, extracted_text = scanner.extract_text(header_region)
+            
+            if success:
+                found_network_code = "network code" in extracted_text.lower()
+                found_estimate = "estimate" in extracted_text.lower()
                 
-                if found:
-                    print(f"[ACTION_HANDLER] ✓ Scrollbar is at top position, ready to search")
+                if found_network_code or found_estimate:
+                    found_text = []
+                    if found_network_code:
+                        found_text.append("'Network Code'")
+                    if found_estimate:
+                        found_text.append("'Estimate'")
+                    print(f"[ACTION_HANDLER] ✓ Found {' and '.join(found_text)} - table is at top position, ready to search")
                 else:
-                    scroll_to_table_top(scrollbar_template, table_center_x, table_center_y)
+                    print(f"[ACTION_HANDLER] ✗ Header text not found - table is not at top")
+                    scroll_to_table_top(table_center_x, table_center_y)
+            else:
+                print(f"[ACTION_HANDLER] Warning: OCR extraction failed, will scroll to top to be safe")
+                scroll_to_table_top(table_center_x, table_center_y)
 
         # Load column template
         template = computer_vision_utils.load_image("src/workflow_module/actions/assets/ColumnLine.png")
@@ -345,3 +379,4 @@ def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> 
         time.sleep(1.0)
         return True, "Retrying action"
     return False, f"Failed after {max_attempts} attempts"
+

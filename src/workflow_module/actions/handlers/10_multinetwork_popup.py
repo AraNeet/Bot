@@ -423,76 +423,6 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
                 success_msg += f" (template confidence: {template_confidence:.2f})"
             print(f"[VERIFIER_HANDLER] {success_msg}")
             
-            # Save debug screenshot with loading circle highlighted
-            try:
-                print(f"[VERIFIER_HANDLER] Creating debug screenshot for loading circle...")
-                debug_screenshot = screenshot.copy()
-                
-                # Draw filled circle to show detected area (semi-transparent green)
-                overlay = debug_screenshot.copy()
-                cv2.circle(overlay, (x, y), radius, (0, 255, 0), -1)
-                cv2.addWeighted(overlay, 0.1, debug_screenshot, 0.9, 0, debug_screenshot)
-                
-                # Draw circles around detected loading spinner (bright green)
-                cv2.circle(debug_screenshot, (x, y), radius, (0, 255, 0), 4)
-                cv2.circle(debug_screenshot, (x, y), radius - 3, (0, 200, 0), 2)
-                cv2.circle(debug_screenshot, (x, y), radius + 3, (0, 200, 0), 2)
-                
-                # Draw center point (red)
-                cv2.circle(debug_screenshot, (x, y), 10, (0, 0, 255), -1)
-                cv2.circle(debug_screenshot, (x, y), 8, (255, 255, 255), -1)
-                cv2.circle(debug_screenshot, (x, y), 3, (0, 0, 255), -1)
-                
-                # Draw crosshairs at center (yellow)
-                cv2.line(debug_screenshot, (x - 20, y), (x + 20, y), (0, 255, 255), 3)
-                cv2.line(debug_screenshot, (x, y - 20), (x, y + 20), (0, 255, 255), 3)
-                
-                # Add text label with background for better visibility
-                label_text = f"Spinner Center"
-                label_text2 = f"Radius: {radius}px"
-                label_x = x + radius + 20
-                label_y = y - 10
-                
-                # Draw text background
-                text_size = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
-                text_size2 = cv2.getTextSize(label_text2, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
-                max_width = max(text_size[0], text_size2[0])
-                
-                cv2.rectangle(debug_screenshot, 
-                            (label_x - 5, label_y - text_size[1] - 5),
-                            (label_x + max_width + 10, label_y + text_size2[1] + 20),
-                            (0, 0, 0), -1)
-                cv2.rectangle(debug_screenshot, 
-                            (label_x - 5, label_y - text_size[1] - 5),
-                            (label_x + max_width + 10, label_y + text_size2[1] + 20),
-                            (0, 255, 0), 2)
-                
-                # Draw text
-                cv2.putText(debug_screenshot, label_text, 
-                           (label_x, label_y),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                cv2.putText(debug_screenshot, label_text2, 
-                           (label_x, label_y + 25),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                
-                # Save
-                debug_dir = "debug_images"
-                os.makedirs(debug_dir, exist_ok=True)
-                debug_path = os.path.join(debug_dir, "loading_circle_detected.png")
-                
-                save_result = cv2.imwrite(debug_path, debug_screenshot)
-                if save_result:
-                    abs_path = os.path.abspath(debug_path)
-                    print(f"[VERIFIER_HANDLER] ✓ Debug screenshot saved to: {abs_path}")
-                    print(f"[VERIFIER_HANDLER]   - Green circles: Spinner boundary")
-                    print(f"[VERIFIER_HANDLER]   - Red crosshair: Spinner center")
-                else:
-                    print(f"[VERIFIER_HANDLER] ✗ Failed to save debug screenshot to: {debug_path}")
-            except Exception as e:
-                import traceback
-                print(f"[VERIFIER_HANDLER] Warning: Failed to save debug screenshot: {e}")
-                print(f"[VERIFIER_HANDLER] Traceback: {traceback.format_exc()}")
-            
             verification_data["message"] = success_msg
             return True, success_msg, verification_data
         else:
@@ -541,57 +471,6 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
                     success_msg = f"✓ Network page is loading. Loading circle detected on second check at ({x}, {y}), radius: {radius}px"
                     print(f"[VERIFIER_HANDLER] {success_msg}")
                     
-                    # Save debug screenshot with loading circle highlighted (second check)
-                    try:
-                        print(f"[VERIFIER_HANDLER] Creating debug screenshot for loading circle (2nd check)...")
-                        debug_screenshot = screenshot2.copy()
-                        
-                        # Draw circles around detected loading spinner (green)
-                        cv2.circle(debug_screenshot, (x, y), radius, (0, 255, 0), 3)
-                        cv2.circle(debug_screenshot, (x, y), radius + 10, (0, 255, 0), 1)
-                        
-                        # Draw center point (red)
-                        cv2.circle(debug_screenshot, (x, y), 8, (0, 0, 255), -1)
-                        
-                        # Draw crosshairs at center
-                        cv2.line(debug_screenshot, (x - 15, y), (x + 15, y), (0, 0, 255), 2)
-                        cv2.line(debug_screenshot, (x, y - 15), (x, y + 15), (0, 0, 255), 2)
-                        
-                        # Add text label with background
-                        label_text = f"Dotted Spinner (r={radius}px) - 2nd check"
-                        label_x = x + radius + 15
-                        label_y = y
-                        
-                        # Draw text background
-                        text_size = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
-                        cv2.rectangle(debug_screenshot, 
-                                    (label_x - 5, label_y - text_size[1] - 5),
-                                    (label_x + text_size[0] + 5, label_y + 5),
-                                    (0, 0, 0), -1)
-                        
-                        # Draw text
-                        cv2.putText(debug_screenshot, label_text, 
-                                   (label_x, label_y),
-                                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                        
-                        # Save
-                        debug_dir = "debug_images"
-                        os.makedirs(debug_dir, exist_ok=True)
-                        debug_path = os.path.join(debug_dir, "loading_circle_detected_second_check.png")
-                        
-                        save_result = cv2.imwrite(debug_path, debug_screenshot)
-                        if save_result:
-                            abs_path = os.path.abspath(debug_path)
-                            print(f"[VERIFIER_HANDLER] ✓ Debug screenshot saved to: {abs_path}")
-                            print(f"[VERIFIER_HANDLER]   - Green circles: Spinner boundary")
-                            print(f"[VERIFIER_HANDLER]   - Red crosshair: Spinner center")
-                        else:
-                            print(f"[VERIFIER_HANDLER] ✗ Failed to save debug screenshot to: {debug_path}")
-                    except Exception as e:
-                        import traceback
-                        print(f"[VERIFIER_HANDLER] Warning: Failed to save debug screenshot: {e}")
-                        print(f"[VERIFIER_HANDLER] Traceback: {traceback.format_exc()}")
-                    
                     verification_data["message"] = success_msg
                     return True, success_msg, verification_data
         
@@ -626,4 +505,5 @@ def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> 
         return True, "Retrying popup detection"
     
     return False, f"Failed to handle Multi-Network popup after {max_attempts} attempts"
+
 

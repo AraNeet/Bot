@@ -31,6 +31,7 @@ import os
 # Import PaddleOCR
 try:
     from paddleocr import PaddleOCR
+    import paddle
     print("[OCR] PaddleOCR imported successfully")
 except ImportError as e:
     raise ImportError("PaddleOCR is required but not installed. Please install PaddlePaddle (see https://www.paddlepaddle.org.cn/en/install/quick), then pip install paddleocr") from e
@@ -44,7 +45,6 @@ class TextScanner:
         
         Args:
             lang: Language for OCR (default: 'en')
-            use_gpu: Whether to use GPU if available (default: True)
         """
         self._lang = lang
         self._ocr = None  # Lazy initialization
@@ -53,6 +53,16 @@ class TextScanner:
         """Get or create the PaddleOCR instance lazily for better performance."""
         if self._ocr is None:
             print("[OCR] Initializing PaddleOCR...")
+            use_gpu = paddle.device.cuda.device_count() > 0
+            device_name = "GPU" if use_gpu else "CPU"
+            
+            print(f"[OCR] Initializing PaddleOCR on {device_name}...")
+            if use_gpu:
+                gpu_count = paddle.device.cuda.device_count()
+                print(f"[OCR] GPU device(s) available: {gpu_count}")
+                print(f"[OCR] GPU device name: {paddle.device.cuda.get_device_properties(0).name if gpu_count > 0 else 'N/A'}")
+            else:
+                print("[OCR] No GPU detected, using CPU")
             self._ocr = PaddleOCR(lang=self._lang, use_doc_unwarping=False, use_doc_orientation_classify=False, use_textline_orientation=False)
             print("[OCR] PaddleOCR initialized successfully")
         return self._ocr

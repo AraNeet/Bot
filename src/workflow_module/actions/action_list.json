@@ -1,91 +1,91 @@
 {
   "open_instructions_page": {
-    "module": "src.workflow_module.actions.handlers.open_instructions_page.handler",
+    "module": "src.workflow_module.actions.handlers.01_open_instructions_page",
     "description": "Navigate to the Multinetwork Instructions page",
     "has_verifier": true,
     "has_error_handler": true
   },
   "type_advertiser_name": {
-    "module": "src.workflow_module.actions.handlers.type_advertiser_name.handler",
+    "module": "src.workflow_module.actions.handlers.02_type_advertiser_name",
     "description": "Enter advertiser name in the search field",
     "has_verifier": true,
     "has_error_handler": true
   },
-  "type_estimate_number": {
-    "module": "src.workflow_module.actions.handlers.type_estimate_number.handler",
-    "description": "Enter estimate number in the search field",
-    "has_verifier": true,
-    "has_error_handler": true
-  },
   "type_agency_name": {
-    "module": "src.workflow_module.actions.handlers.type_agency_name.handler",
+    "module": "src.workflow_module.actions.handlers.03_type_agency_name",
     "description": "Enter agency name in the search field",
     "has_verifier": true,
     "has_error_handler": true
   },
   "set_begin_date": {
-    "module": "src.workflow_module.actions.handlers.set_begin_date.handler",
+    "module": "src.workflow_module.actions.handlers.04_set_begin_date",
     "description": "Enter begin date in the date field",
     "has_verifier": true,
     "has_error_handler": true
   },
   "set_end_date": {
-    "module": "src.workflow_module.actions.handlers.set_end_date.handler",
+    "module": "src.workflow_module.actions.handlers.05_set_end_date",
     "description": "Enter end date in the date field",
     "has_verifier": true,
     "has_error_handler": true
   },
   "click_search_button": {
-    "module": "src.workflow_module.actions.handlers.click_search_button.handler",
+    "module": "src.workflow_module.actions.handlers.06_click_search_button",
     "description": "Click the search button to submit the search form",
     "has_verifier": true,
     "has_error_handler": true
   },
   "wait_for_results": {
-    "module": "src.workflow_module.actions.handlers.wait_for_results.handler",
+    "module": "src.workflow_module.actions.handlers.07_wait_for_results",
     "description": "Wait for search results to load",
     "has_verifier": true,
     "has_error_handler": true
   },
   "select_row_by_values": {
-    "module": "src.workflow_module.actions.handlers.select_row_by_values.handler",
+    "module": "src.workflow_module.actions.handlers.08_select_row_by_values",
     "description": "Find a row matching provided parameters and right-click on it",
     "has_verifier": true,
     "has_error_handler": true
   },
   "open_multinetwork_row_by_date": {
-    "module": "src.workflow_module.actions.handlers.open_multinetwork_row_by_date.handler",
+    "module": "src.workflow_module.actions.handlers.09_open_multinetwork_row_by_date.handler",
     "description": "Find and double-click on a row in the second table (within expanded row) by begin_date",
     "has_verifier": false,
     "has_error_handler": true
   },
   "multinetwork_popup": {
-    "module": "src.workflow_module.actions.handlers.multinetwork_popup.handler",
+    "module": "src.workflow_module.actions.handlers.10_multinetwork_popup",
     "description": "Detect and handle the Multi-Network instruction popup dialog",
     "has_verifier": true,
     "has_error_handler": true
   },
   "get_multinet_window": {
-    "module": "src.workflow_module.actions.handlers.get_multinet_window.handler",
+    "module": "src.workflow_module.actions.handlers.11_get_multinet_window",
     "description": "Verify that the Multi-Network window is open by checking for 'multinet' text",
     "has_verifier": true,
     "has_error_handler": true
   },
   "type_isci_code": {
-    "module": "src.workflow_module.actions.handlers.type_isci_code.handler",
+    "module": "src.workflow_module.actions.handlers.12_type_isci_code",
     "description": "Enter ISCI code into the field",
     "has_verifier": true,
     "has_error_handler": true
   },
   "save_instruction": {
-    "module": "src.workflow_module.actions.handlers.save_instruction.handler",
+    "module": "src.workflow_module.actions.handlers.13_save_instruction",
     "description": "Save the edited instruction",
     "has_verifier": true,
     "has_error_handler": true
   },
   "verify_save": {
-    "module": "src.workflow_module.actions.handlers.verify_save.handler",
+    "module": "src.workflow_module.actions.handlers.14_verify_save",
     "description": "Verify the instruction was saved successfully",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
+  "type_estimate_number": {
+    "module": "src.workflow_module.actions.handlers.15_type_estimate_number",
+    "description": "Enter estimate number in the search field",
     "has_verifier": true,
     "has_error_handler": true
   }
