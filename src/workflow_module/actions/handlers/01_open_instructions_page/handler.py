@@ -13,13 +13,14 @@ from src.workflow_module.actions.helpers import actions
 from src.workflow_module.actions.helpers import computer_vision_utils
 from src.workflow_module.actions.helpers.ocr_utils import TextScanner
 import time
+import os
 
 scanner = TextScanner()
 
 # ============================================================================
 # ACTION
 # ============================================================================
-
+# Change the region.
 def action(**kwargs) -> Tuple[bool, str]:
     """
     Navigate to the Multinetwork Instructions page.
@@ -51,10 +52,14 @@ def action(**kwargs) -> Tuple[bool, str]:
         
         print(f"[ACTION_HANDLER] Searching for multi_network_icon in region {region}")
         
+        # Get the directory where this handler file is located
+        handler_dir = os.path.dirname(os.path.abspath(__file__))
+        icon_path = os.path.join(handler_dir, 'multi_network_Icon.png')
+        
         # Step 1: Use computer vision to find the multi_network_icon
         icon_found, confidence, icon_position = computer_vision_utils.find_template_in_region(
             screenshot, 
-            'src/workflow_module/actions/assets/multi_network_Icon.png', 
+            icon_path, 
             region, 
             confidence=0.9
         )
@@ -97,8 +102,8 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
     Verify that the multi-network instructions page was opened successfully.
     
-    This function checks if the search fields are visible at the expected region (206, 152, 1439, 79)
-    or if the words "order" or "agency" are present in that region.
+    This function checks if "Search Global Comm" text is present in the page,
+    which indicates that the Multi-Network Instructions page has loaded.
     
     Returns:
         Tuple of (success: bool, message: str, data: Optional[Dict])
@@ -111,47 +116,46 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         if screenshot is None:
             return False, "Failed to take screenshot for verification", None
         
-        # Define the search fields region
-        field_region = (206, 152, 1439, 79)
+        # Define a region to search for "Search Global Comm" text
+        # This should be in the header/title area of the page
+        search_region = (200, 145, 1450, 50)  # Expanded region to capture header text
         
-        # Crop the screenshot to the search fields region
+        # Crop the screenshot to the search region
         cropped_image = computer_vision_utils.crop_image(
             screenshot, 
-            field_region[0], 
-            field_region[1], 
-            field_region[2], 
-            field_region[3]
+            search_region[0], 
+            search_region[1], 
+            search_region[2], 
+            search_region[3]
         )
         
         if cropped_image is None:
-            return False, "Failed to crop image to search fields region", None
+            return False, "Failed to crop image to search region", None
         
-        # Use OCR to extract text from the cropped field region
+        # Use OCR to extract text from the cropped region
         success, extracted_text = scanner.extract_text(cropped_image)
         
         if not success:
-            return False, f"Failed to extract text from search fields region: {extracted_text}", None
+            return False, f"Failed to extract text from search region: {extracted_text}", None
         
-        print(f"[VERIFIER_HANDLER] Extracted text from search fields region: '{extracted_text}'")
+        print(f"[VERIFIER_HANDLER] Extracted text from search region: '{extracted_text}'")
         
-        # Check if the words "order" or "agency" are present in the extracted text
+        # Check if "Search Global Comm" is present in the extracted text (case-insensitive)
         extracted_text_lower = extracted_text.lower()
-        has_order = "order" in extracted_text_lower
-        has_agency = "agency" in extracted_text_lower
+        has_search_global_comm = "search global comm" in extracted_text_lower
         
         verification_data = {
             "extracted_text": extracted_text,
-            "field_region": field_region,
-            "has_order": has_order,
-            "has_agency": has_agency
+            "search_region": search_region,
+            "has_search_global_comm": has_search_global_comm
         }
         
-        if has_order or has_agency:
-            success_msg = f"✓ Multi-network page opened successfully. Found search fields with {'order' if has_order else ''}{' and ' if has_order and has_agency else ''}{'agency' if has_agency else ''}"
+        if has_search_global_comm:
+            success_msg = "✓ Multi-network page opened successfully. Found 'Search Global Comm' text"
             print(f"[VERIFIER_HANDLER] {success_msg}")
             return True, success_msg, verification_data
         else:
-            error_msg = f"✗ Multi-network page verification failed. Expected 'order' or 'agency' in search fields region, but found: '{extracted_text}'"
+            error_msg = f"✗ Multi-network page verification failed. Expected 'Search Global Comm' in search region, but found: '{extracted_text}'"
             print(f"[VERIFIER_HANDLER] {error_msg}")
             return False, error_msg, verification_data
         

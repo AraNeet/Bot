@@ -317,7 +317,9 @@ def action(**kwargs) -> Tuple[bool, str]:
         return True, f"Multi-Network popup detected and 'Open as Multi-Network Instruction' clicked successfully"
         
     except Exception as e:
-        return False, f"Error handling Multi-Network popup: {e}"
+        error_msg = f"Error handling Multi-Network popup: {e}"
+        print(f"[ACTION_HANDLER ERROR] {error_msg}")
+        return False, error_msg
 
 
 def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:

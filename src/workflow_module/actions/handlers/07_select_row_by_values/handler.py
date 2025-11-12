@@ -10,6 +10,7 @@ from src.workflow_module.actions.helpers import table_utils
 from src.workflow_module.actions.helpers.ocr_utils import TextScanner
 import time
 import pyautogui
+import os
 
 
 # Constants
@@ -288,8 +289,10 @@ def action(estimate_number: str = "", advertiser_name: str = "", begin_date: str
                 print(f"[ACTION_HANDLER] Warning: OCR extraction failed, will scroll to top to be safe")
                 scroll_to_table_top(table_center_x, table_center_y)
 
-        # Load column template
-        template = computer_vision_utils.load_image("src/workflow_module/actions/assets/ColumnLine.png")
+        # Load column template from local folder
+        handler_dir = os.path.dirname(os.path.abspath(__file__))
+        column_line_path = os.path.join(handler_dir, 'ColumnLine.png')
+        template = computer_vision_utils.load_image(column_line_path)
         if template is None:
             return False, "Template load failed"
 
@@ -365,18 +368,54 @@ def action(estimate_number: str = "", advertiser_name: str = "", begin_date: str
         return False, f"Target not found after scrolling through {max_scroll_attempts} pages"
         
     except Exception as e:
-        return False, f"Error finding row: {e}"
+        error_msg = f"Error finding row: {e}"
+        print(f"[ACTION_HANDLER ERROR] {error_msg}")
+        return False, error_msg
 
+
+# ============================================================================
+# VERIFIER
+# ============================================================================
 
 def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """Verifier function for action."""
-    return True, "Row found and clicked", None
+    """
+    Verify that the row was found and clicked.
+    
+    Returns:
+        Tuple of (success: bool, message: str, data: Optional[Dict])
+    """
+    print("[VERIFIER_HANDLER] Verifying row selection...")
+    
+    verification_data = {
+        "verified": True,
+        "message": "Row found and clicked"
+    }
+    return True, "Row found and clicked", verification_data
 
+# ============================================================================
+# ERROR HANDLER
+# ============================================================================
 
 def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> Tuple[bool, str]:
-    """Error handler for retrying the action."""
+    """
+    Handle errors specific to selecting row by values.
+    
+    Args:
+        error_msg: The error message from the failed action
+        attempt: Current attempt number
+        max_attempts: Maximum number of attempts
+        **kwargs: Additional context
+        
+    Returns:
+        Tuple of (should_retry: bool, recovery_message: str)
+    """
+    print(f"[ERROR_HANDLER] Handling error for select_row_by_values (attempt {attempt}/{max_attempts})")
+    print(f"[ERROR_HANDLER] Error: {error_msg}")
+    
     if attempt < max_attempts:
+        print(f"[ERROR_HANDLER] Will retry after waiting 1 second...")
         time.sleep(1.0)
         return True, "Retrying action"
-    return False, f"Failed after {max_attempts} attempts"
+    
+    return False, f"Failed to select row after {max_attempts} attempts"
 

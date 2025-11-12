@@ -13,6 +13,7 @@ from src.workflow_module.actions.helpers import actions
 from src.workflow_module.actions.helpers import computer_vision_utils
 from src.workflow_module.actions.helpers.ocr_utils import TextScanner
 from src.workflow_module.actions.helpers.verification_utils import calculate_text_similarity, extract_string_from_text
+from src.workflow_module.actions.helpers.table_utils import get_results_count
 import time
 import cv2
 
@@ -61,15 +62,17 @@ def action(**kwargs) -> Tuple[bool, str]:
         return True, "Successfully clicked search button"
         
     except Exception as e:
-        return False, f"Error clicking search button: {e}"
+        error_msg = f"Error clicking search button: {e}"
+        print(f"[ACTION_HANDLER ERROR] {error_msg}")
+        return False, error_msg
 
 # ============================================================================
 # VERIFIER
 # ============================================================================
 
 def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """Verify that the search button was clicked successfully."""
-    print("[VERIFIER_HANDLER] Verifying search button clicked...")
+    """Verify that the search button was clicked successfully and results are present."""
+    print("[VERIFIER_HANDLER] Verifying search button clicked and checking results...")
     
     # Wait 2 seconds before verification
     time.sleep(2.0)
@@ -94,30 +97,58 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         
         similarity = calculate_text_similarity("Results", extracted_results)
         
+        # Check results count
+        results_count = get_results_count()
+        if results_count is None:
+            return False, "Failed to extract results count from the page", None
+        
         verification_data = {
             "expected_text": "Results",
             "extracted_text": extracted_text,
-            "similarity_score": similarity
+            "similarity_score": similarity,
+            "results_count": results_count
         }
         
+        # Check if results count is greater than 0
+        if results_count == 0:
+            return False, f"✗ Search returned 0 results. No data found matching the search criteria.", verification_data
+        
         if similarity >= 0.80:
-            return True, f"✓ Search results verified with {similarity:.2%} similarity", verification_data
+            return True, f"✓ Search results verified with {similarity:.2%} similarity. Found {results_count} result(s).", verification_data
         else:
             return False, f"✗ Search button verification failed. Similarity: {similarity:.2%}", verification_data
         
     except Exception as e:
-        return False, f"Error verifying search button click: {e}", None
+        error_msg = f"Error verifying search button click: {e}"
+        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
+        return False, error_msg, None
 
 # ============================================================================
 # ERROR HANDLER
 # ============================================================================
 
 def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> Tuple[bool, str]:
-    """Handle errors specific to clicking search button."""
+    """
+    Handle errors specific to clicking search button.
+    
+    Args:
+        error_msg: The error message from the failed action
+        attempt: Current attempt number
+        max_attempts: Maximum number of attempts
+        **kwargs: Additional context
+        
+    Returns:
+        Tuple of (should_retry: bool, recovery_message: str)
+    """
+    print(f"[ERROR_HANDLER] Handling error for click_search_button (attempt {attempt}/{max_attempts})")
+    print(f"[ERROR_HANDLER] Error: {error_msg}")
+    
     if attempt < max_attempts:
+        print(f"[ERROR_HANDLER] Will retry after waiting 1 second...")
         time.sleep(1.0)
         return True, "Retrying action"
-    return False, f"Failed after {max_attempts} attempts"
+    
+    return False, f"Failed to click search button after {max_attempts} attempts"
 
 # All helper functions have been moved to helpers/verification_utils.py
 

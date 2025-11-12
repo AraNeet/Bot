@@ -64,10 +64,12 @@ def main():
         print(f"[ERROR] Failed to generate objectives config:")
         print(e.stdout)
         print(e.stderr)
-        print("[WARNING] Continuing with existing config...")
+        print("[FATAL] Cannot continue without valid config. Exiting...")
+        exit(1)
     except Exception as e:
         print(f"[ERROR] Unexpected error generating config: {e}")
-        print("[WARNING] Continuing with existing config...")
+        print("[FATAL] Cannot continue without valid config. Exiting...")
+        exit(1)
     
     print("="*70 + "\n")
 

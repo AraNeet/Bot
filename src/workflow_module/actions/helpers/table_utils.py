@@ -236,6 +236,69 @@ def create_separated_columns_image(source_img, column_separator_positions, templ
     
     return separated_columns_image
 
+def get_column_5_image(source_img, column_separator_positions, template_width, debug=False):
+    """
+    Extracts only column 5 from the source image using column separators.
+    
+    Processing steps:
+    1. Calculate column boundaries from separator positions
+    2. Extract column 5 (index 4, 0-based)
+    3. Return the single column image
+    
+    Args:
+        source_img: Source image to process
+        column_separator_positions: List of ((x, y), confidence) tuples
+        template_width: Width of separator template
+        debug: Enable debug output (default: False)
+    
+    Returns:
+        Image containing only column 5, or None if processing fails or column 5 doesn't exist
+    """
+    if not column_separator_positions:
+        print("[GET_COLUMN_5] No column separators found")
+        return None
+    
+    # Calculate column boundaries
+    print(f"[GET_COLUMN_5] Processing {len(column_separator_positions)} separators")
+    
+    column_split_positions = []
+    for position, score in column_separator_positions:
+        x_position = position[0]
+        split_center = x_position + (template_width // 2)
+        column_split_positions.append(split_center)
+    
+    unique_split_positions = sorted(set(column_split_positions))
+    image_width = source_img.shape[1]
+    all_column_boundaries = [0] + unique_split_positions + [image_width]
+    
+    if debug:
+        print(f"[GET_COLUMN_5] Column boundaries: {all_column_boundaries}")
+    
+    # Calculate total number of columns
+    total_columns = len(all_column_boundaries) - 1
+    print(f"[GET_COLUMN_5] Found {total_columns} columns")
+    
+    # Check if column 5 exists (index 4, 0-based)
+    column_5_index = 4  # Column 5 is at index 4 (0-based indexing)
+    
+    if total_columns < 5:
+        print(f"[GET_COLUMN_5] Column 5 does not exist. Only {total_columns} columns found")
+        return None
+    
+    # Extract column 5
+    left_edge = all_column_boundaries[column_5_index]
+    right_edge = all_column_boundaries[column_5_index + 1]
+    column_5_image = source_img[:, left_edge:right_edge]
+    
+    if debug:
+        column_width = right_edge - left_edge
+        print(f"[GET_COLUMN_5] Column 5: x={left_edge} to x={right_edge} (width={column_width}px)")
+        cv2.imwrite('column_5_extracted.png', column_5_image)
+        print("[GET_COLUMN_5] Saved debug image: 'column_5_extracted.png'")
+    
+    print(f"[GET_COLUMN_5] Successfully extracted column 5")
+    return column_5_image
+
 # ============================================================================
 # TABLE ROW SEARCHING
 # ============================================================================

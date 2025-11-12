@@ -350,21 +350,21 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
                 print(f"[ACTION_HANDLER] No separators found in full region")
                 return False, None, None
             
-            # Create separated columns image
-            separated_img = table_utils.create_separated_columns_image(
+            # Extract only column 5
+            column_5_img = table_utils.get_column_5_image(
                 target_region_img, 
                 separator_matches, 
                 scroll_template.shape[1],
-                padding_width=10
+                debug=True
             )
             
-            if separated_img is None:
-                print(f"[ACTION_HANDLER] Failed to separate columns in full region")
+            if column_5_img is None:
+                print(f"[ACTION_HANDLER] Failed to extract column 5 from full region")
                 return False, None, None
             
-            # Perform OCR on separated columns
+            # Perform OCR on column 5 only
             scanner = ocr_utils.TextScanner()
-            ocr_success, ocr_data = scanner.get_text_data(separated_img)
+            ocr_success, ocr_data = scanner.get_text_data(column_5_img)
             
             if not ocr_success or not ocr_data or not ocr_data.get('text'):
                 print(f"[ACTION_HANDLER] OCR failed in full region")
@@ -378,7 +378,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
                 os.makedirs("debug_images", exist_ok=True)
                 
                 # Create annotated image showing all detected text
-                annotated_img = separated_img.copy()
+                annotated_img = column_5_img.copy()
                 
                 # Draw all OCR detections in green
                 for i, (text, bbox, conf) in enumerate(zip(ocr_data['text'], ocr_data['bbox'], ocr_data['confidence'])):
@@ -418,14 +418,31 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
                         matched_text = text
                         matched_index = i
                         
-                        # Convert from separated image coordinates to original target region coordinates
+                        # Convert from column 5 image coordinates to original target region coordinates
                         click_y_local = (y1 + y2) // 2
                         
-                        # For X, we need to scale back if the image width changed
-                        original_width = target_region_img.shape[1]
-                        separated_width = separated_img.shape[1]
-                        scale_factor = original_width / separated_width
-                        click_x_local = int(((x1 + x2) // 2) * scale_factor)
+                        # For X, we need to get the column 5's left edge position in the original image
+                        # and add the relative X position within column 5
+                        # First, calculate column boundaries to find column 5's left edge
+                        column_split_positions = []
+                        for position, score in separator_matches:
+                            x_position = position[0]
+                            split_center = x_position + (scroll_template.shape[1] // 2)
+                            column_split_positions.append(split_center)
+                        
+                        unique_split_positions = sorted(set(column_split_positions))
+                        image_width = target_region_img.shape[1]
+                        all_column_boundaries = [0] + unique_split_positions + [image_width]
+                        
+                        # Column 5 is at index 4 (0-based)
+                        if len(all_column_boundaries) >= 6:
+                            column_5_left = all_column_boundaries[4]
+                            # X position within column 5 image + column 5's left edge in original image
+                            click_x_local = column_5_left + ((x1 + x2) // 2)
+                        else:
+                            # Fallback: use center of column 5 image
+                            column_5_width = column_5_img.shape[1]
+                            click_x_local = ((x1 + x2) // 2)
                         
                         # Convert to screen coordinates (add target region offsets)
                         click_x = click_x_local + scroll_crop_x
@@ -436,7 +453,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
                         
                         # Save debug screenshot highlighting the matched text
                         try:
-                            matched_annotated_img = separated_img.copy()
+                            matched_annotated_img = column_5_img.copy()
                             
                             # Draw all OCR detections in green
                             for j, (txt, box, conf) in enumerate(zip(ocr_data['text'], ocr_data['bbox'], ocr_data['confidence'])):

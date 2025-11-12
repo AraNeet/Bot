@@ -30,13 +30,7 @@
                     "description": "Isci 1 code"
                 }
             },
-            "optional_fields": {
-                "timeout": {
-                    "type": "number",
-                    "description": "Timeout in seconds for operation",
-                    "default": 10
-                }
-            }
+            "optional_fields": {}
         }
     }
 }

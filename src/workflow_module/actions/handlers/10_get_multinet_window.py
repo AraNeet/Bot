@@ -2,6 +2,11 @@
 """
 Handler for: Get Multinet Window
 
+This module contains:
+- Action: Check if the Multi-Network window is open by searching for 'multinet' text
+- Verifier: Verify the Multi-Network window detection completed
+- Error Handler: Handle errors for this specific action
+
 Checks if the Multi-Network window is open by searching for 'multinet' text
 in the title bar region. Retries up to 5 times with 10 second delays.
 """
@@ -13,6 +18,9 @@ import time
 import cv2
 import os
 
+# ============================================================================
+# ACTION
+# ============================================================================
 
 def action(**kwargs) -> Tuple[bool, str]:
     """
@@ -192,7 +200,8 @@ def action(**kwargs) -> Tuple[bool, str]:
                     return False, f"Multi-Network window not detected after {max_attempts} attempts. 'multinet' text not found in title bar region."
         
         except Exception as e:
-            print(f"[ACTION_HANDLER] Error on attempt {attempt}: {e}")
+            error_msg = f"Error on attempt {attempt}: {e}"
+            print(f"[ACTION_HANDLER ERROR] {error_msg}")
             if attempt < max_attempts:
                 print(f"[ACTION_HANDLER] Waiting {wait_time} seconds before retry...")
                 time.sleep(wait_time)
@@ -201,6 +210,10 @@ def action(**kwargs) -> Tuple[bool, str]:
     
     return False, f"Multi-Network window not detected after {max_attempts} attempts"
 
+
+# ============================================================================
+# VERIFIER
+# ============================================================================
 
 def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
@@ -221,6 +234,10 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     
     return True, "Multi-Network window verification passed", verification_data
 
+
+# ============================================================================
+# ERROR HANDLER
+# ============================================================================
 
 def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> Tuple[bool, str]:
     """

@@ -37,7 +37,9 @@ def action(**kwargs) -> Tuple[bool, str]:
         return True, "Instruction saved (placeholder implementation)"
         
     except Exception as e:
-        return False, f"Error saving instruction: {e}"
+        error_msg = f"Error saving instruction: {e}"
+        print(f"[ACTION_HANDLER ERROR] {error_msg}")
+        return False, error_msg
 
 # ============================================================================
 # VERIFIER
@@ -59,17 +61,35 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         return True, "✓ Instruction save verified (placeholder)", verification_data
         
     except Exception as e:
-        return False, f"Error verifying instruction save: {e}", None
+        error_msg = f"Error verifying instruction save: {e}"
+        print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
+        return False, error_msg, None
 
 # ============================================================================
 # ERROR HANDLER
 # ============================================================================
 
 def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> Tuple[bool, str]:
-    """Handle errors specific to saving instruction."""
+    """
+    Handle errors specific to saving instruction.
+    
+    Args:
+        error_msg: The error message from the failed action
+        attempt: Current attempt number
+        max_attempts: Maximum number of attempts
+        **kwargs: Additional context
+        
+    Returns:
+        Tuple of (should_retry: bool, recovery_message: str)
+    """
+    print(f"[ERROR_HANDLER] Handling error for save_instruction (attempt {attempt}/{max_attempts})")
+    print(f"[ERROR_HANDLER] Error: {error_msg}")
+    
     if attempt < max_attempts:
+        print(f"[ERROR_HANDLER] Will retry after waiting 1 second...")
         time.sleep(1.0)
         return True, "Retrying action"
-    return False, f"Failed after {max_attempts} attempts"
+    
+    return False, f"Failed to save instruction after {max_attempts} attempts"
 
 

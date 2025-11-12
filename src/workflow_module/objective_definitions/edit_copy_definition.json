@@ -40,13 +40,6 @@
                 "parameters": {}
             },
             {
-                "action_type": "wait_for_results",
-                "description": "Wait for search results to load",
-                "parameters": {
-                    "timeout": 10
-                }
-            },
-            {
                 "action_type": "select_row_by_values",
                 "description": "Search through table rows to find matching estimate number",
                 "parameters": {

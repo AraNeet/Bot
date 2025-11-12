@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Handler for: Type Advertiser Name
+Handler for: Type Agency Name
 
 This module contains:
-- Action: Type advertiser name in the search field
-- Verifier: Verify the advertiser name was entered correctly
+- Action: Type agency name in the search field
+- Verifier: Verify the agency name was entered correctly
 - Error Handler: Handle errors for this specific action
 """
 
@@ -14,6 +14,7 @@ from src.workflow_module.actions.helpers import computer_vision_utils
 from src.workflow_module.actions.helpers.ocr_utils import TextScanner
 from src.workflow_module.actions.helpers.verification_utils import calculate_text_similarity, extract_string_from_text
 import time
+import os
 
 scanner = TextScanner()
 
@@ -21,55 +22,39 @@ scanner = TextScanner()
 # ACTION
 # ============================================================================
 
-def action(advertiser_name: str, **kwargs) -> Tuple[bool, str]:
+def action(agency_name: str, **kwargs) -> Tuple[bool, str]:
     """
-    Type advertiser name in the search field.
+    Type agency name in the search field.
+    
+    Args:
+        agency_name: The agency name to enter
+        
+    Returns:
+        Tuple of (success: bool, message: str)
     """
-    print(f"[ACTION_HANDLER] Entering advertiser name: '{advertiser_name}'")
+    print(f"[ACTION_HANDLER] Entering agency name: '{agency_name}'")
     
     try:
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot"
         
-        region_x = 206
-        region_y = 152
-        region_width = 1439
-        region_height = 79
-        search_region = (region_x, region_y, region_width, region_height)
-        
-        print(f"[ACTION_HANDLER] Searching for 'advertiser' word in region {search_region}")
-        
+        region_x, region_y, region_width, region_height = 206, 152, 1439, 79
         cropped_image = computer_vision_utils.crop_image(screenshot, region_x, region_y, region_width, region_height)
         if cropped_image is None:
             return False, "Failed to crop image to search region"
         
-        print(f"[ACTION_HANDLER] Cropped image to region {search_region} for OCR search")
-        
-        success, found, bbox = scanner.find_text_with_position(
-            cropped_image,
-            "advertiser",
-            case_sensitive=False
-        )
-        
+        success, found, bbox = scanner.find_text_with_position(cropped_image, "agency", case_sensitive=False)
         if not success or not found or bbox is None:
-            return False, "Could not determine exact position of 'advertiser' text in cropped image"
+            return False, "Could not determine exact position of 'agency' text in cropped image"
         
         cropped_text_x, cropped_text_y, text_width, text_height = bbox
-        text_x = region_x + cropped_text_x
-        text_y = region_y + cropped_text_y
-        
-        print(f"[ACTION_HANDLER] ✓ 'advertiser' text found at ({text_x}, {text_y}) with size {text_width}x{text_height}")
-        
-        field_spacing = 15
-        field_x = text_x
-        field_y = text_y + text_height + field_spacing
-        
-        print(f"[ACTION_HANDLER] Calculated field position: ({field_x}, {field_y}) - 15px below 'advertiser' text")
+        field_x = region_x + cropped_text_x
+        field_y = region_y + cropped_text_y + text_height + 15
         
         click_success, click_msg = actions.click_at_position(field_x, field_y)
         if not click_success:
-            return False, f"Failed to click on advertiser field: {click_msg}"
+            return False, f"Failed to click on agency field: {click_msg}"
         
         time.sleep(0.5)
         clear_success, clear_msg = actions.clear_field()
@@ -77,37 +62,43 @@ def action(advertiser_name: str, **kwargs) -> Tuple[bool, str]:
             print(f"[ACTION_HANDLER] Warning: Failed to clear field: {clear_msg}")
         
         time.sleep(0.2)
-        
-        type_success, type_msg = actions.type_text(advertiser_name, interval=0.02)
+        type_success, type_msg = actions.type_text(agency_name, interval=0.02)
         if not type_success:
-            return False, f"Failed to type advertiser name: {type_msg}"
+            return False, f"Failed to type agency name: {type_msg}"
         
         time.sleep(0.2)
-        
         enter_success, enter_msg = actions.press_key('enter', presses=1)
         if not enter_success:
             print(f"[ACTION_HANDLER] Warning: Failed to press Enter: {enter_msg}")
         
         time.sleep(0.5)
-        
-        print(f"[ACTION_HANDLER] ✓ Successfully entered advertiser name: '{advertiser_name}'")
-        return True, f"Successfully entered advertiser name: '{advertiser_name}'"
+        print(f"[ACTION_HANDLER] ✓ Successfully entered agency name: '{agency_name}'")
+        return True, f"Successfully entered agency name: '{agency_name}'"
         
     except Exception as e:
-        error_msg = f"Error entering advertiser name: {e}"
+        error_msg = f"Error entering agency name: {e}"
         print(f"[ACTION_HANDLER ERROR] {error_msg}")
         return False, error_msg
+
 
 # ============================================================================
 # VERIFIER
 # ============================================================================
 
-def verifier(advertiser_name: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """Verify that the advertiser name was entered correctly using OCR similarity check."""
-    print(f"[VERIFIER_HANDLER] Verifying advertiser name entered: '{advertiser_name}'")
+def verifier(agency_name: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """
+    Verify that the agency name was entered correctly using OCR similarity check.
     
-    if not advertiser_name:
-        return True, "No advertiser name to verify", None
+    Args:
+        agency_name: The agency name to verify
+        
+    Returns:
+        Tuple of (success: bool, message: str, data: Optional[Dict])
+    """
+    print(f"[VERIFIER_HANDLER] Verifying agency name entered: '{agency_name}'")
+    
+    if not agency_name:
+        return True, "No agency name to verify", None
     
     try:
         screenshot = computer_vision_utils.take_screenshot()
@@ -117,9 +108,13 @@ def verifier(advertiser_name: str = "", **kwargs) -> Tuple[bool, str, Optional[D
         name_dialog_region = (65, 25, 1217, 383)
         print(f"[VERIFIER_HANDLER] Checking for Name search dialog in region {name_dialog_region}")
         
+        # Get the directory where this handler file is located
+        handler_dir = os.path.dirname(os.path.abspath(__file__))
+        close_button_path = os.path.join(handler_dir, 'close_name_pop_up.png')
+        
         close_button_found, close_confidence, close_position = computer_vision_utils.find_template_in_region(
             screenshot,
-            'src/workflow_module/actions/assets/close_name_pop_up.png',
+            close_button_path,
             name_dialog_region,
             confidence=0.8
         )
@@ -138,76 +133,79 @@ def verifier(advertiser_name: str = "", **kwargs) -> Tuple[bool, str, Optional[D
         
         print(f"[VERIFIER_HANDLER] No Name search dialog found (confidence: {close_confidence:.2f}), proceeding with verification")
         
-        field_region = (370, 175, 160, 48)
-        cropped_image = computer_vision_utils.crop_image(
-            screenshot, 
-            field_region[0], 
-            field_region[1], 
-            field_region[2], 
-            field_region[3]
-        )
-        
+        field_region = (668, 180, 130, 40)
+        cropped_image = computer_vision_utils.crop_image(screenshot, *field_region)
         if cropped_image is None:
-            return False, "Failed to crop image to advertiser field region", None
+            return False, "Failed to crop image to agency field region", None
         
         success, extracted_text = scanner.extract_text(cropped_image)
-        
         if not success:
-            return False, f"Failed to extract text from advertiser field: {extracted_text}", None
+            return False, f"Failed to extract text from agency field: {extracted_text}", None
         
         print(f"[VERIFIER_HANDLER] Extracted text: '{extracted_text}'")
         
-        extracted_advertiser_name = extract_string_from_text(extracted_text, advertiser_name)
-        
-        if not extracted_advertiser_name:
-            error_msg = f"The advertiser name '{advertiser_name}' was not correct or not written correctly"
+        extracted_agency = extract_string_from_text(extracted_text, agency_name)
+        if not extracted_agency:
+            error_msg = f"The agency name '{agency_name}' was not correct or not written correctly"
             print(f"[VERIFIER_HANDLER] {error_msg}")
             verification_data = {
-                "expected_text": advertiser_name,
+                "expected_text": agency_name,
                 "extracted_text": extracted_text,
-                "extracted_advertiser_name": None,
+                "extracted_agency_name": None,
                 "field_region": field_region,
                 "threshold": 0.80
             }
             return False, error_msg, verification_data
         
-        print(f"[VERIFIER_HANDLER] Extracted advertiser name: '{extracted_advertiser_name}'")
+        print(f"[VERIFIER_HANDLER] Extracted agency name: '{extracted_agency}'")
         
-        similarity = calculate_text_similarity(advertiser_name, extracted_advertiser_name)
+        similarity = calculate_text_similarity(agency_name, extracted_agency)
         
         verification_data = {
-            "expected_text": advertiser_name,
+            "expected_text": agency_name,
             "extracted_text": extracted_text,
-            "extracted_advertiser_name": extracted_advertiser_name,
+            "extracted_agency_name": extracted_agency,
             "similarity_score": similarity,
             "field_region": field_region,
             "threshold": 0.80
         }
         
         if similarity >= 0.80:
-            success_msg = f"✓ Advertiser name verified with {similarity:.2%} similarity (extracted: '{extracted_advertiser_name}')"
+            success_msg = f"✓ Agency name verified with {similarity:.2%} similarity (extracted: '{extracted_agency}')"
             print(f"[VERIFIER_HANDLER] {success_msg}")
             return True, success_msg, verification_data
         else:
-            error_msg = f"The advertiser name '{advertiser_name}' was not correct or not written correctly"
-            print(f"[VERIFIER_HANDLER] {error_msg} (Expected: '{advertiser_name}', Extracted: '{extracted_advertiser_name}', Similarity: {similarity:.2%})")
+            error_msg = f"The agency name '{agency_name}' was not correct or not written correctly"
+            print(f"[VERIFIER_HANDLER] {error_msg} (Expected: '{agency_name}', Extracted: '{extracted_agency}', Similarity: {similarity:.2%})")
             return False, error_msg, verification_data
         
     except Exception as e:
-        error_msg = f"Error verifying advertiser name entry: {e}"
+        error_msg = f"Error verifying agency name entry: {e}"
         print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
         return False, error_msg, None
+
 
 # ============================================================================
 # ERROR HANDLER
 # ============================================================================
 
 def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> Tuple[bool, str]:
-    """Handle errors specific to entering advertiser name."""
-    print(f"[ERROR_HANDLER] Handling error for type_advertiser_name (attempt {attempt}/{max_attempts})")
+    """
+    Handle errors specific to entering agency name.
+    
+    Args:
+        error_msg: The error message from the failed action
+        attempt: Current attempt number
+        max_attempts: Maximum number of attempts
+        **kwargs: Additional context
+        
+    Returns:
+        Tuple of (should_retry: bool, recovery_message: str)
+    """
+    print(f"[ERROR_HANDLER] Handling error for type_agency_name (attempt {attempt}/{max_attempts})")
     print(f"[ERROR_HANDLER] Error: {error_msg}")
     
-    advertiser_name = kwargs.get('advertiser_name', '')
+    agency_name = kwargs.get('agency_name', '')
     
     if "Could not determine exact position" in error_msg or "Failed to crop" in error_msg:
         print(f"[ERROR_HANDLER] OCR or field detection issue detected")
@@ -237,7 +235,7 @@ def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> 
             return True, "Retrying due to verification failure"
     
     if attempt >= max_attempts:
-        return False, f"Failed to enter advertiser name '{advertiser_name}' after {max_attempts} attempts"
+        return False, f"Failed to enter agency name '{agency_name}' after {max_attempts} attempts"
     
     time.sleep(0.5)
     return True, "Retrying action"

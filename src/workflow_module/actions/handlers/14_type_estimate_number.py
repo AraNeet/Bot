@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Handler for: Set Begin Date
+Handler for: Type Estimate Number
 
 This module contains:
-- Action: Set the begin date in the search field
-- Verifier: Verify the begin date was entered correctly
+- Action: Type estimate number in the search field
+- Verifier: Verify the estimate number was entered correctly
 - Error Handler: Handle errors for this specific action
 """
 
@@ -12,7 +12,7 @@ from typing import Tuple, Dict, Any, Optional
 from src.workflow_module.actions.helpers import actions
 from src.workflow_module.actions.helpers import computer_vision_utils
 from src.workflow_module.actions.helpers.ocr_utils import TextScanner
-from src.workflow_module.actions.helpers.verification_utils import calculate_text_similarity, extract_date_from_text
+from src.workflow_module.actions.helpers.verification_utils import calculate_text_similarity, extract_number_from_text
 import time
 
 scanner = TextScanner()
@@ -21,17 +21,17 @@ scanner = TextScanner()
 # ACTION
 # ============================================================================
 
-def action(begin_date: str, **kwargs) -> Tuple[bool, str]:
+def action(estimate_number: str, **kwargs) -> Tuple[bool, str]:
     """
-    Set the begin date in the search field.
+    Type estimate number in the search field.
     
     Args:
-        begin_date: The begin date to enter
+        estimate_number: The estimate number to enter
         
     Returns:
         Tuple of (success: bool, message: str)
     """
-    print(f"[ACTION_HANDLER] Entering begin date: '{begin_date}'")
+    print(f"[ACTION_HANDLER] Entering estimate number: '{estimate_number}'")
     
     try:
         screenshot = computer_vision_utils.take_screenshot()
@@ -43,17 +43,19 @@ def action(begin_date: str, **kwargs) -> Tuple[bool, str]:
         if cropped_image is None:
             return False, "Failed to crop image to search region"
         
-        success, found, bbox = scanner.find_text_with_position(cropped_image, "begin", case_sensitive=False)
+        success, found, bbox = scanner.find_text_with_position(cropped_image, "estimate", case_sensitive=False)
         if not success or not found or bbox is None:
-            return False, "Could not determine exact position of 'begin' text in cropped image"
+            return False, "Could not determine exact position of 'estimate' text in cropped image"
         
         cropped_text_x, cropped_text_y, text_width, text_height = bbox
-        field_x = region_x + cropped_text_x
-        field_y = region_y + cropped_text_y + text_height + 15
+        text_x = region_x + cropped_text_x
+        text_y = region_y + cropped_text_y
+        field_x = text_x
+        field_y = text_y + text_height + 15
         
         click_success, click_msg = actions.click_at_position(field_x, field_y)
         if not click_success:
-            return False, f"Failed to click on begin date field: {click_msg}"
+            return False, f"Failed to click on estimate field: {click_msg}"
         
         time.sleep(0.5)
         clear_success, clear_msg = actions.clear_field()
@@ -61,16 +63,16 @@ def action(begin_date: str, **kwargs) -> Tuple[bool, str]:
             print(f"[ACTION_HANDLER] Warning: Failed to clear field: {clear_msg}")
         
         time.sleep(0.2)
-        type_success, type_msg = actions.type_text(begin_date, interval=0.02)
+        type_success, type_msg = actions.type_text(estimate_number, interval=0.02)
         if not type_success:
-            return False, f"Failed to type begin date: {type_msg}"
+            return False, f"Failed to type estimate number: {type_msg}"
         
         time.sleep(0.5)
-        print(f"[ACTION_HANDLER] ✓ Successfully entered begin date: '{begin_date}'")
-        return True, f"Successfully entered begin date: '{begin_date}'"
+        print(f"[ACTION_HANDLER] ✓ Successfully entered estimate number: '{estimate_number}'")
+        return True, f"Successfully entered estimate number: '{estimate_number}'"
         
     except Exception as e:
-        error_msg = f"Error entering begin date: {e}"
+        error_msg = f"Error entering estimate number: {e}"
         print(f"[ACTION_HANDLER ERROR] {error_msg}")
         return False, error_msg
 
@@ -79,74 +81,74 @@ def action(begin_date: str, **kwargs) -> Tuple[bool, str]:
 # VERIFIER
 # ============================================================================
 
-def verifier(begin_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+def verifier(estimate_number: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
-    Verify that the begin date was entered correctly using OCR similarity check.
+    Verify that the estimate number was entered correctly using OCR similarity check.
     
     Args:
-        begin_date: The begin date to verify
+        estimate_number: The estimate number to verify
         
     Returns:
         Tuple of (success: bool, message: str, data: Optional[Dict])
     """
-    print(f"[VERIFIER_HANDLER] Verifying begin date entered: '{begin_date}'")
+    print(f"[VERIFIER_HANDLER] Verifying estimate number entered: '{estimate_number}'")
     
-    if not begin_date:
-        return True, "No begin date to verify", None
+    if not estimate_number:
+        return True, "No estimate number to verify", None
     
     try:
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot for verification", None
         
-        field_region = (992, 175, 114, 50)
+        field_region = (286, 175, 80, 48)
         cropped_image = computer_vision_utils.crop_image(screenshot, *field_region)
         if cropped_image is None:
-            return False, "Failed to crop image to begin date field region", None
+            return False, "Failed to crop image to estimate field region", None
         
         success, extracted_text = scanner.extract_text(cropped_image)
         if not success:
-            return False, f"Failed to extract text from begin date field: {extracted_text}", None
+            return False, f"Failed to extract text from estimate field: {extracted_text}", None
         
         print(f"[VERIFIER_HANDLER] Extracted text: '{extracted_text}'")
         
-        extracted_date = extract_date_from_text(extracted_text, begin_date)
-        if not extracted_date:
-            error_msg = f"Could not extract date from: '{extracted_text}'"
+        extracted_estimate_number = extract_number_from_text(extracted_text, estimate_number)
+        if not extracted_estimate_number:
+            error_msg = f"Could not extract estimate number from: '{extracted_text}'"
             print(f"[VERIFIER_HANDLER] {error_msg}")
             verification_data = {
-                "expected_text": begin_date,
+                "expected_text": estimate_number,
                 "extracted_text": extracted_text,
-                "extracted_date": None,
+                "extracted_estimate_number": None,
                 "field_region": field_region,
                 "threshold": 0.80
             }
             return False, error_msg, verification_data
         
-        print(f"[VERIFIER_HANDLER] Extracted begin date: '{extracted_date}'")
+        print(f"[VERIFIER_HANDLER] Extracted estimate number: '{extracted_estimate_number}'")
         
-        similarity = calculate_text_similarity(begin_date, extracted_date)
+        similarity = calculate_text_similarity(estimate_number, extracted_estimate_number)
         
         verification_data = {
-            "expected_text": begin_date,
+            "expected_text": estimate_number,
             "extracted_text": extracted_text,
-            "extracted_date": extracted_date,
+            "extracted_estimate_number": extracted_estimate_number,
             "similarity_score": similarity,
             "field_region": field_region,
             "threshold": 0.80
         }
         
         if similarity >= 0.80:
-            success_msg = f"✓ Begin date verified with {similarity:.2%} similarity (extracted: '{extracted_date}')"
+            success_msg = f"✓ Estimate number verified with {similarity:.2%} similarity (extracted: '{extracted_estimate_number}')"
             print(f"[VERIFIER_HANDLER] {success_msg}")
             return True, success_msg, verification_data
         else:
-            error_msg = f"✗ Begin date verification failed. Similarity: {similarity:.2%}"
-            print(f"[VERIFIER_HANDLER] {error_msg} (Expected: '{begin_date}', Extracted: '{extracted_date}')")
+            error_msg = f"✗ Estimate number verification failed. Similarity: {similarity:.2%}"
+            print(f"[VERIFIER_HANDLER] {error_msg} (Expected: '{estimate_number}', Extracted: '{extracted_estimate_number}')")
             return False, error_msg, verification_data
         
     except Exception as e:
-        error_msg = f"Error verifying begin date entry: {e}"
+        error_msg = f"Error verifying estimate number entry: {e}"
         print(f"[VERIFIER_HANDLER ERROR] {error_msg}")
         return False, error_msg, None
 
@@ -157,7 +159,7 @@ def verifier(begin_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[s
 
 def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> Tuple[bool, str]:
     """
-    Handle errors specific to entering begin date.
+    Handle errors specific to entering estimate number.
     
     Args:
         error_msg: The error message from the failed action
@@ -168,16 +170,16 @@ def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> 
     Returns:
         Tuple of (should_retry: bool, recovery_message: str)
     """
-    print(f"[ERROR_HANDLER] Handling error for set_begin_date (attempt {attempt}/{max_attempts})")
+    print(f"[ERROR_HANDLER] Handling error for type_estimate_number (attempt {attempt}/{max_attempts})")
     print(f"[ERROR_HANDLER] Error: {error_msg}")
     
-    begin_date = kwargs.get('begin_date', '')
+    estimate_number = kwargs.get('estimate_number', '')
     
     if attempt < max_attempts:
         print(f"[ERROR_HANDLER] Will retry after waiting 0.5 seconds...")
         time.sleep(0.5)
         return True, "Retrying action"
     
-    return False, f"Failed to enter begin date '{begin_date}' after {max_attempts} attempts"
+    return False, f"Failed to enter estimate number '{estimate_number}' after {max_attempts} attempts"
 
 
