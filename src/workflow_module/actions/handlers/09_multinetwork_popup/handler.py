@@ -49,8 +49,9 @@ def action(**kwargs) -> Tuple[bool, str]:
         
         print(f"[ACTION_HANDLER] Searching center region: ({region_x}, {region_y}, {region_width}, {region_height})")
         
-        # Search for the popup template
-        template_path = "src/workflow_module/actions/assets/MutliNetworkPopUp.png"
+        # Search for the popup template from local handler folder
+        handler_dir = os.path.dirname(os.path.abspath(__file__))
+        template_path = os.path.join(handler_dir, 'MutliNetworkPopUp.png')
         
         found, confidence, position = computer_vision_utils.find_template_in_region(
             screenshot=screenshot,
@@ -353,7 +354,9 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         region_x = int(screen_width * 0.40)  # Start at 40% from left (past sidebar)
         region_y = int(screen_height * 0.25)  # Start at 25% from top
         
-        template_path = "src/workflow_module/actions/assets/loading_template.png"
+        # Load loading template from local handler folder
+        handler_dir = os.path.dirname(os.path.abspath(__file__))
+        template_path = os.path.join(handler_dir, 'loading_template.png')
         template_found, template_confidence, template_position = computer_vision_utils.find_template_in_region(
             screenshot,
             template_path,

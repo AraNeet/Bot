@@ -8,12 +8,15 @@ Find and double-click on a row in the second table (within expanded row) by begi
 from typing import Tuple, Dict, Any, Optional
 from src.workflow_module.actions.helpers import actions
 from src.workflow_module.actions.helpers import table_utils
+from src.workflow_module.actions.helpers import column_detection
+from src.workflow_module.actions.helpers import date_utils
 from src.workflow_module.actions.helpers import computer_vision_utils
 from src.workflow_module.actions.helpers import ocr_utils
 import time
 import pyautogui
 import cv2
 import numpy as np
+import os
 
 
 def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[bool, str]:
@@ -245,12 +248,16 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         # Step 5: Search for date in inner table and click
         # First attempt with ColumnLineSecondTable.png
         print(f"[ACTION_HANDLER] === First check with ColumnLineSecondTable.png ===")
+        # Get handler directory for local template
+        handler_dir = os.path.dirname(os.path.abspath(__file__))
+        column_line_path = os.path.join(handler_dir, 'ColumnLineSecondTable.png')
         found, msg, matches = table_utils.search_second_table_by_date(
             begin_date=begin_date,
             crop_x=crop_x,
             crop_y=crop_y,
             crop_width=crop_width,
-            crop_height=crop_height
+            crop_height=crop_height,
+            template_path=column_line_path
         )
         
         if found and matches:
@@ -278,10 +285,12 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         print(f"[ACTION_HANDLER] ✗ No match in first check: {msg}")
         print(f"[ACTION_HANDLER] === Starting scroll search with RowColumnLineSecondTable.png ===")
         
-        # Load the scrolling column separator template
-        scroll_template = computer_vision_utils.load_image("src/workflow_module/actions/assets/RowColumnLineSecondTable.png")
+        # Load the scrolling column separator template from local handler folder
+        handler_dir = os.path.dirname(os.path.abspath(__file__))
+        row_column_line_path = os.path.join(handler_dir, 'RowColumnLineSecondTable.png')
+        scroll_template = computer_vision_utils.load_image(row_column_line_path)
         if scroll_template is None:
-            return False, "Failed to load RowColumnLineSecondTable template for scrolling"
+            return False, f"Failed to load RowColumnLineSecondTable template for scrolling from {row_column_line_path}"
         
         # Define scroll crop region for checking
         scroll_crop_x = 205
@@ -344,14 +353,14 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
             
             # Detect column separators with RowColumnLineSecondTable.png
             print(f"[ACTION_HANDLER] Separating columns with RowColumnLineSecondTable.png...")
-            separator_matches = table_utils.detect_column_separators(target_region_img, scroll_template, match_threshold=0.85)
+            separator_matches = column_detection.detect_column_separators(target_region_img, scroll_template, match_threshold=0.85)
             
             if not separator_matches:
                 print(f"[ACTION_HANDLER] No separators found in full region")
                 return False, None, None
             
             # Extract only column 5
-            column_5_img = table_utils.get_column_5_image(
+            column_5_img = column_detection.get_column_5_image(
                 target_region_img, 
                 separator_matches, 
                 scroll_template.shape[1],
@@ -398,7 +407,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
             
             # Check if begin_date is in the OCR results - use FIRST match only
             begin_date_str = str(begin_date)
-            begin_date_normalized = table_utils.normalize_date(begin_date_str)
+            begin_date_normalized = date_utils.normalize_date(begin_date_str)
             
             first_match_found = False
             matched_bbox = None
@@ -407,7 +416,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
             
             for i, text in enumerate(ocr_data['text']):
                 if text:
-                    text_normalized = table_utils.normalize_date(text)
+                    text_normalized = date_utils.normalize_date(text)
                     if begin_date_normalized in text_normalized or begin_date_str in text:
                         print(f"[ACTION_HANDLER] ✓ Found FIRST matching date in full region: '{text}' (index {i})")
                         
