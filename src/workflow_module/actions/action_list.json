@@ -48,7 +48,7 @@
     "has_error_handler": true
   },
   "multinetwork_popup": {
-    "module": "src.workflow_module.actions.handlers.09_multinetwork_popup",
+    "module": "src.workflow_module.actions.handlers.09_multinetwork_popup.handler",
     "description": "Detect and handle the Multi-Network instruction popup dialog",
     "has_verifier": true,
     "has_error_handler": true

@@ -27,11 +27,27 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
     print(f"[ACTION_HANDLER] Estimate number for reference: '{estimate_number}'")
     
     try:
+        # Create directory for step screenshots
+        step_screenshots_dir = "debug_images/action_08_steps"
+        os.makedirs(step_screenshots_dir, exist_ok=True)
+        
         time.sleep(4)
         # Take screenshot
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot"
+        
+        # Save initial screenshot
+        try:
+            success, path = computer_vision_utils.save_screenshot(
+                screenshot, 
+                filename="01_initial_screenshot.png",
+                output_dir=step_screenshots_dir
+            )
+            if success:
+                print(f"[ACTION_HANDLER] Saved initial screenshot to: {path}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] Warning: Failed to save initial screenshot: {e}")
         
         screen_height, screen_width = screenshot.shape[:2]
         print(f"[ACTION_HANDLER] Screen size: {screen_width}x{screen_height}")
@@ -40,30 +56,76 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         print(f"[ACTION_HANDLER] Detecting blue highlighted row (expanded row)...")
         found_blue, row_info = computer_vision_utils.find_blue_highlighted_row(screenshot, exclude_bottom_pixels=100)
         
-        if not found_blue or row_info is None:
-            return False, "Could not find blue highlighted row (expanded row not visible)"
+        # Initialize blue row variables
+        blue_x = None
+        blue_y = None
+        blue_w = None
+        blue_h = None
         
-        blue_x = row_info['x']
-        blue_y = row_info['y']
-        blue_w = row_info['width']
-        blue_h = row_info['height']
+        if found_blue and row_info is not None:
+            blue_x = row_info['x']
+            blue_y = row_info['y']
+            blue_w = row_info['width']
+            blue_h = row_info['height']
+            print(f"[ACTION_HANDLER] Found blue highlighted row at ({blue_x}, {blue_y}) with size {blue_w}x{blue_h}")
+        else:
+            print(f"[ACTION_HANDLER] WARNING: Blue highlighted row not found, will use Y=230 for crop start")
         
-        print(f"[ACTION_HANDLER] Found blue highlighted row at ({blue_x}, {blue_y}) with size {blue_w}x{blue_h}")
+        # Save screenshot with blue row highlighted (if found)
+        try:
+            annotated_screenshot = screenshot.copy()
+            if found_blue and blue_x is not None:
+                cv2.rectangle(annotated_screenshot, (blue_x, blue_y), (blue_x + blue_w, blue_y + blue_h), (0, 255, 0), 3)
+                cv2.putText(annotated_screenshot, "Blue Highlighted Row", (blue_x, blue_y - 10), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            else:
+                cv2.putText(annotated_screenshot, "Blue Row Not Found - Using Y=230", (10, 230), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                cv2.line(annotated_screenshot, (0, 230), (screen_width, 230), (0, 0, 255), 2)
+            success, path = computer_vision_utils.save_screenshot(
+                annotated_screenshot,
+                filename="02_blue_highlighted_row_detected.png",
+                output_dir=step_screenshots_dir
+            )
+            if success:
+                print(f"[ACTION_HANDLER] Saved blue row detection screenshot to: {path}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] Warning: Failed to save blue row screenshot: {e}")
         
-        # Step 2: Find estimate number Y position using OCR utils
-        print(f"[ACTION_HANDLER] ===== ESTIMATE NUMBER DEBUG =====")
-        print(f"[ACTION_HANDLER] Estimate number parameter value: '{estimate_number}'")
-        print(f"[ACTION_HANDLER] Estimate number type: {type(estimate_number)}")
-        print(f"[ACTION_HANDLER] Estimate number is truthy: {bool(estimate_number)}")
-        print(f"[ACTION_HANDLER] Searching for estimate number to determine crop Y position...")
+        # Step 2: Find "Estimate #" column header Y position using OCR
+        # We need to find the Y position of the "Estimate #" header in the second table (inner table header)
+        print(f"[ACTION_HANDLER] ===== FINDING ESTIMATE # HEADER POSITION =====")
+        print(f"[ACTION_HANDLER] Searching for 'Estimate #' or 'Estimate' column header to determine crop Y position...")
         estimate_number_y = None
         
-        # Always save debug images to see what OCR detects in the blue row region
-        search_region = screenshot[blue_y:blue_y + blue_h, blue_x:blue_x + blue_w]
+        # Define search region for the header - look in the expanded row area
+        # The "Estimate #" header is in the second table header, which is within the expanded blue row
+        if found_blue and blue_x is not None and blue_y is not None:
+            # Search from the blue row down to include the header (which may be at the bottom of blue row or just below)
+            # Search a region that includes the blue row and extends below it
+            header_search_y = blue_y
+            header_search_h = min(blue_h + 80, 150)  # Include blue row height + 80px below for header
+            header_search_x = 205  # Use fixed X to match table start
+            header_search_w = 1500  # Use full table width
+            # Make sure we don't go beyond screen bounds
+            header_search_h = min(header_search_h, screen_height - header_search_y - 100)
+            search_region = screenshot[header_search_y:header_search_y + header_search_h, 
+                                      header_search_x:header_search_x + header_search_w]
+            print(f"[ACTION_HANDLER] Searching for header in expanded row region: Y={header_search_y}, H={header_search_h}")
+        else:
+            # If blue row not found, use a default search region starting at Y=230
+            default_search_y = 230
+            default_search_h = 50
+            default_search_x = 205
+            default_search_w = 1500
+            search_region = screenshot[default_search_y:default_search_y + default_search_h, 
+                                      default_search_x:default_search_x + default_search_w]
+            header_search_y = default_search_y
+            header_search_x = default_search_x
+            print(f"[ACTION_HANDLER] Blue row not found, searching at default Y={header_search_y}")
         
         # Save debug image of the search region
         try:
-            import os
             debug_path = "debug_images/estimate_search_region.png"
             os.makedirs("debug_images", exist_ok=True)
             cv2.imwrite(debug_path, search_region)
@@ -108,54 +170,65 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
             print(f"[ACTION_HANDLER] DEBUG: OCR success: {ocr_success}")
             print(f"[ACTION_HANDLER] DEBUG: OCR data: {ocr_data}")
         
-        # Only proceed with matching if estimate_number is provided
-        if estimate_number and ocr_success and ocr_data and ocr_data.get('text'):
-            # Check for exact and partial matches
-            print(f"[ACTION_HANDLER] DEBUG: Checking for matches with estimate number '{estimate_number}':")
-            exact_matches = []
-            partial_matches = []
+        # Search for "Estimate #" or "Estimate" header text
+        if ocr_success and ocr_data and ocr_data.get('text'):
+            # Look for "Estimate" or "Estimate #" in the header
+            estimate_header_texts = ["Estimate #", "Estimate", "estimate", "ESTIMATE"]
+            estimate_header_y = None
+            
+            print(f"[ACTION_HANDLER] DEBUG: Searching for 'Estimate #' header in OCR results...")
             for i, text in enumerate(ocr_data['text']):
-                if text == estimate_number:
-                    exact_matches.append((i, text))
-                    print(f"[ACTION_HANDLER] DEBUG:   ✓ EXACT match at index {i}: '{text}'")
-                elif estimate_number in text:
-                    partial_matches.append((i, text))
-                    print(f"[ACTION_HANDLER] DEBUG:   ~ Partial match at index {i}: '{text}' contains '{estimate_number}'")
-                elif text in estimate_number:
-                    partial_matches.append((i, text))
-                    print(f"[ACTION_HANDLER] DEBUG:   ~ Partial match at index {i}: '{estimate_number}' contains '{text}'")
+                if text:
+                    # Check if this text contains "Estimate" (case insensitive)
+                    text_lower = text.lower()
+                    if any(header_text.lower() in text_lower for header_text in estimate_header_texts):
+                        bbox = ocr_data['bbox'][i]
+                        x1, y1, x2, y2 = map(int, bbox)
+                        # Use the top Y position of the header text
+                        estimate_header_y = y1 + header_search_y
+                        print(f"[ACTION_HANDLER] ✓ Found 'Estimate #' header text: '{text}' at screen Y={estimate_header_y} (bbox Y={y1} + offset {header_search_y})")
+                        break
             
-            if not exact_matches and not partial_matches:
-                print(f"[ACTION_HANDLER] DEBUG:   ✗ NO MATCHES FOUND for '{estimate_number}'")
-                print(f"[ACTION_HANDLER] DEBUG: Possible reasons:")
-                print(f"[ACTION_HANDLER] DEBUG:   - OCR may have misread the estimate number")
-                print(f"[ACTION_HANDLER] DEBUG:   - Estimate number may not be visible in the search region")
-                print(f"[ACTION_HANDLER] DEBUG:   - Text may be too small, blurry, or low contrast")
-                print(f"[ACTION_HANDLER] DEBUG:   - Check the saved images above to verify")
-            
-            # Now call the actual function to find the position
-            found_text, y_pos = ocr_utils.find_topmost_text_position(
-                estimate_number, 
-                search_region, 
-                blue_x, 
-                blue_y
-            )
-            
-            if found_text and y_pos is not None:
-                estimate_number_y = y_pos
-                print(f"[ACTION_HANDLER] ✓ Found estimate number at screen Y={estimate_number_y}")
+            if estimate_header_y is not None:
+                estimate_number_y = estimate_header_y
+                print(f"[ACTION_HANDLER] ✓ Using 'Estimate #' header Y position: {estimate_number_y}")
             else:
-                print(f"[ACTION_HANDLER] ✗ Estimate number '{estimate_number}' NOT found in search region")
+                print(f"[ACTION_HANDLER] ✗ 'Estimate #' header not found in search region")
+                print(f"[ACTION_HANDLER] DEBUG: OCR detected texts: {ocr_data['text']}")
         
         if estimate_number_y is None:
             estimate_number_y = 230
-            print(f"[ACTION_HANDLER] WARNING: Estimate number not found, using default Y=230")
+            print(f"[ACTION_HANDLER] WARNING: 'Estimate #' header not found, using default Y=230")
+        
+        # Save screenshot showing estimate number position
+        try:
+            annotated_screenshot = screenshot.copy()
+            cv2.line(annotated_screenshot, (0, estimate_number_y), (screen_width, estimate_number_y), (255, 0, 0), 2)
+            cv2.putText(annotated_screenshot, f"Estimate Number Y: {estimate_number_y}", (10, estimate_number_y - 10),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+            success, path = computer_vision_utils.save_screenshot(
+                annotated_screenshot,
+                filename="03_estimate_number_y_position.png",
+                output_dir=step_screenshots_dir
+            )
+            if success:
+                print(f"[ACTION_HANDLER] Saved estimate number Y position screenshot to: {path}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] Warning: Failed to save estimate number screenshot: {e}")
         
         # Step 3: Detect bottom border using template matching
         print(f"[ACTION_HANDLER] Detecting black border below selected row using template matching...")
         bottom_border_y_screen = None
-        search_start_y = blue_y + blue_h
-        search_end_y = min(search_start_y + 200, screen_height)
+        
+        # Determine search start Y: below blue row if found, otherwise use Y=230
+        if found_blue and blue_y is not None and blue_h is not None:
+            search_start_y = blue_y + blue_h
+            print(f"[ACTION_HANDLER] Starting border search below blue row at Y={search_start_y}")
+        else:
+            search_start_y = 230
+            print(f"[ACTION_HANDLER] Blue row not found, starting border search at Y={search_start_y}")
+        # Expand search region to look further down (up to screen height minus taskbar area)
+        search_end_y = min(search_start_y + 1000, screen_height - 100)
         crop_x_fixed = 205
         crop_width_fixed = 1500
         
@@ -165,8 +238,31 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         search_region_width = min(crop_width_fixed, screen_width - crop_x_fixed)
         search_region_height = search_end_y - search_start_y
         
-        # Load and match BorderLine template
-        border_line_template_path = "src/workflow_module/actions/handlers/open_multinetwork_row_by_date/BorderLine.png"
+        print(f"[ACTION_HANDLER] Searching for border template in region: x={search_region_x}, y={search_region_y}, w={search_region_width}, h={search_region_height}")
+        
+        # Save screenshot showing search region for template matching
+        try:
+            search_region_annotated = screenshot.copy()
+            cv2.rectangle(search_region_annotated, (search_region_x, search_region_y), 
+                         (search_region_x + search_region_width, search_region_y + search_region_height), 
+                         (255, 165, 0), 2)  # Orange rectangle
+            cv2.putText(search_region_annotated, "Border Template Search Region", 
+                       (search_region_x, search_region_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 165, 0), 2)
+            success, path = computer_vision_utils.save_screenshot(
+                search_region_annotated,
+                filename="04a_border_search_region.png",
+                output_dir=step_screenshots_dir
+            )
+            if success:
+                print(f"[ACTION_HANDLER] Saved border search region screenshot to: {path}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] Warning: Failed to save border search region screenshot: {e}")
+        
+        # Load and match BorderLine template - use handler directory for local template
+        handler_dir = os.path.dirname(os.path.abspath(__file__))
+        border_line_template_path = os.path.join(handler_dir, 'BorderLine.png')
+        print(f"[ACTION_HANDLER] Loading border template from: {border_line_template_path}")
+        
         found, confidence, position = computer_vision_utils.find_template_in_region(
             screenshot,
             border_line_template_path,
@@ -177,17 +273,54 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         if found and position is not None:
             # Position is (center_x, center_y) in global coordinates
             _, bottom_border_y_screen = position
-            print(f"[ACTION_HANDLER] Found bottom black border at screen Y={bottom_border_y_screen} (confidence: {confidence:.2f})")
+            print(f"[ACTION_HANDLER] ✓ Found bottom black border at screen Y={bottom_border_y_screen} (confidence: {confidence:.2f})")
         else:
-            # Use default height of 780 when border not found
-            bottom_border_y_screen = estimate_number_y + 780
-            print(f"[ACTION_HANDLER] WARNING: Black border not found via template matching, using default height: Y={bottom_border_y_screen}")
+            # Template not found - use full table (screen height minus taskbar area)
+            max_bottom_y = max(0, screen_height - 100)
+            bottom_border_y_screen = max_bottom_y
+            print(f"[ACTION_HANDLER] WARNING: Black border template not found via template matching (confidence: {confidence:.2f if confidence else 'N/A'})")
+            print(f"[ACTION_HANDLER] Using full table height: Y={bottom_border_y_screen} (screen_height={screen_height} - 100 for taskbar)")
+        
+        # Save screenshot showing bottom border position
+        try:
+            annotated_screenshot = screenshot.copy()
+            # Draw the detected border line
+            border_color = (0, 255, 0) if found else (0, 0, 255)  # Green if found, red if not
+            cv2.line(annotated_screenshot, (0, bottom_border_y_screen), (screen_width, bottom_border_y_screen), border_color, 2)
+            
+            # Add label showing detection status
+            status_text = f"Bottom Border Y: {bottom_border_y_screen}"
+            if found:
+                status_text += f" (Template Match, conf: {confidence:.2f})"
+            else:
+                status_text += " (Full Table - Template Not Found)"
+            
+            cv2.putText(annotated_screenshot, status_text, (10, bottom_border_y_screen - 10),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, border_color, 2)
+            
+            # Also draw the search region rectangle
+            cv2.rectangle(annotated_screenshot, (search_region_x, search_region_y), 
+                         (search_region_x + search_region_width, search_region_y + search_region_height), 
+                         (255, 165, 0), 1)  # Orange rectangle (lighter)
+            
+            success, path = computer_vision_utils.save_screenshot(
+                annotated_screenshot,
+                filename="04_bottom_border_detected.png",
+                output_dir=step_screenshots_dir
+            )
+            if success:
+                print(f"[ACTION_HANDLER] Saved bottom border detection screenshot to: {path}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] Warning: Failed to save bottom border screenshot: {e}")
         
         # Step 4: Calculate crop region for inner table
+        # Use estimate_number_y as the start and bottom_border_y_screen as the end
         crop_x = 205
         crop_y = estimate_number_y
         crop_width = 1500
         crop_height = bottom_border_y_screen - estimate_number_y
+        
+        print(f"[ACTION_HANDLER] Using estimate number Y={estimate_number_y} and bottom border Y={bottom_border_y_screen} for crop")
         print(f"[ACTION_HANDLER] === Crop Region Calculation ===")
         print(f"[ACTION_HANDLER] Screen dimensions: {screen_width}x{screen_height}")
         print(f"[ACTION_HANDLER] Blue row position: Y={blue_y}, H={blue_h}")
@@ -227,6 +360,29 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
             warning_msg = f"Warning: Crop height is very small ({crop_height}px). Inner table may not be fully visible."
             print(f"[ACTION_HANDLER] {warning_msg}")
         
+        # Save screenshot showing crop region before cropping
+        try:
+            annotated_screenshot = screenshot.copy()
+            cv2.rectangle(annotated_screenshot, (crop_x, crop_y), (crop_x + crop_width, crop_y + crop_height), (255, 255, 0), 3)
+            
+            # Add label showing crop boundaries
+            label_text = f"Crop: {crop_width}x{crop_height} (Estimate Y={estimate_number_y} to Border Y={bottom_border_y_screen})"
+            cv2.putText(annotated_screenshot, label_text, (crop_x, crop_y - 10),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+            
+            # Draw lines at crop boundaries
+            cv2.line(annotated_screenshot, (crop_x, crop_y), (crop_x + crop_width, crop_y), (255, 255, 0), 2)  # Top
+            cv2.line(annotated_screenshot, (crop_x, crop_y + crop_height), (crop_x + crop_width, crop_y + crop_height), (255, 255, 0), 2)  # Bottom
+            success, path = computer_vision_utils.save_screenshot(
+                annotated_screenshot,
+                filename="05_crop_region_marked.png",
+                output_dir=step_screenshots_dir
+            )
+            if success:
+                print(f"[ACTION_HANDLER] Saved crop region screenshot to: {path}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] Warning: Failed to save crop region screenshot: {e}")
+        
         cropped_inner_table = computer_vision_utils.crop_image(screenshot, crop_x, crop_y, crop_width, crop_height)
         
         if cropped_inner_table is None:
@@ -234,9 +390,8 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
             print(f"[ACTION_HANDLER] ERROR: {error_msg}")
             return False, error_msg
         
-        # Save debug image
+        # Save debug image (keep existing debug path for compatibility)
         try:
-            import os
             debug_path = "debug_images/inner_table_cropped.png"
             os.makedirs("debug_images", exist_ok=True)
             cv2.imwrite(debug_path, cropped_inner_table)
@@ -244,6 +399,18 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
             print(f"[ACTION_HANDLER] Saved cropped inner table image to: {abs_path}")
         except Exception as e:
             print(f"[ACTION_HANDLER] Warning: Failed to save debug image: {e}")
+        
+        # Save cropped inner table to step screenshots directory
+        try:
+            success, path = computer_vision_utils.save_screenshot(
+                cropped_inner_table,
+                filename="06_cropped_inner_table.png",
+                output_dir=step_screenshots_dir
+            )
+            if success:
+                print(f"[ACTION_HANDLER] Saved cropped inner table to step screenshots: {path}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] Warning: Failed to save cropped inner table screenshot: {e}")
         
         # Step 5: Search for date in inner table and click
         # First attempt with ColumnLineSecondTable.png
@@ -270,12 +437,46 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
             print(f"[ACTION_HANDLER] Match details: row_index={match_to_click.get('row_index', 'N/A')}, text='{match_to_click.get('matched_text', 'N/A')[:50]}...'")
             if click_x is None or click_y is None:
                 return False, f"Invalid click coordinates: x={click_x}, y={click_y}"
+            
+            # Save screenshot showing the match before clicking
+            try:
+                annotated_screenshot = screenshot.copy()
+                cv2.circle(annotated_screenshot, (click_x, click_y), 10, (0, 255, 0), -1)
+                cv2.circle(annotated_screenshot, (click_x, click_y), 15, (0, 255, 0), 2)
+                cv2.putText(annotated_screenshot, f"Match Found: {begin_date}", (click_x - 100, click_y - 20),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                success, path = computer_vision_utils.save_screenshot(
+                    annotated_screenshot,
+                    filename="07_date_match_found_before_click.png",
+                    output_dir=step_screenshots_dir
+                )
+                if success:
+                    print(f"[ACTION_HANDLER] Saved match found screenshot to: {path}")
+            except Exception as e:
+                print(f"[ACTION_HANDLER] Warning: Failed to save match screenshot: {e}")
+            
             print(f"[ACTION_HANDLER] Double-clicking on begin_date at ({click_x}, {click_y})")
             pyautogui.moveTo(click_x, click_y, duration=0.2)
             time.sleep(0.2)
             success, action_msg = actions.click_at_position(click_x, click_y, clicks=2, button='left')
             if not success:
                 return False, f"Failed to double-click on date: {action_msg}"
+            
+            # Save screenshot after clicking
+            try:
+                time.sleep(0.3)  # Wait a bit for UI to update
+                post_click_screenshot = computer_vision_utils.take_screenshot()
+                if post_click_screenshot is not None:
+                    success, path = computer_vision_utils.save_screenshot(
+                        post_click_screenshot,
+                        filename="08_after_double_click.png",
+                        output_dir=step_screenshots_dir
+                    )
+                    if success:
+                        print(f"[ACTION_HANDLER] Saved post-click screenshot to: {path}")
+            except Exception as e:
+                print(f"[ACTION_HANDLER] Warning: Failed to save post-click screenshot: {e}")
+            
             print(f"[ACTION_HANDLER] ✓ Double-click on date completed successfully")
             time.sleep(0.5)
             match_count_str = f"{len(matches)} match" + ("es" if len(matches) != 1 else "")
@@ -383,7 +584,6 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
             
             # Save debug screenshot with annotations
             try:
-                import os
                 os.makedirs("debug_images", exist_ok=True)
                 
                 # Create annotated image showing all detected text
@@ -406,8 +606,13 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
                 print(f"[ACTION_HANDLER] Warning: Failed to save debug screenshot: {e}")
             
             # Check if begin_date is in the OCR results - use FIRST match only
+            # Skip matches in the header row (top portion of the region)
             begin_date_str = str(begin_date)
             begin_date_normalized = date_utils.normalize_date(begin_date_str)
+            
+            # Estimate header height (typically 20-40 pixels from top)
+            header_height_estimate = 40
+            column_5_height = column_5_img.shape[0]
             
             first_match_found = False
             matched_bbox = None
@@ -416,13 +621,20 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
             
             for i, text in enumerate(ocr_data['text']):
                 if text:
+                    # Get the bbox to check if it's in the header
+                    bbox = ocr_data['bbox'][i]
+                    x1, y1, x2, y2 = map(int, bbox)
+                    center_y = (y1 + y2) // 2
+                    
+                    # Skip if this match is in the header row (top portion)
+                    if center_y < header_height_estimate:
+                        print(f"[ACTION_HANDLER] Skipping match '{text}' at Y={center_y} (likely in header row)")
+                        continue
+                    
                     text_normalized = date_utils.normalize_date(text)
                     if begin_date_normalized in text_normalized or begin_date_str in text:
-                        print(f"[ACTION_HANDLER] ✓ Found FIRST matching date in full region: '{text}' (index {i})")
+                        print(f"[ACTION_HANDLER] ✓ Found FIRST matching date in full region: '{text}' (index {i}, Y={center_y})")
                         
-                        # Get the bbox for the match
-                        bbox = ocr_data['bbox'][i]
-                        x1, y1, x2, y2 = map(int, bbox)
                         matched_bbox = (x1, y1, x2, y2)
                         matched_text = text
                         matched_index = i
@@ -500,14 +712,59 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         print(f"\n[ACTION_HANDLER] ========== Checking full region before scrolling ==========")
         initial_screenshot = computer_vision_utils.take_screenshot()
         if initial_screenshot is not None:
+            # Save screenshot before checking region
+            try:
+                success, path = computer_vision_utils.save_screenshot(
+                    initial_screenshot,
+                    filename="09_before_region_check.png",
+                    output_dir=step_screenshots_dir
+                )
+                if success:
+                    print(f"[ACTION_HANDLER] Saved pre-region-check screenshot to: {path}")
+            except Exception as e:
+                print(f"[ACTION_HANDLER] Warning: Failed to save pre-region-check screenshot: {e}")
+            
             found_in_region, click_x, click_y = check_target_region(initial_screenshot, 0)
             if found_in_region:
+                # Save screenshot showing match in full region
+                try:
+                    annotated_screenshot = initial_screenshot.copy()
+                    cv2.circle(annotated_screenshot, (click_x, click_y), 10, (0, 255, 0), -1)
+                    cv2.circle(annotated_screenshot, (click_x, click_y), 15, (0, 255, 0), 2)
+                    cv2.putText(annotated_screenshot, f"Match in Full Region: {begin_date}", (click_x - 150, click_y - 20),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    success, path = computer_vision_utils.save_screenshot(
+                        annotated_screenshot,
+                        filename="10_match_found_in_full_region.png",
+                        output_dir=step_screenshots_dir
+                    )
+                    if success:
+                        print(f"[ACTION_HANDLER] Saved full region match screenshot to: {path}")
+                except Exception as e:
+                    print(f"[ACTION_HANDLER] Warning: Failed to save full region match screenshot: {e}")
+                
                 print(f"[ACTION_HANDLER] Double-clicking on begin_date at ({click_x}, {click_y})")
                 pyautogui.moveTo(click_x, click_y, duration=0.2)
                 time.sleep(0.2)
                 success, action_msg = actions.click_at_position(click_x, click_y, clicks=2, button='left')
                 if not success:
                     return False, f"Failed to double-click on date: {action_msg}"
+                
+                # Save screenshot after clicking
+                try:
+                    time.sleep(0.3)
+                    post_click_screenshot = computer_vision_utils.take_screenshot()
+                    if post_click_screenshot is not None:
+                        success, path = computer_vision_utils.save_screenshot(
+                            post_click_screenshot,
+                            filename="11_after_full_region_click.png",
+                            output_dir=step_screenshots_dir
+                        )
+                        if success:
+                            print(f"[ACTION_HANDLER] Saved post-click screenshot to: {path}")
+                except Exception as e:
+                    print(f"[ACTION_HANDLER] Warning: Failed to save post-click screenshot: {e}")
+                
                 print(f"[ACTION_HANDLER] ✓ Double-click on date completed successfully")
                 time.sleep(0.5)
                 return True, f"Row found in full region and double-clicked! Begin date: '{begin_date}'"
@@ -530,10 +787,39 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
                 print(f"[ACTION_HANDLER] Warning: Failed to take screenshot at scroll {scroll_attempt}")
                 continue
             
+            # Save screenshot for each scroll attempt
+            try:
+                success, path = computer_vision_utils.save_screenshot(
+                    scroll_screenshot,
+                    filename=f"12_scroll_attempt_{scroll_attempt:02d}.png",
+                    output_dir=step_screenshots_dir
+                )
+                if success:
+                    print(f"[ACTION_HANDLER] Saved scroll attempt {scroll_attempt} screenshot to: {path}")
+            except Exception as e:
+                print(f"[ACTION_HANDLER] Warning: Failed to save scroll screenshot: {e}")
+            
             # Check target region
             found_in_region, click_x, click_y = check_target_region(scroll_screenshot, scroll_attempt)
             
             if found_in_region:
+                # Save screenshot showing match found during scroll
+                try:
+                    annotated_screenshot = scroll_screenshot.copy()
+                    cv2.circle(annotated_screenshot, (click_x, click_y), 10, (0, 255, 0), -1)
+                    cv2.circle(annotated_screenshot, (click_x, click_y), 15, (0, 255, 0), 2)
+                    cv2.putText(annotated_screenshot, f"Match After Scroll {scroll_attempt}: {begin_date}", 
+                               (click_x - 150, click_y - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    success, path = computer_vision_utils.save_screenshot(
+                        annotated_screenshot,
+                        filename=f"13_match_found_after_scroll_{scroll_attempt:02d}.png",
+                        output_dir=step_screenshots_dir
+                    )
+                    if success:
+                        print(f"[ACTION_HANDLER] Saved scroll match screenshot to: {path}")
+                except Exception as e:
+                    print(f"[ACTION_HANDLER] Warning: Failed to save scroll match screenshot: {e}")
+                
                 print(f"[ACTION_HANDLER] Double-clicking on begin_date at ({click_x}, {click_y})")
                 pyautogui.moveTo(click_x, click_y, duration=0.2)
                 time.sleep(0.2)
@@ -541,6 +827,21 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
                 
                 if not success:
                     return False, f"Failed to double-click on date: {action_msg}"
+                
+                # Save screenshot after clicking
+                try:
+                    time.sleep(0.3)
+                    post_click_screenshot = computer_vision_utils.take_screenshot()
+                    if post_click_screenshot is not None:
+                        success, path = computer_vision_utils.save_screenshot(
+                            post_click_screenshot,
+                            filename=f"14_after_scroll_{scroll_attempt:02d}_click.png",
+                            output_dir=step_screenshots_dir
+                        )
+                        if success:
+                            print(f"[ACTION_HANDLER] Saved post-scroll-click screenshot to: {path}")
+                except Exception as e:
+                    print(f"[ACTION_HANDLER] Warning: Failed to save post-scroll-click screenshot: {e}")
                 
                 print(f"[ACTION_HANDLER] ✓ Double-click on date completed successfully")
                 time.sleep(0.5)

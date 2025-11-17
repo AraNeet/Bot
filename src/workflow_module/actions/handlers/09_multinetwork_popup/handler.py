@@ -32,10 +32,26 @@ def action(**kwargs) -> Tuple[bool, str]:
     print("[ACTION_HANDLER] Checking for Multi-Network popup in middle of screen...")
     
     try:
+        # Create directory for step screenshots
+        step_screenshots_dir = "debug_images/action_09_steps"
+        os.makedirs(step_screenshots_dir, exist_ok=True)
+        
         # Take screenshot
         screenshot = computer_vision_utils.take_screenshot()
         if screenshot is None:
             return False, "Failed to take screenshot"
+        
+        # Save initial screenshot
+        try:
+            success, path = computer_vision_utils.save_screenshot(
+                screenshot,
+                filename="01_initial_screenshot.png",
+                output_dir=step_screenshots_dir
+            )
+            if success:
+                print(f"[ACTION_HANDLER] Saved initial screenshot to: {path}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] Warning: Failed to save initial screenshot: {e}")
         
         screen_height, screen_width = screenshot.shape[:2]
         print(f"[ACTION_HANDLER] Screen size: {screen_width}x{screen_height}")
@@ -49,9 +65,28 @@ def action(**kwargs) -> Tuple[bool, str]:
         
         print(f"[ACTION_HANDLER] Searching center region: ({region_x}, {region_y}, {region_width}, {region_height})")
         
+        # Save screenshot showing center search region
+        try:
+            annotated_screenshot = screenshot.copy()
+            cv2.rectangle(annotated_screenshot, (region_x, region_y), 
+                         (region_x + region_width, region_y + region_height), 
+                         (255, 165, 0), 2)  # Orange rectangle
+            cv2.putText(annotated_screenshot, "Center Search Region", 
+                       (region_x, region_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 165, 0), 2)
+            success, path = computer_vision_utils.save_screenshot(
+                annotated_screenshot,
+                filename="02_center_search_region.png",
+                output_dir=step_screenshots_dir
+            )
+            if success:
+                print(f"[ACTION_HANDLER] Saved center search region screenshot to: {path}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] Warning: Failed to save center search region screenshot: {e}")
+        
         # Search for the popup template from local handler folder
         handler_dir = os.path.dirname(os.path.abspath(__file__))
         template_path = os.path.join(handler_dir, 'MutliNetworkPopUp.png')
+        print(f"[ACTION_HANDLER] Loading popup template from: {template_path}")
         
         found, confidence, position = computer_vision_utils.find_template_in_region(
             screenshot=screenshot,
@@ -62,11 +97,276 @@ def action(**kwargs) -> Tuple[bool, str]:
         
         if not found or position is None:
             print(f"[ACTION_HANDLER] Multi-Network popup not found in center region (confidence: {confidence:.2f})")
-            print(f"[ACTION_HANDLER] Continuing workflow - popup may not be required")
+            print(f"[ACTION_HANDLER] Checking for loading circle to verify page is loading...")
+            
+            # Save screenshot showing no popup found
+            try:
+                annotated_screenshot = screenshot.copy()
+                cv2.rectangle(annotated_screenshot, (region_x, region_y), 
+                             (region_x + region_width, region_y + region_height), 
+                             (0, 0, 255), 2)  # Red rectangle
+                cv2.putText(annotated_screenshot, f"Popup Not Found (conf: {confidence:.2f})", 
+                           (region_x, region_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                success, path = computer_vision_utils.save_screenshot(
+                    annotated_screenshot,
+                    filename="03_popup_not_found.png",
+                    output_dir=step_screenshots_dir
+                )
+                if success:
+                    print(f"[ACTION_HANDLER] Saved popup not found screenshot to: {path}")
+            except Exception as e:
+                print(f"[ACTION_HANDLER] Warning: Failed to save popup not found screenshot: {e}")
+            
+            # Check for loading circle to verify the page is loading
+            time.sleep(1.0)  # Wait a bit for loading to start
+            
+            loading_screenshot = computer_vision_utils.take_screenshot()
+            if loading_screenshot is not None:
+                # Method 1: Try template matching for loading spinner
+                # Expand search region to include table area where loading might appear
+                loading_center_ratio = 0.6  # Larger region to include table area
+                loading_region_width = int(screen_width * loading_center_ratio)
+                loading_region_height = int(screen_height * loading_center_ratio)
+                loading_region_x = int(screen_width * 0.20)  # Start earlier to include table
+                loading_region_y = int(screen_height * 0.15)  # Start higher to include table
+                
+                handler_dir = os.path.dirname(os.path.abspath(__file__))
+                loading_template_path = os.path.join(handler_dir, 'loading_template.png')
+                template_found, template_confidence, template_position = computer_vision_utils.find_template_in_region(
+                    loading_screenshot,
+                    loading_template_path,
+                    (loading_region_x, loading_region_y, loading_region_width, loading_region_height),
+                    confidence=0.4
+                )
+                
+                print(f"[ACTION_HANDLER] Template matching result: found={template_found}, confidence={template_confidence:.2f}")
+                
+                # Method 2: Look for loading circle with expanded search and lower brightness threshold
+                # Try with lower brightness threshold first (for grey/dark spinners)
+                circle_found, circle_info = computer_vision_utils.detect_loading_circle(
+                    loading_screenshot,
+                    center_region_ratio=0.6,  # Larger search area
+                    min_radius=5,   # Smaller minimum for dots
+                    max_radius=30,  # Allow slightly larger
+                    brightness_threshold=50  # Much lower threshold for grey dots
+                )
+                
+                print(f"[ACTION_HANDLER] Circle detection result: found={circle_found}, circle_info={circle_info}")
+                
+                # If not found with low threshold, try with even more relaxed parameters
+                if not circle_found:
+                    print(f"[ACTION_HANDLER] Trying alternative circle detection with relaxed parameters...")
+                    # Try searching entire screen with very relaxed parameters
+                    circle_found, circle_info = computer_vision_utils.detect_loading_circle(
+                        loading_screenshot,
+                        center_region_ratio=0.8,  # Very large search area
+                        min_radius=3,   # Very small minimum
+                        max_radius=40,  # Larger maximum
+                        brightness_threshold=30  # Very low threshold
+                    )
+                    print(f"[ACTION_HANDLER] Alternative detection result: found={circle_found}, circle_info={circle_info}")
+                
+                # Validate circle position - be more lenient
+                circle_position_valid = False
+                if circle_found and circle_info:
+                    x, y, radius = circle_info
+                    # More lenient validation - allow wider range
+                    horizontal_valid = (screen_width * 0.10) < x < (screen_width * 0.90)
+                    vertical_valid = (screen_height * 0.10) < y < (screen_height * 0.90)
+                    size_valid = 3 <= radius <= 40  # Match the relaxed parameters
+                    circle_position_valid = horizontal_valid and vertical_valid and size_valid
+                    
+                    print(f"[ACTION_HANDLER] Circle validation: pos=({x},{y}), r={radius}, "
+                          f"h_valid={horizontal_valid}, v_valid={vertical_valid}, size_valid={size_valid}, "
+                          f"overall_valid={circle_position_valid}")
+                
+                loading_found = template_found or (circle_found and circle_position_valid)
+                print(f"[ACTION_HANDLER] Final loading detection result: found={loading_found}")
+                
+                # If loading circle is found, keep checking every 5 seconds until it disappears
+                if loading_found:
+                    print(f"[ACTION_HANDLER] ✓ Loading circle detected - waiting for loading to complete...")
+                    max_wait_attempts = 60  # Maximum 5 minutes (60 * 5 seconds)
+                    wait_attempt = 0
+                    
+                    while wait_attempt < max_wait_attempts:
+                        wait_attempt += 1
+                        print(f"[ACTION_HANDLER] Waiting 5 seconds before checking again (attempt {wait_attempt}/{max_wait_attempts})...")
+                        time.sleep(5.0)
+                        
+                        # Take fresh screenshot
+                        check_screenshot = computer_vision_utils.take_screenshot()
+                        if check_screenshot is None:
+                            print(f"[ACTION_HANDLER] Warning: Failed to take screenshot, continuing...")
+                            break
+                        
+                        # Check for loading circle again
+                        check_template_found, check_template_conf, check_template_pos = computer_vision_utils.find_template_in_region(
+                            check_screenshot,
+                            loading_template_path,
+                            (loading_region_x, loading_region_y, loading_region_width, loading_region_height),
+                            confidence=0.4
+                        )
+                        
+                        check_circle_found, check_circle_info = computer_vision_utils.detect_loading_circle(
+                            check_screenshot,
+                            center_region_ratio=0.6,
+                            min_radius=5,
+                            max_radius=30,
+                            brightness_threshold=50
+                        )
+                        
+                        # Validate circle if found
+                        check_circle_valid = False
+                        if check_circle_found and check_circle_info:
+                            cx, cy, cradius = check_circle_info
+                            check_h_valid = (screen_width * 0.10) < cx < (screen_width * 0.90)
+                            check_v_valid = (screen_height * 0.10) < cy < (screen_height * 0.90)
+                            check_size_valid = 3 <= cradius <= 40
+                            check_circle_valid = check_h_valid and check_v_valid and check_size_valid
+                        
+                        check_loading_found = check_template_found or (check_circle_found and check_circle_valid)
+                        
+                        if check_loading_found:
+                            print(f"[ACTION_HANDLER] Loading circle still detected (attempt {wait_attempt}) - continuing to wait...")
+                            # Save screenshot showing loading still present
+                            try:
+                                still_loading_screenshot = check_screenshot.copy()
+                                if check_template_found and check_template_pos:
+                                    tx, ty = check_template_pos
+                                    cv2.circle(still_loading_screenshot, (tx, ty), 20, (0, 255, 0), 3)
+                                    cv2.putText(still_loading_screenshot, f"Still Loading (attempt {wait_attempt})", 
+                                               (tx - 100, ty - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                                elif check_circle_found and check_circle_info:
+                                    cx, cy, cradius = check_circle_info
+                                    cv2.circle(still_loading_screenshot, (cx, cy), cradius, (0, 255, 0), 3)
+                                    cv2.putText(still_loading_screenshot, f"Still Loading (attempt {wait_attempt})", 
+                                               (cx - 100, cy - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                                
+                                success, path = computer_vision_utils.save_screenshot(
+                                    still_loading_screenshot,
+                                    filename=f"03b_loading_still_present_attempt_{wait_attempt:02d}.png",
+                                    output_dir=step_screenshots_dir
+                                )
+                                if success:
+                                    print(f"[ACTION_HANDLER] Saved still loading screenshot to: {path}")
+                            except Exception as e:
+                                print(f"[ACTION_HANDLER] Warning: Failed to save still loading screenshot: {e}")
+                        else:
+                            print(f"[ACTION_HANDLER] ✓ Loading circle no longer detected - loading complete!")
+                            # Save screenshot showing loading complete
+                            try:
+                                loading_complete_screenshot = check_screenshot.copy()
+                                cv2.putText(loading_complete_screenshot, f"Loading Complete (after {wait_attempt} check(s))", 
+                                           (screen_width // 2 - 200, screen_height // 2), 
+                                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                                
+                                success, path = computer_vision_utils.save_screenshot(
+                                    loading_complete_screenshot,
+                                    filename="03c_loading_complete.png",
+                                    output_dir=step_screenshots_dir
+                                )
+                                if success:
+                                    print(f"[ACTION_HANDLER] Saved loading complete screenshot to: {path}")
+                            except Exception as e:
+                                print(f"[ACTION_HANDLER] Warning: Failed to save loading complete screenshot: {e}")
+                            
+                            break  # Exit loop - loading is complete
+                    
+                    if wait_attempt >= max_wait_attempts:
+                        print(f"[ACTION_HANDLER] ⚠ Reached maximum wait time ({max_wait_attempts * 5} seconds), continuing...")
+                
+                # Save screenshot showing loading circle check with debugging info
+                try:
+                    loading_annotated = loading_screenshot.copy()
+                    
+                    # Draw search region
+                    cv2.rectangle(loading_annotated, 
+                                 (loading_region_x, loading_region_y), 
+                                 (loading_region_x + loading_region_width, loading_region_y + loading_region_height), 
+                                 (255, 165, 0), 2)  # Orange
+                    cv2.putText(loading_annotated, "Search Region", 
+                               (loading_region_x, loading_region_y - 10), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 165, 0), 2)
+                    
+                    if loading_found:
+                        if template_found and template_position:
+                            x, y = template_position
+                            cv2.circle(loading_annotated, (x, y), 20, (0, 255, 0), 3)
+                            cv2.putText(loading_annotated, f"Loading Found (template, conf: {template_confidence:.2f})", 
+                                       (x - 150, y - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                        elif circle_found and circle_info:
+                            x, y, radius = circle_info
+                            cv2.circle(loading_annotated, (x, y), radius, (0, 255, 0), 3)
+                            cv2.putText(loading_annotated, f"Loading Found (circle, r: {radius})", 
+                                       (x - 100, y - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    else:
+                        # Show what was detected even if validation failed
+                        if circle_found and circle_info:
+                            x, y, radius = circle_info
+                            # Draw in yellow to show it was detected but failed validation
+                            cv2.circle(loading_annotated, (x, y), radius, (0, 255, 255), 2)
+                            cv2.putText(loading_annotated, f"Circle Detected but Invalid (r: {radius})", 
+                                       (x - 120, y - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                        
+                        cv2.putText(loading_annotated, "Loading Circle Not Found", 
+                                   (screen_width // 2 - 150, screen_height // 2), 
+                                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                        cv2.putText(loading_annotated, f"Template: {template_found} (conf: {template_confidence:.2f if template_confidence else 0:.2f})", 
+                                   (screen_width // 2 - 150, screen_height // 2 + 30), 
+                                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                        if circle_found and circle_info:
+                            x, y, radius = circle_info
+                            cv2.putText(loading_annotated, f"Circle: found={circle_found}, valid={circle_position_valid}, pos=({x},{y}), r={radius}", 
+                                       (screen_width // 2 - 200, screen_height // 2 + 60), 
+                                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                    
+                    success, path = computer_vision_utils.save_screenshot(
+                        loading_annotated,
+                        filename="03a_loading_circle_check.png",
+                        output_dir=step_screenshots_dir
+                    )
+                    if success:
+                        print(f"[ACTION_HANDLER] Saved loading circle check screenshot to: {path}")
+                except Exception as e:
+                    print(f"[ACTION_HANDLER] Warning: Failed to save loading circle check screenshot: {e}")
+                
+                if loading_found:
+                    print(f"[ACTION_HANDLER] ✓ Loading circle detected - page is loading, popup may have been skipped")
+                    return True, f"Multi-Network popup not detected, but loading circle found - page is loading (confidence: {confidence:.2f})"
+                else:
+                    print(f"[ACTION_HANDLER] ⚠ Loading circle not detected - popup may not be required or page loaded quickly")
+            
             return True, f"Multi-Network popup not detected, continuing workflow (confidence: {confidence:.2f})"
         
         popup_x, popup_y = position
         print(f"[ACTION_HANDLER] ✓ Multi-Network popup detected at ({popup_x}, {popup_y}) with confidence {confidence:.2f}")
+        
+        # Save screenshot showing popup detected
+        try:
+            template = computer_vision_utils.load_image(template_path)
+            if template is not None:
+                template_height, template_width = template.shape[:2]
+                annotated_screenshot = screenshot.copy()
+                # Draw rectangle around detected popup
+                top_left_x = popup_x - template_width // 2
+                top_left_y = popup_y - template_height // 2
+                cv2.rectangle(annotated_screenshot, 
+                            (top_left_x, top_left_y), 
+                            (top_left_x + template_width, top_left_y + template_height), 
+                            (0, 255, 0), 3)  # Green rectangle
+                cv2.circle(annotated_screenshot, (popup_x, popup_y), 10, (0, 255, 0), -1)
+                cv2.putText(annotated_screenshot, f"Popup Detected (conf: {confidence:.2f})", 
+                           (top_left_x, top_left_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                success, path = computer_vision_utils.save_screenshot(
+                    annotated_screenshot,
+                    filename="03_popup_detected.png",
+                    output_dir=step_screenshots_dir
+                )
+                if success:
+                    print(f"[ACTION_HANDLER] Saved popup detected screenshot to: {path}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] Warning: Failed to save popup detected screenshot: {e}")
         
         # Use OCR to find the exact position of "Open as Multi-Network Instruction" button
         print(f"[ACTION_HANDLER] Using OCR to locate 'Open as Multi-Network Instruction' button...")
@@ -98,6 +398,18 @@ def action(**kwargs) -> Tuple[bool, str]:
         except Exception as e:
             print(f"[ACTION_HANDLER] WARNING: Failed to save popup region: {e}")
         
+        # Save popup region to step screenshots
+        try:
+            success, path = computer_vision_utils.save_screenshot(
+                popup_region,
+                filename="04_popup_region_cropped.png",
+                output_dir=step_screenshots_dir
+            )
+            if success:
+                print(f"[ACTION_HANDLER] Saved cropped popup region to step screenshots: {path}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] Warning: Failed to save popup region screenshot: {e}")
+        
         # Use OCR to find all text in the popup region
         scanner = ocr_utils.TextScanner()
         ocr_success, ocr_data = scanner.get_text_data(popup_region)
@@ -128,6 +440,15 @@ def action(**kwargs) -> Tuple[bool, str]:
                 annotated_path = os.path.join(debug_dir, "multinetwork_popup_region_annotated.png")
                 cv2.imwrite(annotated_path, annotated_popup)
                 print(f"[ACTION_HANDLER] DEBUG: Saved annotated popup region to: {os.path.abspath(annotated_path)}")
+                
+                # Also save to step screenshots
+                success, path = computer_vision_utils.save_screenshot(
+                    annotated_popup,
+                    filename="05_popup_region_ocr_annotated.png",
+                    output_dir=step_screenshots_dir
+                )
+                if success:
+                    print(f"[ACTION_HANDLER] Saved annotated popup region to step screenshots: {path}")
             except Exception as e:
                 print(f"[ACTION_HANDLER] WARNING: Failed to save annotated popup region: {e}")
             
@@ -188,6 +509,27 @@ def action(**kwargs) -> Tuple[bool, str]:
                 
                 print(f"[ACTION_HANDLER] ✓ Found 'Open as Multi-Network Instruction' button: '{text}'")
                 print(f"[ACTION_HANDLER] ✓ Click position in SCREEN coordinates: ({click_x}, {click_y})")
+                
+                # Save screenshot showing button found
+                try:
+                    button_screenshot = screenshot.copy()
+                    # Draw rectangle around button text
+                    cv2.rectangle(button_screenshot, (x1 + search_x, y1 + search_y), 
+                                 (x2 + search_x, y2 + search_y), (255, 0, 255), 3)  # Magenta
+                    cv2.circle(button_screenshot, (click_x, click_y), 15, (0, 0, 255), -1)  # Red circle
+                    cv2.putText(button_screenshot, f"Button Found: {text[:30]}", 
+                               (x1 + search_x, y1 + search_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2)
+                    cv2.putText(button_screenshot, f"Click: ({click_x}, {click_y})", 
+                               (click_x + 20, click_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    success, path = computer_vision_utils.save_screenshot(
+                        button_screenshot,
+                        filename="06_button_found.png",
+                        output_dir=step_screenshots_dir
+                    )
+                    if success:
+                        print(f"[ACTION_HANDLER] Saved button found screenshot to: {path}")
+                except Exception as e:
+                    print(f"[ACTION_HANDLER] Warning: Failed to save button found screenshot: {e}")
                 
                 button_found = True
             
@@ -311,6 +653,21 @@ def action(**kwargs) -> Tuple[bool, str]:
         success, click_msg = actions.click_at_position(click_x, click_y, clicks=1, button='left')
         if not success:
             return False, f"Failed to click on Multi-Network button: {click_msg}"
+        
+        # Save screenshot after clicking
+        try:
+            time.sleep(0.3)  # Wait a bit for UI to update
+            post_click_screenshot = computer_vision_utils.take_screenshot()
+            if post_click_screenshot is not None:
+                success, path = computer_vision_utils.save_screenshot(
+                    post_click_screenshot,
+                    filename="07_after_button_click.png",
+                    output_dir=step_screenshots_dir
+                )
+                if success:
+                    print(f"[ACTION_HANDLER] Saved post-click screenshot to: {path}")
+        except Exception as e:
+            print(f"[ACTION_HANDLER] Warning: Failed to save post-click screenshot: {e}")
         
         print(f"[ACTION_HANDLER] ✓ Successfully clicked 'Open as Multi-Network Instruction'")
         time.sleep(0.5)

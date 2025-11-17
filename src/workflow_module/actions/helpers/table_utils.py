@@ -194,9 +194,13 @@ def search_second_table_by_date(begin_date: str, crop_x: int, crop_y: int,
         # Words to exclude (like "begin", "date", "end")
         exclude_words = ['begin', 'date', 'end', 'start', 'from', 'to']
         
-        # Search for begin_date in each row
+        # Search for begin_date in each row (skip first row which is the header)
         all_matches = []
         for row_idx, (row_top, row_bottom) in enumerate(row_boundaries):
+            # Skip the first row (header row) - only search data rows
+            if row_idx == 0:
+                print(f"[SEARCH_SECOND_TABLE] Skipping row {row_idx + 1} (header row)")
+                continue
             # Find all texts in this row
             row_texts = []
             row_boxes = []
