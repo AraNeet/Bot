@@ -185,6 +185,31 @@ def crop_image(image: np.ndarray,
         print(f"[CV ERROR] Crop failed: {e}")
         return None
 
+def take_screenshot_and_crop(
+    region: Tuple[int, int, int, int],
+    preprocess_for_ocr: bool = False
+) -> Optional[np.ndarray]:
+    """
+    Take a screenshot and crop a region from it in one operation.
+    
+    Args:
+        region: Tuple of (x, y, width, height)
+        preprocess_for_ocr: If True, apply OCR preprocessing after cropping
+        
+    Returns:
+        Cropped (and optionally preprocessed) image, or None if failed
+        
+    Example:
+        # Take screenshot and crop with preprocessing
+        cropped = take_screenshot_and_crop((0, 0, 200, 200), preprocess_for_ocr=True)
+    """
+    screenshot = take_screenshot()
+    if screenshot is None:
+        return None
+    
+    x, y, width, height = region
+    return crop_image(screenshot, x, y, width, height, preprocess_for_ocr)
+
 def preprocess_image_for_ocr(image: np.ndarray) -> Optional[np.ndarray]:
     """
     Preprocess an image for OCR to remove artifacts like cursors and underlines.
@@ -321,7 +346,7 @@ def find_template_in_region(screenshot: np.ndarray,
         region = (94, 46, 74, 72)  # (x, y, width, height)
         
         found, score, position = find_template_in_region(
-            screenshot, 'assets/multi_network_Icon.png', region, confidence=0.8
+            screenshot, 'assets/01_multi_network_Icon.png', region, confidence=0.8
         )
         
         if found:
@@ -437,7 +462,6 @@ def find_blue_highlighted_row(screenshot: np.ndarray,
     except Exception as e:
         print(f"[CV ERROR] Error finding blue highlighted row: {e}")
         return False, None
-
 
 def detect_loading_circle(screenshot: np.ndarray,
                          center_region_ratio: float = 0.4,
@@ -563,3 +587,61 @@ def detect_loading_circle(screenshot: np.ndarray,
     except Exception as e:
         print(f"[CV ERROR] Error detecting loading circle: {e}")
         return False, None
+
+def detect_underline(image: np.ndarray, 
+                    min_width_ratio: float = 0.3,
+                    bottom_half_only: bool = True) -> bool:
+    """
+    Detect if there is a horizontal underline in the image.
+    
+    Args:
+        image: Input image (cropped field)
+        min_width_ratio: Minimum width of line relative to image width (default 0.3)
+        bottom_half_only: If True, only search in the bottom half of the image
+        
+    Returns:
+        True if underline detected, False otherwise
+    """
+    try:
+        if image is None:
+            return False
+            
+        height, width = image.shape[:2]
+        
+        # Region of interest
+        if bottom_half_only:
+            roi = image[height//2:, :]
+        else:
+            roi = image
+            
+        gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+        
+        # Adaptive thresholding to be robust against different text colors
+        thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, 
+                                      cv2.THRESH_BINARY_INV, 15, 10)
+                                      
+        # Morphological operations to extract horizontal lines
+        # Kernel width should be significant enough to ignore text but keep lines
+        horizontal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (int(width * 0.1), 1))
+        detected_lines = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, horizontal_kernel, iterations=2)
+        
+        # Find contours
+        contours, _ = cv2.findContours(detected_lines, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        print(f"[CV] Underline detection: found {len(contours)} horizontal contours")
+        
+        for cnt in contours:
+            x, y, w, h = cv2.boundingRect(cnt)
+            # Check if width is sufficient
+            if w > width * min_width_ratio:
+                # Check aspect ratio (width significantly larger than height)
+                aspect_ratio = w / h if h > 0 else 999
+                if aspect_ratio > 5: 
+                    print(f"[CV] ✓ Underline detected! Width: {w}px, Aspect Ratio: {aspect_ratio:.1f}")
+                    return True
+                    
+        return False
+        
+    except Exception as e:
+        print(f"[CV ERROR] Failed to detect underline: {e}")
+        return False

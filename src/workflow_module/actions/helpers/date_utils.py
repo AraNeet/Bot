@@ -8,7 +8,6 @@ This module provides utilities for date processing:
 
 import re
 
-
 def normalize_date(date_str: str) -> str:
     """
     Remove leading zeros from date components for flexible date matching.

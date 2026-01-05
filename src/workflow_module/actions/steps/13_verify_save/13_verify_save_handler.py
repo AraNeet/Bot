@@ -22,37 +22,25 @@ scanner = TextScanner()
 def action(**kwargs) -> Tuple[bool, str]:
     """
     Verify the instruction was saved successfully.
-    
-    Returns:
-        Tuple of (success: bool, message: str)
     """
     print("[ACTION_HANDLER] Verifying save successful...")
     
-    try:
-        screenshot = computer_vision_utils.take_screenshot()
-        if screenshot is None:
-            return False, "Failed to take screenshot for verification"
-        
-        time.sleep(0.5)
-        print("[ACTION_HANDLER] ✓ Save verified successfully (placeholder implementation)")
-        return True, "Save verified successfully (placeholder implementation)"
-        
-    except Exception as e:
-        error_msg = f"Error verifying save success: {e}"
-        print(f"[ACTION_HANDLER ERROR] {error_msg}")
-        return False, error_msg
+    # Step 1: Take screenshot
+    screenshot = computer_vision_utils.take_screenshot()
+    if screenshot is None:
+        return False, "Failed to take screenshot for verification"
+    
+    # Step 2: Verify save (placeholder implementation)
+    time.sleep(0.5)
+    print("[ACTION_HANDLER] ✓ Save verified successfully (placeholder implementation)")
+    return True, "Save verified successfully (placeholder implementation)"
 
 # ============================================================================
 # VERIFIER
 # ============================================================================
 
 def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """
-    Verify the save verification action completed.
-    
-    Returns:
-        Tuple of (success: bool, message: str, data: Optional[Dict])
-    """
+    """Verify the save verification action completed."""
     print("[VERIFIER_HANDLER] Verifying save verification completed...")
     
     verification_data = {
@@ -66,18 +54,7 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
 # ============================================================================
 
 def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> Tuple[bool, str]:
-    """
-    Handle errors specific to verifying save success.
-    
-    Args:
-        error_msg: The error message from the failed action
-        attempt: Current attempt number
-        max_attempts: Maximum number of attempts
-        **kwargs: Additional context
-        
-    Returns:
-        Tuple of (should_retry: bool, recovery_message: str)
-    """
+    """Handle errors specific to verifying save success."""
     print(f"[ERROR_HANDLER] Handling error for verify_save (attempt {attempt}/{max_attempts})")
     print(f"[ERROR_HANDLER] Error: {error_msg}")
     
@@ -87,5 +64,3 @@ def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> 
         return True, "Retrying action"
     
     return False, f"Failed to verify save after {max_attempts} attempts"
-
-

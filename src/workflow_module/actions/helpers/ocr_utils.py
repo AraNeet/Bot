@@ -382,7 +382,6 @@ def find_topmost_text_position(search_text: str,
         print(f"[OCR ERROR] Error finding text position: {e}")
         return False, None
 
-
 def match_text_positions(target_texts: List[str], data: Dict[str, List]) -> List[Tuple[int, int, int, int]]:
     """
     Match target texts in OCR data and return first position per matched target.
