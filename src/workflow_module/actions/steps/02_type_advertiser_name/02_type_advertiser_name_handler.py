@@ -53,7 +53,7 @@ def verifier(advertiser_name: str = "", **kwargs) -> Tuple[bool, str, Optional[D
     if screenshot is None:
         return False, "Failed to take screenshot for verification", None
     
-    name_dialog_region = (65, 25, 1217, 383)
+    name_dialog_region = (0, 0, 500, 383)
     print(f"[VERIFIER_HANDLER] Checking for Name search dialog in region {name_dialog_region}")
     
     # Get the directory where this handler file is located
@@ -69,7 +69,17 @@ def verifier(advertiser_name: str = "", **kwargs) -> Tuple[bool, str, Optional[D
     
     if close_button_found and close_position:
         print(f"[VERIFIER_HANDLER] ✓ Name search dialog found (confidence: {close_confidence:.2f}), closing it...")
-        click_x, click_y = close_position
+        # Get the template dimensions to adjust click to top-right
+        template_img = computer_vision_utils.load_image(close_button_path)
+        if template_img is not None:
+             h, w = template_img.shape[:2]
+             # Move click to the right edge (X-close button) of the detected region
+             click_x, click_y = close_position
+             click_x += w // 2  # Offset to right side
+             # Ensure we don't click outside
+        else:
+             click_x, click_y = close_position
+
         close_success, close_msg = actions.click_at_position(click_x, click_y)
         if close_success:
             print(f"[VERIFIER_HANDLER] ✓ Successfully closed Name search dialog - returning False to trigger retry")

@@ -128,7 +128,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         )
         
         cropped_table, column_boundaries = \
-            computer_vision_utils.extract_table_with_column_splits(
+            table_utils.extract_table_with_column_splits(
                 screenshot,
                 crop_x,
                 crop_y,
@@ -209,7 +209,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
 
 
 def error_handler(
-    error_message: str,
+    error_msg: str,
     attempt: int,
     max_attempts: int,
     begin_date: str = "",
@@ -224,7 +224,7 @@ def error_handler(
     - The specific error message
     
     Args:
-        error_message: The error message from the failed action
+        error_msg: The error message from the failed action
         attempt: Current attempt number (1-indexed)
         max_attempts: Maximum number of attempts allowed
         begin_date: The begin_date parameter from the original action
@@ -243,7 +243,7 @@ def error_handler(
         >>> print(f"Decision: {decision}")
     """
     # Step 1: Log error details
-    print(f"[ERROR_HANDLER] Attempt {attempt}/{max_attempts} failed: {error_message}")
+    print(f"[ERROR_HANDLER] Attempt {attempt}/{max_attempts} failed: {error_msg}")
     
     # Step 2: Check if max attempts reached
     if attempt >= max_attempts:
@@ -251,7 +251,7 @@ def error_handler(
         return "abort", {}
     
     # Step 3: Analyze error type
-    error_lower = error_message.lower()
+    error_lower = error_msg.lower()
     
     # Step 4: Define error categories
     # Step 4a: Errors that suggest retrying might help

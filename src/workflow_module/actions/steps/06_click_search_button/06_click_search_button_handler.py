@@ -54,8 +54,7 @@ def action(**kwargs) -> Tuple[bool, str]:
     click_success, click_msg = actions.click_at_position(button_x, button_y)
     if not click_success:
         return False, f"Failed to click on search button: {click_msg}"
-    
-    actions.move_mouse(1400, 288, 0)
+
     time.sleep(0.5)
     
     return True, "Successfully clicked search button"

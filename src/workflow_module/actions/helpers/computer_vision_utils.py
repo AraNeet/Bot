@@ -21,7 +21,6 @@ from typing import Optional, Tuple, Dict, List
 from datetime import datetime
 from pathlib import Path
 
-
 def take_screenshot() -> Optional[np.ndarray]:
     """
     Capture a screenshot of the entire screen.
@@ -185,10 +184,7 @@ def crop_image(image: np.ndarray,
         print(f"[CV ERROR] Crop failed: {e}")
         return None
 
-def take_screenshot_and_crop(
-    region: Tuple[int, int, int, int],
-    preprocess_for_ocr: bool = False
-) -> Optional[np.ndarray]:
+def take_screenshot_and_crop(region: Tuple[int, int, int, int], preprocess_for_ocr: bool = False) -> Optional[np.ndarray]:
     """
     Take a screenshot and crop a region from it in one operation.
     
@@ -673,17 +669,17 @@ def detect_blue_highlighted_expanded_row(screenshot: np.ndarray, exclude_bottom_
     """
     print("[CV_UTILS] Detecting blue highlighted expanded row...")
     
-    # Use existing find_blue_highlighted_row function
-    from src.workflow_module.actions.helpers.computer_vision_utils import find_blue_highlighted_row
     
-    found, position, size = find_blue_highlighted_row(screenshot)
+    found, row_info_data = find_blue_highlighted_row(screenshot)
     
-    if not found or position is None or size is None:
+    if not found or row_info_data is None:
         print("[CV_UTILS] ✗ Blue highlighted row not found")
         return False, None
     
-    x, y = position
-    width, height = size
+    x = row_info_data['x']
+    y = row_info_data['y']
+    width = row_info_data['width']
+    height = row_info_data['height']
     
     row_info = {
         'x': x,
@@ -695,7 +691,6 @@ def detect_blue_highlighted_expanded_row(screenshot: np.ndarray, exclude_bottom_
     print(f"[CV_UTILS] ✓ Found blue row at ({x}, {y}) with size {width}x{height}")
     
     return True, row_info
-
 
 def calculate_crop_region_from_expanded_row(screenshot: np.ndarray,blue_row_info: Optional[Dict[str, int]]) -> Tuple[int, int, int, int]:
     """
@@ -758,92 +753,7 @@ def calculate_crop_region_from_expanded_row(screenshot: np.ndarray,blue_row_info
     
     return crop_x, crop_y, crop_width, crop_height
 
-def extract_table_with_column_splits(
-    screenshot: np.ndarray,
-    crop_x: int,
-    crop_y: int,
-    crop_width: int,
-    crop_height: int,
-    column_template_path: str,
-    match_threshold: float = 0.85
-) -> Tuple[Optional[np.ndarray], List[int]]:
-    """
-    Extract a table region and detect column boundaries using a template.
-    
-    This function:
-    1. Crops the specified region from the screenshot
-    2. Loads the column separator template
-    3. Finds all column separators
-    4. Calculates column boundaries
-    
-    Args:
-        screenshot: Current screenshot
-        crop_x, crop_y: Top-left coordinates of table region
-        crop_width, crop_height: Dimensions of table region
-        column_template_path: Path to column separator template image
-        match_threshold: Minimum confidence for template matching
-        
-    Returns:
-        Tuple of (cropped_table: np.ndarray, column_boundaries: List[int])
-        
-    Example:
-        >>> screenshot = take_screenshot()
-        >>> table, boundaries = extract_table_with_column_splits(
-        ...     screenshot, 205, 280, 1500, 200, 'column_template.png'
-        ... )
-        >>> print(f"Found {len(boundaries)} column boundaries")
-    """
-    from src.workflow_module.actions.helpers.computer_vision_utils import crop_image, load_image
-    from src.workflow_module.actions.helpers.table_utils import (
-        find_all_template_matches,
-        calculate_column_boundaries
-    )
-    
-    print("[CV_UTILS] Extracting table and detecting column splits...")
-    
-    # Validate crop dimensions
-    if crop_width <= 0 or crop_height <= 0:
-        print(f"[CV_UTILS] ✗ Invalid crop dimensions: {crop_width}x{crop_height}")
-        return None, []
-    
-    # Crop the table region
-    cropped_table = crop_image(screenshot, crop_x, crop_y, crop_width, crop_height)
-    
-    if cropped_table is None:
-        print(f"[CV_UTILS] ✗ Failed to crop table region")
-        return None, []
-    
-    print(f"[CV_UTILS] ✓ Cropped table: {crop_width}x{crop_height}")
-    
-    # Load column separator template
-    column_template = load_image(column_template_path)
-    
-    if column_template is None:
-        print(f"[CV_UTILS] ⚠ Column template not found, using empty boundaries")
-        return cropped_table, []
-    
-    template_height, template_width = column_template.shape[:2]
-    print(f"[CV_UTILS] Column template loaded: {template_width}x{template_height}")
-    
-    # Find all column separators
-    separator_matches = find_all_template_matches(
-        cropped_table,
-        column_template,
-        confidence=match_threshold,
-        min_distance=10
-    )
-    
-    print(f"[CV_UTILS] Found {len(separator_matches)} column separator(s)")
-    
-    # Calculate column boundaries
-    column_boundaries = calculate_column_boundaries(
-        separator_matches,
-        template_width,
-        crop_width
-    )
-    
-    print(f"[CV_UTILS] Calculated {len(column_boundaries)} column boundaries: {column_boundaries}")
-    
+
     return cropped_table, column_boundaries
 
 def visualize_column_splits_in_table(

@@ -20,30 +20,40 @@ TABLE_CROP_HEIGHT = 780
 SCROLLBAR_CHECK_REGION = (205, 225, 1450, 780)
 TARGET_REGION_Y = 225
 TARGET_REGION_HEIGHT = 250
-SCROLLBAR_CONFIDENCE = 0.95
 
 
 def ensure_table_at_top(table_center_x, table_center_y):
     """Checks if table is at the top, scrolls to top if not."""
-    print(f"[ACTION_HANDLER] Checking if table is at top position...")
+    print(f"[ACTION_HANDLER] Ensuring table is at top position...")
     scanner = TextScanner()
-    screenshot = computer_vision_utils.take_screenshot()
     
-    should_scroll = True
-    if screenshot is not None:
-        # Check header region for "Network Code" or "Estimate"
-        header_region = screenshot[TABLE_CROP_Y:TABLE_CROP_Y+100, TABLE_CROP_X:TABLE_CROP_X+TABLE_CROP_WIDTH]
-        success, extracted_text = scanner.extract_text(header_region)
+    max_scroll_attempts = 200
+    at_top = False
+    
+    for scroll_num in range(1, max_scroll_attempts + 1):
+        # Check if at top
+        screenshot = computer_vision_utils.take_screenshot()
         
-        if success:
-            text_lower = extracted_text.lower()
-            if "network code" in text_lower or "estimate" in text_lower:
-                print(f"[ACTION_HANDLER] ✓ Table is at top position")
-                should_scroll = False
-    
-    if should_scroll:
-        print(f"[ACTION_HANDLER] Table not at top, scrolling up...")
+        if screenshot is not None:
+            # Check header region for "Network Code" or "Estimate"
+            header_region = screenshot[TABLE_CROP_Y:TABLE_CROP_Y+100, TABLE_CROP_X:TABLE_CROP_X+TABLE_CROP_WIDTH]
+            success, extracted_text = scanner.extract_text(header_region)
+            
+            if success:
+                text_lower = extracted_text.lower()
+                if "network code" in text_lower or "estimate" in text_lower:
+                    print(f"[ACTION_HANDLER] ✓ Table is at top position")
+                    at_top = True
+                    break
+        
+        # Not at top, scroll up
+        if scroll_num % 10 == 0:
+            print(f"[ACTION_HANDLER] Table not at top, scrolling up (iteration {scroll_num})...")
+            
         table_utils.scroll_to_table_top(table_center_x, table_center_y, TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH)
+        
+    if not at_top:
+        print(f"[ACTION_HANDLER] Warning: Reached max scroll attempts ({max_scroll_attempts}), assuming at top")
 
 
 def action(estimate_number: str = "", advertiser_name: str = "", begin_date: str = "", end_date: str = "", **kwargs) -> Tuple[bool, str]:
@@ -88,8 +98,7 @@ def action(estimate_number: str = "", advertiser_name: str = "", begin_date: str
             match_info, table_center_x, table_center_y,
             TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH, TABLE_CROP_HEIGHT,
             template, target_texts, estimate_number,
-            TARGET_REGION_Y, TARGET_REGION_HEIGHT,
-            SCROLLBAR_CHECK_REGION, SCROLLBAR_CONFIDENCE
+            TARGET_REGION_Y, TARGET_REGION_HEIGHT
         )
 
     if not should_scroll:
@@ -122,8 +131,7 @@ def action(estimate_number: str = "", advertiser_name: str = "", begin_date: str
                 match_info, table_center_x, table_center_y,
                 TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH, TABLE_CROP_HEIGHT,
                 template, target_texts, estimate_number,
-                TARGET_REGION_Y, TARGET_REGION_HEIGHT,
-                SCROLLBAR_CHECK_REGION, SCROLLBAR_CONFIDENCE
+                TARGET_REGION_Y, TARGET_REGION_HEIGHT
             )
         
         if scroll_attempt % 5 == 0:

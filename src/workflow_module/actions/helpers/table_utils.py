@@ -80,271 +80,271 @@ def get_results_count() -> Optional[int]:
 # SECOND TABLE SEARCHING (WITHIN EXPANDED ROW)
 # ============================================================================
 
-def search_second_table_by_date(begin_date: str, crop_x: int, crop_y: int, 
-                                crop_width: int, crop_height: int,
-                                template_path: Optional[str] = None) -> Tuple[bool, str, List[Dict[str, Any]]]:
-    """
-    Search for rows in the second table (within expanded row) by begin_date.
-    Uses column separator template to detect columns, then row boundary detection to handle variable height rows.
-    Returns all matches.
+# def search_second_table_by_date(begin_date: str, crop_x: int, crop_y: int, 
+#                                 crop_width: int, crop_height: int,
+#                                 template_path: Optional[str] = None) -> Tuple[bool, str, List[Dict[str, Any]]]:
+#     """
+#     Search for rows in the second table (within expanded row) by begin_date.
+#     Uses column separator template to detect columns, then row boundary detection to handle variable height rows.
+#     Returns all matches.
     
-    Args:
-        begin_date: Begin date to match (e.g., "01/01/2024" or "2024-01-01")
-        crop_x, crop_y: Crop coordinates for the second table region
-        crop_width, crop_height: Crop dimensions
-        template_path: Optional path to column separator template. 
-                      If None, uses default from assets folder.
+#     Args:
+#         begin_date: Begin date to match (e.g., "01/01/2024" or "2024-01-01")
+#         crop_x, crop_y: Crop coordinates for the second table region
+#         crop_width, crop_height: Crop dimensions
+#         template_path: Optional path to column separator template. 
+#                       If None, uses default from assets folder.
         
-    Returns:
-        Tuple of (found: bool, message: str, matches: List[Dict])
-        Each match contains: {
-            'click_x': int, 'click_y': int,
-            'row_top': int, 'row_bottom': int,
-            'matched_text': str, 'row_index': int
-        }
-    """
-    try:
-        # Convert begin_date to string to handle integers
-        begin_date_str = str(begin_date)
-        print(f"[SEARCH_SECOND_TABLE] Searching for begin_date: '{begin_date_str}'")
+#     Returns:
+#         Tuple of (found: bool, message: str, matches: List[Dict])
+#         Each match contains: {
+#             'click_x': int, 'click_y': int,
+#             'row_top': int, 'row_bottom': int,
+#             'matched_text': str, 'row_index': int
+#         }
+#     """
+#     try:
+#         # Convert begin_date to string to handle integers
+#         begin_date_str = str(begin_date)
+#         print(f"[SEARCH_SECOND_TABLE] Searching for begin_date: '{begin_date_str}'")
         
-        # Load column separator template for second table
-        if template_path is None:
-            template_path = "src/workflow_module/actions/assets/08_ColumnLineSecondTable.png"
-        template = computer_vision_utils.load_image(template_path)
-        if template is None:
-            return False, f"Failed to load ColumnLineSecondTable template from {template_path}", []
+#         # Load column separator template for second table
+#         if template_path is None:
+#             template_path = "src/workflow_module/actions/assets/08_ColumnLineSecondTable.png"
+#         template = computer_vision_utils.load_image(template_path)
+#         if template is None:
+#             return False, f"Failed to load ColumnLineSecondTable template from {template_path}", []
         
-        time.sleep(2)
-        # Take screenshot and crop to second table region
-        cropped_img = take_screenshot_and_crop((crop_x, crop_y, crop_width, crop_height))
-        if cropped_img is None:
-            return False, "Failed to take screenshot and crop to second table region", []
+#         time.sleep(2)
+#         # Take screenshot and crop to second table region
+#         cropped_img = take_screenshot_and_crop((crop_x, crop_y, crop_width, crop_height))
+#         if cropped_img is None:
+#             return False, "Failed to take screenshot and crop to second table region", []
         
-        # Store original cropped image dimensions for coordinate conversion
-        original_cropped_height, original_cropped_width = cropped_img.shape[:2]
+#         # Store original cropped image dimensions for coordinate conversion
+#         original_cropped_height, original_cropped_width = cropped_img.shape[:2]
         
-        # Detect column separators using template
-        print(f"[SEARCH_SECOND_TABLE] Detecting column separators...")
-        matches = detect_column_separators(cropped_img, template)
-        if not matches:
-            print(f"[SEARCH_SECOND_TABLE] No column separators found, proceeding with direct OCR")
-            using_separated_columns = False
-        else:
-            print(f"[SEARCH_SECOND_TABLE] Found {len(matches)} column separators")
+#         # Detect column separators using template
+#         print(f"[SEARCH_SECOND_TABLE] Detecting column separators...")
+#         matches = detect_column_separators(cropped_img, template)
+#         if not matches:
+#             print(f"[SEARCH_SECOND_TABLE] No column separators found, proceeding with direct OCR")
+#             using_separated_columns = False
+#         else:
+#             print(f"[SEARCH_SECOND_TABLE] Found {len(matches)} column separators")
             
-            # Create separated columns image
-            separated_columns_img = create_separated_columns_image(cropped_img, matches, template.shape[1])
-            if separated_columns_img is not None:
-                print(f"[SEARCH_SECOND_TABLE] Using separated columns image for OCR")
-                cropped_img = separated_columns_img
-                using_separated_columns = True
-            else:
-                print(f"[SEARCH_SECOND_TABLE] Column separation failed, using original cropped image")
-                using_separated_columns = False
+#             # Create separated columns image
+#             separated_columns_img = create_separated_columns_image(cropped_img, matches, template.shape[1])
+#             if separated_columns_img is not None:
+#                 print(f"[SEARCH_SECOND_TABLE] Using separated columns image for OCR")
+#                 cropped_img = separated_columns_img
+#                 using_separated_columns = True
+#             else:
+#                 print(f"[SEARCH_SECOND_TABLE] Column separation failed, using original cropped image")
+#                 using_separated_columns = False
         
-        # Get the actual dimensions of the image used for OCR
-        ocr_img_height, ocr_img_width = cropped_img.shape[:2]
-        print(f"[SEARCH_SECOND_TABLE] OCR image dimensions: {ocr_img_width}x{ocr_img_height} (original cropped: {original_cropped_width}x{original_cropped_height})")
+#         # Get the actual dimensions of the image used for OCR
+#         ocr_img_height, ocr_img_width = cropped_img.shape[:2]
+#         print(f"[SEARCH_SECOND_TABLE] OCR image dimensions: {ocr_img_width}x{ocr_img_height} (original cropped: {original_cropped_width}x{original_cropped_height})")
         
-        # Perform OCR on the processed image
-        success, data = scanner.get_text_data(cropped_img)
-        if not success or not data['text']:
-            return False, "OCR failed or no text", []
+#         # Perform OCR on the processed image
+#         success, data = scanner.get_text_data(cropped_img)
+#         if not success or not data['text']:
+#             return False, "OCR failed or no text", []
         
-        print(f"[SEARCH_SECOND_TABLE] OCR found {len(data['text'])} text elements")
+#         print(f"[SEARCH_SECOND_TABLE] OCR found {len(data['text'])} text elements")
         
-        # Determine row boundaries
-        row_boundaries, row_count = determine_row_boundaries(
-            data['bbox'], 
-            data['text'],
-            min_row_height=15,
-            line_tolerance=5,
-            row_gap_tolerance=20
-        )
+#         # Determine row boundaries
+#         row_boundaries, row_count = determine_row_boundaries(
+#             data['bbox'], 
+#             data['text'],
+#             min_row_height=15,
+#             line_tolerance=5,
+#             row_gap_tolerance=20
+#         )
         
-        print(f"[SEARCH_SECOND_TABLE] Detected {row_count} rows")
+#         print(f"[SEARCH_SECOND_TABLE] Detected {row_count} rows")
         
-        if row_count == 0:
-            return False, "No rows detected", []
+#         if row_count == 0:
+#             return False, "No rows detected", []
         
-        # Normalize begin_date for matching by removing leading zeros
-        # Example: 09/16/2025 → 9/16/2025
-        begin_date_normalized = date_utils.normalize_date(begin_date_str)
-        print(f"[SEARCH_SECOND_TABLE] Searching for begin_date: '{begin_date_str}' → normalized: '{begin_date_normalized}'")
+#         # Normalize begin_date for matching by removing leading zeros
+#         # Example: 09/16/2025 → 9/16/2025
+#         begin_date_normalized = date_utils.normalize_date(begin_date_str)
+#         print(f"[SEARCH_SECOND_TABLE] Searching for begin_date: '{begin_date_str}' → normalized: '{begin_date_normalized}'")
         
-        # Also create a version without separators for flexible matching
-        date_normalized = begin_date_normalized.replace('/', '').replace('-', '').replace(' ', '')
+#         # Also create a version without separators for flexible matching
+#         date_normalized = begin_date_normalized.replace('/', '').replace('-', '').replace(' ', '')
         
-        # Extract digits from begin_date to help identify date values
-        date_digits = re.sub(r'[^\d]', '', begin_date_normalized)
-        print(f"[SEARCH_SECOND_TABLE] Date digits: '{date_digits}'")
+#         # Extract digits from begin_date to help identify date values
+#         date_digits = re.sub(r'[^\d]', '', begin_date_normalized)
+#         print(f"[SEARCH_SECOND_TABLE] Date digits: '{date_digits}'")
         
-        # Words to exclude (like "begin", "date", "end")
-        exclude_words = ['begin', 'date', 'end', 'start', 'from', 'to']
+#         # Words to exclude (like "begin", "date", "end")
+#         exclude_words = ['begin', 'date', 'end', 'start', 'from', 'to']
         
-        # Search for begin_date in each row (skip first row which is the header)
-        all_matches = []
-        for row_idx, (row_top, row_bottom) in enumerate(row_boundaries):
-            # Skip the first row (header row) - only search data rows
-            if row_idx == 0:
-                print(f"[SEARCH_SECOND_TABLE] Skipping row {row_idx + 1} (header row)")
-                continue
-            # Find all texts in this row
-            row_texts = []
-            row_boxes = []
-            for i, bbox in enumerate(data['bbox']):
-                x1, y1, x2, y2 = map(int, bbox)
-                center_y = (y1 + y2) / 2
+#         # Search for begin_date in each row (skip first row which is the header)
+#         all_matches = []
+#         for row_idx, (row_top, row_bottom) in enumerate(row_boundaries):
+#             # Skip the first row (header row) - only search data rows
+#             if row_idx == 0:
+#                 print(f"[SEARCH_SECOND_TABLE] Skipping row {row_idx + 1} (header row)")
+#                 continue
+#             # Find all texts in this row
+#             row_texts = []
+#             row_boxes = []
+#             for i, bbox in enumerate(data['bbox']):
+#                 x1, y1, x2, y2 = map(int, bbox)
+#                 center_y = (y1 + y2) / 2
                 
-                # Check if this box is within the row boundaries
-                if row_top <= center_y <= row_bottom:
-                    row_texts.append(data['text'][i])
-                    row_boxes.append(bbox)
+#                 # Check if this box is within the row boundaries
+#                 if row_top <= center_y <= row_bottom:
+#                     row_texts.append(data['text'][i])
+#                     row_boxes.append(bbox)
             
-            # Check if any text in this row matches the begin_date
-            row_text_combined = ' '.join(row_texts)
-            # Normalize row text for comparison (remove leading zeros too)
-            row_text_normalized_with_sep = date_utils.normalize_date(row_text_combined)
-            row_text_normalized = row_text_normalized_with_sep.replace('/', '').replace('-', '').replace(' ', '')
+#             # Check if any text in this row matches the begin_date
+#             row_text_combined = ' '.join(row_texts)
+#             # Normalize row text for comparison (remove leading zeros too)
+#             row_text_normalized_with_sep = date_utils.normalize_date(row_text_combined)
+#             row_text_normalized = row_text_normalized_with_sep.replace('/', '').replace('-', '').replace(' ', '')
             
-            # Check if the normalized date is in the normalized row text
-            # Also check with separators for more flexible matching
-            if date_normalized in row_text_normalized or begin_date_normalized in row_text_normalized_with_sep:
-                print(f"[SEARCH_SECOND_TABLE] Found matching row {row_idx + 1}/{row_count}")
-                print(f"[SEARCH_SECOND_TABLE] Row text: '{row_text_combined}'")
-                print(f"[SEARCH_SECOND_TABLE] Looking for begin_date: '{begin_date_str}' (normalized: '{date_normalized}')")
+#             # Check if the normalized date is in the normalized row text
+#             # Also check with separators for more flexible matching
+#             if date_normalized in row_text_normalized or begin_date_normalized in row_text_normalized_with_sep:
+#                 print(f"[SEARCH_SECOND_TABLE] Found matching row {row_idx + 1}/{row_count}")
+#                 print(f"[SEARCH_SECOND_TABLE] Row text: '{row_text_combined}'")
+#                 print(f"[SEARCH_SECOND_TABLE] Looking for begin_date: '{begin_date_str}' (normalized: '{date_normalized}')")
                 
-                # Find the actual bbox that contains the begin_date VALUE (not the word "begin" or "date")
-                # Prioritize text that contains digits and matches the date
-                begin_date_bbox = None
-                best_match_score = 0
+#                 # Find the actual bbox that contains the begin_date VALUE (not the word "begin" or "date")
+#                 # Prioritize text that contains digits and matches the date
+#                 begin_date_bbox = None
+#                 best_match_score = 0
                 
-                # First, try to find exact match or closest match that contains digits
-                for i, text in enumerate(data['text']):
-                    bbox = data['bbox'][i]
-                    x1, y1, x2, y2 = map(int, bbox)
-                    center_y = (y1 + y2) / 2
+#                 # First, try to find exact match or closest match that contains digits
+#                 for i, text in enumerate(data['text']):
+#                     bbox = data['bbox'][i]
+#                     x1, y1, x2, y2 = map(int, bbox)
+#                     center_y = (y1 + y2) / 2
                     
-                    # Check if this box is in the matching row
-                    if row_top <= center_y <= row_bottom:
-                        # Normalize OCR text (remove leading zeros too)
-                        text_normalized_with_sep = date_utils.normalize_date(text)
-                        text_normalized = text_normalized_with_sep.replace('/', '').replace('-', '').replace(' ', '')
-                        text_lower = text.lower()
+#                     # Check if this box is in the matching row
+#                     if row_top <= center_y <= row_bottom:
+#                         # Normalize OCR text (remove leading zeros too)
+#                         text_normalized_with_sep = date_utils.normalize_date(text)
+#                         text_normalized = text_normalized_with_sep.replace('/', '').replace('-', '').replace(' ', '')
+#                         text_lower = text.lower()
                         
-                        # Skip if this is a label word like "begin", "date", etc.
-                        if any(exclude_word in text_lower for exclude_word in exclude_words):
-                            continue
+#                         # Skip if this is a label word like "begin", "date", etc.
+#                         if any(exclude_word in text_lower for exclude_word in exclude_words):
+#                             continue
                         
-                        # Check if text contains digits (dates have numbers)
-                        text_digits = re.sub(r'[^\d]', '', text)
-                        if not text_digits:
-                            continue  # Skip text without digits
+#                         # Check if text contains digits (dates have numbers)
+#                         text_digits = re.sub(r'[^\d]', '', text)
+#                         if not text_digits:
+#                             continue  # Skip text without digits
                         
-                        # Check for exact match (with or without separators)
-                        if date_normalized == text_normalized or begin_date_normalized == text_normalized_with_sep:
-                            begin_date_bbox = (x1, y1, x2, y2)
-                            print(f"[SEARCH_SECOND_TABLE] Found exact begin_date match: '{text}' at bbox ({x1}, {y1}, {x2}, {y2})")
-                            break
-                        elif date_normalized in text_normalized or begin_date_normalized in text_normalized_with_sep:
-                            # Partial match - check how many digits match
-                            matching_digits = sum(1 for d in date_digits if d in text_digits)
-                            if matching_digits > best_match_score:
-                                best_match_score = matching_digits
-                                begin_date_bbox = (x1, y1, x2, y2)
-                                print(f"[SEARCH_SECOND_TABLE] Found partial begin_date match: '{text}' (matched digits: {matching_digits}/{len(date_digits)})")
+#                         # Check for exact match (with or without separators)
+#                         if date_normalized == text_normalized or begin_date_normalized == text_normalized_with_sep:
+#                             begin_date_bbox = (x1, y1, x2, y2)
+#                             print(f"[SEARCH_SECOND_TABLE] Found exact begin_date match: '{text}' at bbox ({x1}, {y1}, {x2}, {y2})")
+#                             break
+#                         elif date_normalized in text_normalized or begin_date_normalized in text_normalized_with_sep:
+#                             # Partial match - check how many digits match
+#                             matching_digits = sum(1 for d in date_digits if d in text_digits)
+#                             if matching_digits > best_match_score:
+#                                 best_match_score = matching_digits
+#                                 begin_date_bbox = (x1, y1, x2, y2)
+#                                 print(f"[SEARCH_SECOND_TABLE] Found partial begin_date match: '{text}' (matched digits: {matching_digits}/{len(date_digits)})")
                 
-                # If no single box match, try to find the box that contains the most matching digits
-                if begin_date_bbox is None:
-                    print(f"[SEARCH_SECOND_TABLE] No single box match, searching for best date match...")
-                    for i, text in enumerate(data['text']):
-                        bbox = data['bbox'][i]
-                        x1, y1, x2, y2 = map(int, bbox)
-                        center_y = (y1 + y2) / 2
+#                 # If no single box match, try to find the box that contains the most matching digits
+#                 if begin_date_bbox is None:
+#                     print(f"[SEARCH_SECOND_TABLE] No single box match, searching for best date match...")
+#                     for i, text in enumerate(data['text']):
+#                         bbox = data['bbox'][i]
+#                         x1, y1, x2, y2 = map(int, bbox)
+#                         center_y = (y1 + y2) / 2
                         
-                        if row_top <= center_y <= row_bottom:
-                            text_lower = text.lower()
+#                         if row_top <= center_y <= row_bottom:
+#                             text_lower = text.lower()
                             
-                            # Skip label words
-                            if any(exclude_word in text_lower for exclude_word in exclude_words):
-                                continue
+#                             # Skip label words
+#                             if any(exclude_word in text_lower for exclude_word in exclude_words):
+#                                 continue
                             
-                            # Check if text contains digits
-                            text_digits = re.sub(r'[^\d]', '', text)
-                            if not text_digits:
-                                continue
+#                             # Check if text contains digits
+#                             text_digits = re.sub(r'[^\d]', '', text)
+#                             if not text_digits:
+#                                 continue
                             
-                            # Count matching digits
-                            matching_digits = sum(1 for d in date_digits if d in text_digits)
-                            if matching_digits > best_match_score:
-                                best_match_score = matching_digits
-                                begin_date_bbox = (x1, y1, x2, y2)
-                                print(f"[SEARCH_SECOND_TABLE] Best date match so far: '{text}' (matched digits: {matching_digits}/{len(date_digits)})")
+#                             # Count matching digits
+#                             matching_digits = sum(1 for d in date_digits if d in text_digits)
+#                             if matching_digits > best_match_score:
+#                                 best_match_score = matching_digits
+#                                 begin_date_bbox = (x1, y1, x2, y2)
+#                                 print(f"[SEARCH_SECOND_TABLE] Best date match so far: '{text}' (matched digits: {matching_digits}/{len(date_digits)})")
                 
-                if begin_date_bbox is None:
-                    # Fallback: use center of row
-                    print(f"[SEARCH_SECOND_TABLE] WARNING: Could not find begin_date bbox, using row center")
-                    click_x_ocr = ocr_img_width // 2
-                    click_y_ocr = row_top + (row_bottom - row_top) // 2
-                else:
-                    # Use the exact center of the begin_date bbox (no modification)
-                    x1, y1, x2, y2 = begin_date_bbox
-                    click_x_ocr = (x1 + x2) // 2  # Center X of the date bbox
-                    click_y_ocr = (y1 + y2) // 2  # Center Y of the date bbox
-                    print(f"[SEARCH_SECOND_TABLE] Using begin_date bbox center: bbox=({x1}, {y1}, {x2}, {y2}), center=({click_x_ocr}, {click_y_ocr})")
+#                 if begin_date_bbox is None:
+#                     # Fallback: use center of row
+#                     print(f"[SEARCH_SECOND_TABLE] WARNING: Could not find begin_date bbox, using row center")
+#                     click_x_ocr = ocr_img_width // 2
+#                     click_y_ocr = row_top + (row_bottom - row_top) // 2
+#                 else:
+#                     # Use the exact center of the begin_date bbox (no modification)
+#                     x1, y1, x2, y2 = begin_date_bbox
+#                     click_x_ocr = (x1 + x2) // 2  # Center X of the date bbox
+#                     click_y_ocr = (y1 + y2) // 2  # Center Y of the date bbox
+#                     print(f"[SEARCH_SECOND_TABLE] Using begin_date bbox center: bbox=({x1}, {y1}, {x2}, {y2}), center=({click_x_ocr}, {click_y_ocr})")
                 
-                # Convert OCR image coordinates to original cropped image coordinates
-                # OCR bbox coordinates are relative to the OCR image (cropped_img or separated_columns_img)
-                # We need to convert them to coordinates relative to the original cropped image
+#                 # Convert OCR image coordinates to original cropped image coordinates
+#                 # OCR bbox coordinates are relative to the OCR image (cropped_img or separated_columns_img)
+#                 # We need to convert them to coordinates relative to the original cropped image
                 
-                # Y coordinates: Height doesn't change between cropped_img and separated_columns_img
-                # So Y coordinates are always relative to the original cropped image
-                click_y_cropped = int(click_y_ocr)
+#                 # Y coordinates: Height doesn't change between cropped_img and separated_columns_img
+#                 # So Y coordinates are always relative to the original cropped image
+#                 click_y_cropped = int(click_y_ocr)
                 
-                # X coordinates: Need conversion if using separated columns (width changes)
-                if using_separated_columns:
-                    # Separated columns image has different width due to padding
-                    # Map X coordinate from separated_columns_img back to original cropped_img
-                    # Using proportional scaling based on width ratio
-                    scale_factor = original_cropped_width / ocr_img_width
-                    click_x_cropped = int(click_x_ocr * scale_factor)
-                    print(f"[SEARCH_SECOND_TABLE] X coordinate conversion (separated columns): OCR={click_x_ocr}, scale={scale_factor:.4f}, cropped={click_x_cropped}")
-                else:
-                    # No conversion needed - OCR image is the same as cropped image
-                    click_x_cropped = int(click_x_ocr)
-                    print(f"[SEARCH_SECOND_TABLE] X coordinate (no conversion needed): {click_x_cropped}")
+#                 # X coordinates: Need conversion if using separated columns (width changes)
+#                 if using_separated_columns:
+#                     # Separated columns image has different width due to padding
+#                     # Map X coordinate from separated_columns_img back to original cropped_img
+#                     # Using proportional scaling based on width ratio
+#                     scale_factor = original_cropped_width / ocr_img_width
+#                     click_x_cropped = int(click_x_ocr * scale_factor)
+#                     print(f"[SEARCH_SECOND_TABLE] X coordinate conversion (separated columns): OCR={click_x_ocr}, scale={scale_factor:.4f}, cropped={click_x_cropped}")
+#                 else:
+#                     # No conversion needed - OCR image is the same as cropped image
+#                     click_x_cropped = int(click_x_ocr)
+#                     print(f"[SEARCH_SECOND_TABLE] X coordinate (no conversion needed): {click_x_cropped}")
                 
-                print(f"[SEARCH_SECOND_TABLE] Coordinates after OCR→Cropped conversion: ({click_x_cropped}, {click_y_cropped})")
+#                 print(f"[SEARCH_SECOND_TABLE] Coordinates after OCR→Cropped conversion: ({click_x_cropped}, {click_y_cropped})")
                 
-                # Convert cropped coordinates to screen coordinates
-                # Add the crop offset to get absolute screen coordinates
-                click_x = click_x_cropped + crop_x
-                click_y = click_y_cropped + crop_y
+#                 # Convert cropped coordinates to screen coordinates
+#                 # Add the crop offset to get absolute screen coordinates
+#                 click_x = click_x_cropped + crop_x
+#                 click_y = click_y_cropped + crop_y
                 
-                print(f"[SEARCH_SECOND_TABLE] Final screen coordinates: ({click_x}, {click_y})")
-                print(f"[SEARCH_SECOND_TABLE] Conversion path: OCR({click_x_ocr}, {click_y_ocr}) → Cropped({click_x_cropped}, {click_y_cropped}) → Screen({click_x}, {click_y})")
-                print(f"[SEARCH_SECOND_TABLE] Crop offsets applied: crop_x={crop_x}, crop_y={crop_y}")
+#                 print(f"[SEARCH_SECOND_TABLE] Final screen coordinates: ({click_x}, {click_y})")
+#                 print(f"[SEARCH_SECOND_TABLE] Conversion path: OCR({click_x_ocr}, {click_y_ocr}) → Cropped({click_x_cropped}, {click_y_cropped}) → Screen({click_x}, {click_y})")
+#                 print(f"[SEARCH_SECOND_TABLE] Crop offsets applied: crop_x={crop_x}, crop_y={crop_y}")
                 
-                match_info = {
-                    'click_x': click_x,
-                    'click_y': click_y,
-                    'row_top': row_top + crop_y,
-                    'row_bottom': row_bottom + crop_y,
-                    'matched_text': row_text_combined,
-                    'row_index': row_idx
-                }
+#                 match_info = {
+#                     'click_x': click_x,
+#                     'click_y': click_y,
+#                     'row_top': row_top + crop_y,
+#                     'row_bottom': row_bottom + crop_y,
+#                     'matched_text': row_text_combined,
+#                     'row_index': row_idx
+#                 }
                 
-                all_matches.append(match_info)
+#                 all_matches.append(match_info)
         
-        if all_matches:
-            print(f"[SEARCH_SECOND_TABLE] Found {len(all_matches)} matching rows")
-            return True, f"Found {len(all_matches)} matching rows", all_matches
-        else:
-            return False, f"Begin date '{begin_date_str}' not found in any row", []
+#         if all_matches:
+#             print(f"[SEARCH_SECOND_TABLE] Found {len(all_matches)} matching rows")
+#             return True, f"Found {len(all_matches)} matching rows", all_matches
+#         else:
+#             return False, f"Begin date '{begin_date_str}' not found in any row", []
         
-    except Exception as e:
-        return False, f"Error searching second table: {e}", []
+#     except Exception as e:
+#         return False, f"Error searching second table: {e}", []
 
 
 # ============================================================================
@@ -354,70 +354,26 @@ def search_second_table_by_date(begin_date: str, crop_x: int, crop_y: int,
 def scroll_to_table_top(table_center_x: int, table_center_y: int, 
                         table_crop_x: int, table_crop_y: int, table_crop_width: int) -> None:
     """
-    Scroll the table to the top position by looking for 'Network Code' or 'Estimate' text.
-    Stops scrolling when either of these texts is found (indicating we're at the top).
+    Scroll the table up by one step.
     
     Args:
         table_center_x: X coordinate for mouse position during scrolling
         table_center_y: Y coordinate for mouse position during scrolling
-        table_crop_x: X coordinate of table crop region
-        table_crop_y: Y coordinate of table crop region
-        table_crop_width: Width of table crop region
+        table_crop_x: X coordinate of table crop region (unused)
+        table_crop_y: Y coordinate of table crop region (unused)
+        table_crop_width: Width of table crop region (unused)
     """
-    print(f"[TABLE_UTILS] Scrolling up to beginning (looking for 'Network Code' or 'Estimate')...")
+    print(f"[TABLE_UTILS] Scrolling up...")
     
-    scanner = TextScanner()
     pyautogui.moveTo(table_center_x, table_center_y, duration=0.2)
-    time.sleep(0.2)
-    
-    max_scroll_attempts = 200
-    at_top = False
-    
-    for scroll_num in range(1, max_scroll_attempts + 1):
-        pyautogui.scroll(50)  # Positive value scrolls up
-        time.sleep(0.05)
-        
-        check_screenshot = computer_vision_utils.take_screenshot()
-        if check_screenshot is not None:
-            # Crop the table header region to search for text
-            header_region = check_screenshot[table_crop_y:table_crop_y+100, table_crop_x:table_crop_x+table_crop_width]
-            
-            # Extract text from the header region
-            success, extracted_text = scanner.extract_text(header_region)
-            
-            if success:
-                # Check if we found either "Network Code" or "Estimate"
-                found_network_code = "network code" in extracted_text.lower()
-                found_estimate = "estimate" in extracted_text.lower()
-                
-                if found_network_code or found_estimate:
-                    found_text = []
-                    if found_network_code:
-                        found_text.append("'Network Code'")
-                    if found_estimate:
-                        found_text.append("'Estimate'")
-                    print(f"[TABLE_UTILS] ✓ Found {' and '.join(found_text)} - reached top position after {scroll_num} scroll(s)")
-                    at_top = True
-                    break
-                elif scroll_num % 10 == 0:
-                    print(f"[TABLE_UTILS] Not at top yet (no 'Network Code' or 'Estimate' found), scrolled {scroll_num} times, continuing...")
-            elif scroll_num % 10 == 0:
-                print(f"[TABLE_UTILS] Warning: OCR extraction failed at scroll {scroll_num}, continuing...")
-        else:
-            print(f"[TABLE_UTILS] Warning: Failed to take screenshot at scroll {scroll_num}")
-    
-    if at_top:
-        print(f"[TABLE_UTILS] ✓ Successfully scrolled to top of table")
-    else:
-        print(f"[TABLE_UTILS] Warning: Reached max scroll attempts ({max_scroll_attempts}), assuming at top")
+    pyautogui.scroll(50)  # Positive value scrolls up
+    time.sleep(0.05)
 
 def position_row_in_target_region(click_x: int, click_y: int, 
                                    table_center_x: int, table_center_y: int,
                                    crop_x: int, crop_y: int, crop_width: int, crop_height: int,
                                    template, target_texts, estimate_number: str,
-                                   target_region_y: int, target_region_height: int,
-                                   scrollbar_check_region: Tuple[int, int, int, int],
-                                   scrollbar_confidence: float = 0.95) -> Tuple[bool, str]:
+                                   target_region_y: int, target_region_height: int) -> Tuple[bool, str]:
     """
     After clicking a row, scroll down to position it within the target region if needed.
     Uses blue color detection to find the highlighted row position.
@@ -434,8 +390,6 @@ def position_row_in_target_region(click_x: int, click_y: int,
         estimate_number: Estimate number for searching
         target_region_y: Y coordinate of target region top
         target_region_height: Height of target region
-        scrollbar_check_region: Region to check for scrollbar end (x, y, width, height)
-        scrollbar_confidence: Confidence threshold for scrollbar detection
         
     Returns:
         Tuple of (success: bool, message: str)
@@ -478,16 +432,13 @@ def position_row_in_target_region(click_x: int, click_y: int,
     print(f"[TABLE_UTILS] ✗ Row NOT in target region (top={blue_row_top} vs target_top={target_region_y}, center={blue_row_center_y} vs target_bottom={target_region_bottom})")
     print(f"[TABLE_UTILS] Scrolling down to position row in target region {target_region_y}-{target_region_bottom}...")
     
-    # Load end scrollbar template to detect when we can't scroll anymore
-    end_scrollbar_template = computer_vision_utils.load_image("src/workflow_module/actions/assets/07_EndScrollbar.png")
-    if end_scrollbar_template is None:
-        print(f"[TABLE_UTILS] Warning: EndScrollbar template not found")
-    
     pyautogui.moveTo(table_center_x, table_center_y, duration=0.2)
     time.sleep(0.2)
     
     max_position_scrolls = 100
     scroll_amount = -20  # Scroll down slowly (negative value)
+    
+    last_blue_center_y = blue_row_center_y
     
     for scroll_num in range(1, max_position_scrolls + 1):
         pyautogui.scroll(scroll_amount)
@@ -498,16 +449,6 @@ def position_row_in_target_region(click_x: int, click_y: int,
             if scroll_num % 10 == 0:
                 print(f"[TABLE_UTILS] Warning: Screenshot failed at scroll {scroll_num}")
             continue
-        
-        # Check if scrollbar is at the end (can't scroll anymore)
-        if end_scrollbar_template is not None:
-            end_found, _, _ = computer_vision_utils.match_template_in_region(
-                check_screenshot, end_scrollbar_template, scrollbar_check_region, confidence=scrollbar_confidence
-            )
-            
-            if end_found:
-                print(f"[TABLE_UTILS] ✓ Scrollbar at end position, can't scroll further. Continuing with current position.")
-                return True, "Scrollbar at end, continuing with current row position"
         
         # Detect blue row position
         check_found, check_row_info = computer_vision_utils.find_blue_highlighted_row(check_screenshot)
@@ -521,7 +462,15 @@ def position_row_in_target_region(click_x: int, click_y: int,
             if target_region_y <= new_blue_center_y <= target_region_bottom:
                 print(f"[TABLE_UTILS] ✓ Row positioned in target region after {scroll_num} scroll(s) (y={new_blue_center_y})")
                 return True, f"Row positioned in target region at y={new_blue_center_y}"
-            elif scroll_num % 10 == 0:
+            
+            # Check if we stopped moving (end of scroll)
+            if abs(new_blue_center_y - last_blue_center_y) < 5:
+                print(f"[TABLE_UTILS] Row position unchanged at y={new_blue_center_y}. Assuming end of table.")
+                return True, "End of scroll reached, continuing with current row position"
+            
+            last_blue_center_y = new_blue_center_y
+            
+            if scroll_num % 10 == 0:
                 print(f"[TABLE_UTILS] Positioning scroll {scroll_num}: blue row at y={new_blue_center_y}, continuing...")
         elif scroll_num % 10 == 0:
             print(f"[TABLE_UTILS] Warning: Blue row not detected at scroll {scroll_num}, continuing...")
@@ -532,9 +481,7 @@ def position_row_in_target_region(click_x: int, click_y: int,
 def click_and_position_row(match_info: Dict, table_center_x: int, table_center_y: int,
                            crop_x: int, crop_y: int, crop_width: int, crop_height: int,
                            template, target_texts, estimate_number: str,
-                           target_region_y: int, target_region_height: int,
-                           scrollbar_check_region: Tuple[int, int, int, int],
-                           scrollbar_confidence: float = 0.95) -> Tuple[bool, str]:
+                           target_region_y: int, target_region_height: int) -> Tuple[bool, str]:
     """
     Click on a matched row and position it in the target region.
     
@@ -549,8 +496,6 @@ def click_and_position_row(match_info: Dict, table_center_x: int, table_center_y
         estimate_number: Estimate number for searching
         target_region_y: Y coordinate of target region top
         target_region_height: Height of target region
-        scrollbar_check_region: Region to check for scrollbar end (x, y, width, height)
-        scrollbar_confidence: Confidence threshold for scrollbar detection
         
     Returns:
         Tuple of (success: bool, message: str)
@@ -571,8 +516,7 @@ def click_and_position_row(match_info: Dict, table_center_x: int, table_center_y
         click_x, click_y, table_center_x, table_center_y,
         crop_x, crop_y, crop_width, crop_height,
         template, target_texts, estimate_number,
-        target_region_y, target_region_height,
-        scrollbar_check_region, scrollbar_confidence
+        target_region_y, target_region_height
     )
     
     if not position_success:
@@ -1117,8 +1061,7 @@ def find_all_template_matches(
     source_img: np.ndarray,
     template_img: np.ndarray,
     confidence: float = 0.7,
-    min_distance: int = 10
-) -> List[Tuple[Tuple[int, int], float]]:
+    min_distance: int = 10 ) -> List[Tuple[Tuple[int, int], float]]:
     """
     Find all occurrences of a template in an image.
     
@@ -1171,12 +1114,10 @@ def find_all_template_matches(
     
     return matches
 
-
 def detect_column_separators_in_image(
     source_img: np.ndarray,
     template_img: np.ndarray,
-    match_threshold: float = 0.85
-) -> List[Tuple[Tuple[int, int], float]]:
+    match_threshold: float = 0.85 ) -> List[Tuple[Tuple[int, int], float]]:
     """
     Detect column separator positions using template matching.
     
@@ -1198,12 +1139,10 @@ def detect_column_separators_in_image(
     """
     return find_all_template_matches(source_img, template_img, match_threshold, min_distance=10)
 
-
 def calculate_column_boundaries(
     separator_matches: List[Tuple[Tuple[int, int], float]],
     template_width: int,
-    image_width: int
-) -> List[int]:
+    image_width: int ) -> List[int]:
     """
     Calculate column boundaries from separator positions.
     
@@ -1239,11 +1178,8 @@ def calculate_column_boundaries(
     
     return all_boundaries
 
-
 def group_ocr_by_rows(
-    ocr_data: Dict[str, Any],
-    y_tolerance: int = 10
-) -> List[Dict[str, Any]]:
+    ocr_data: Dict[str, Any], y_tolerance: int = 10 ) -> List[Dict[str, Any]]:
     """
     Group OCR results into rows based on Y-coordinate proximity.
     
@@ -1316,13 +1252,9 @@ def group_ocr_by_rows(
     
     return rows
 
-
 def find_date_bbox_in_row(
-    row_data: Dict[str, Any],
-    begin_date_str: str,
-    begin_date_normalized: str,
-    column_boundaries: List[int]
-) -> Optional[Tuple[int, int, int, int]]:
+    row_data: Dict[str, Any], begin_date_str: str, 
+    begin_date_normalized: str, column_boundaries: List[int] ) -> Optional[Tuple[int, int, int, int]]:
     """
     Find the bounding box of the date within a row.
     
@@ -1353,14 +1285,9 @@ def find_date_bbox_in_row(
     
     return None
 
-
 def search_date_in_cropped_table(
-    cropped_table: np.ndarray,
-    column_boundaries: List[int],
-    begin_date: str,
-    crop_x: int,
-    crop_y: int
-) -> Tuple[bool, Optional[int], Optional[int], str]:
+    cropped_table: np.ndarray, column_boundaries: List[int], begin_date: str,
+    crop_x: int, crop_y: int ) -> Tuple[bool, Optional[int], Optional[int], str]:
     """
     Search for the first row containing the begin_date in a cropped table.
     
@@ -1455,3 +1382,84 @@ def search_date_in_cropped_table(
     
     print(f"[TABLE_UTILS] ✗ Date '{begin_date}' not found in table")
     return False, None, None, f"Date '{begin_date}' not found"
+
+def extract_table_with_column_splits(
+    screenshot: np.ndarray, crop_x: int, crop_y: int,
+    crop_width: int, crop_height: int, column_template_path: str,
+    match_threshold: float = 0.85 ) -> Tuple[Optional[np.ndarray], List[int]]:
+    """
+    Extract a table region and detect column boundaries using a template.
+    
+    This function:
+    1. Crops the specified region from the screenshot
+    2. Loads the column separator template
+    3. Finds all column separators
+    4. Calculates column boundaries
+    
+    Args:
+        screenshot: Current screenshot
+        crop_x, crop_y: Top-left coordinates of table region
+        crop_width, crop_height: Dimensions of table region
+        column_template_path: Path to column separator template image
+        match_threshold: Minimum confidence for template matching
+        
+    Returns:
+        Tuple of (cropped_table: np.ndarray, column_boundaries: List[int])
+        
+    Example:
+        >>> screenshot = take_screenshot()
+        >>> table, boundaries = extract_table_with_column_splits(
+        ...     screenshot, 205, 280, 1500, 200, 'column_template.png'
+        ... )
+        >>> print(f"Found {len(boundaries)} column boundaries")
+    """
+    
+    print("[CV_UTILS] Extracting table and detecting column splits...")
+    
+    # Validate crop dimensions
+    if crop_width <= 0 or crop_height <= 0:
+        print(f"[CV_UTILS] ✗ Invalid crop dimensions: {crop_width}x{crop_height}")
+        return None, []
+    
+    # Crop the table region
+    cropped_table = computer_vision_utils.crop_image(screenshot, crop_x, crop_y, crop_width, crop_height)
+    
+    if cropped_table is None:
+        print(f"[CV_UTILS] ✗ Failed to crop table region")
+        return None, []
+    
+    print(f"[CV_UTILS] ✓ Cropped table: {crop_width}x{crop_height}")
+    
+    # Load column separator template
+    column_template = computer_vision_utils.load_image(column_template_path)
+    
+    if column_template is None:
+        print(f"[CV_UTILS] ⚠ Column template not found, using empty boundaries")
+        return cropped_table, []
+    
+    template_height, template_width = column_template.shape[:2]
+    print(f"[CV_UTILS] Column template loaded: {template_width}x{template_height}")
+    
+    # Find all column separators
+    
+    separator_matches = find_all_template_matches(
+        cropped_table,
+        column_template,
+        confidence=match_threshold,
+        min_distance=10
+    )
+    
+    print(f"[CV_UTILS] Found {len(separator_matches)} column separator(s)")
+    
+    # Calculate column boundaries
+
+    column_boundaries = calculate_column_boundaries(
+        separator_matches,
+        template_width,
+        crop_width
+    )
+    
+    print(f"[CV_UTILS] Calculated {len(column_boundaries)} column boundaries: {column_boundaries}")
+    
+    return cropped_table, column_boundaries
+    
