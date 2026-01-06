@@ -1109,3 +1109,349 @@ def search_current_view(target_texts: List[str], estimate_number: str, crop_x: i
     except Exception as e:
         return False, f"Error searching view: {e}", None
 
+# ============================================================================
+# NEW FUNCTIONS FOR STEP 08 (Added 2026-01-06)
+# ============================================================================
+
+def find_all_template_matches(
+    source_img: np.ndarray,
+    template_img: np.ndarray,
+    confidence: float = 0.7,
+    min_distance: int = 10
+) -> List[Tuple[Tuple[int, int], float]]:
+    """
+    Find all occurrences of a template in an image.
+    
+    This function uses template matching to find multiple instances of a template,
+    masking found matches to prevent duplicates.
+    
+    Args:
+        source_img: Source image to search
+        template_img: Template image to find
+        confidence: Minimum confidence threshold (0.0-1.0)
+        min_distance: Minimum pixel distance between matches to prevent duplicates
+        
+    Returns:
+        List of ((x, y), confidence) tuples, where (x, y) is the top-left corner
+        
+    Example:
+        >>> template = cv2.imread('border_line.png')
+        >>> screenshot = cv2.imread('screen.png')
+        >>> matches = find_all_template_matches(screenshot, template, confidence=0.8)
+        >>> print(f"Found {len(matches)} matches")
+    """
+    template_height, template_width = template_img.shape[:2]
+    
+    # Create match heatmap
+    match_heatmap = cv2.matchTemplate(source_img, template_img, cv2.TM_CCOEFF_NORMED)
+    
+    matches = []
+    
+    while True:
+        # Find best remaining match
+        min_val, max_confidence, min_loc, best_position = cv2.minMaxLoc(match_heatmap)
+        
+        # Stop if below threshold
+        if max_confidence < confidence:
+            break
+        
+        # Record this match
+        matches.append((best_position, max_confidence))
+        
+        # Mask nearby area to prevent duplicates
+        mask_height = max(template_height, min_distance)
+        mask_width = max(template_width, min_distance)
+        
+        y_start = max(0, best_position[1] - mask_height // 2)
+        y_end = min(match_heatmap.shape[0], best_position[1] + mask_height // 2)
+        x_start = max(0, best_position[0] - mask_width // 2)
+        x_end = min(match_heatmap.shape[1], best_position[0] + mask_width // 2)
+        
+        match_heatmap[y_start:y_end, x_start:x_end] = 0
+    
+    return matches
+
+
+def detect_column_separators_in_image(
+    source_img: np.ndarray,
+    template_img: np.ndarray,
+    match_threshold: float = 0.85
+) -> List[Tuple[Tuple[int, int], float]]:
+    """
+    Detect column separator positions using template matching.
+    
+    Similar to detect_column_separators but with a simpler interface.
+    
+    Args:
+        source_img: Source image to search
+        template_img: Template image of column separator
+        match_threshold: Minimum confidence threshold
+        
+    Returns:
+        List of ((x, y), confidence) tuples
+        
+    Example:
+        >>> template = cv2.imread('column_line.png')
+        >>> table = cv2.imread('table.png')
+        >>> separators = detect_column_separators_in_image(table, template)
+        >>> print(f"Found {len(separators)} column separators")
+    """
+    return find_all_template_matches(source_img, template_img, match_threshold, min_distance=10)
+
+
+def calculate_column_boundaries(
+    separator_matches: List[Tuple[Tuple[int, int], float]],
+    template_width: int,
+    image_width: int
+) -> List[int]:
+    """
+    Calculate column boundaries from separator positions.
+    
+    Takes the detected separator positions and converts them to column boundary
+    x-coordinates, including the image edges.
+    
+    Args:
+        separator_matches: List of ((x, y), confidence) tuples from template matching
+        template_width: Width of separator template in pixels
+        image_width: Width of source image in pixels
+        
+    Returns:
+        List of column boundary x-coordinates (sorted), including 0 and image_width
+        
+    Example:
+        >>> separators = [((100, 50), 0.95), ((200, 50), 0.93)]
+        >>> boundaries = calculate_column_boundaries(separators, 5, 300)
+        >>> print(boundaries)  # [0, 102, 202, 300]
+    """
+    column_split_positions = []
+    
+    for position, score in separator_matches:
+        x_position = position[0]
+        # Use center of template as split point
+        split_center = x_position + (template_width // 2)
+        column_split_positions.append(split_center)
+    
+    # Remove duplicates and sort
+    unique_positions = sorted(set(column_split_positions))
+    
+    # Add image boundaries
+    all_boundaries = [0] + unique_positions + [image_width]
+    
+    return all_boundaries
+
+
+def group_ocr_by_rows(
+    ocr_data: Dict[str, Any],
+    y_tolerance: int = 10
+) -> List[Dict[str, Any]]:
+    """
+    Group OCR results into rows based on Y-coordinate proximity.
+    
+    OCR returns individual text elements. This function groups elements that are
+    vertically aligned (similar Y coordinates) into logical rows.
+    
+    Args:
+        ocr_data: OCR data dict with 'text', 'bbox', 'confidence' keys
+        y_tolerance: Maximum Y distance (pixels) to consider elements in same row
+        
+    Returns:
+        List of row dictionaries, each containing:
+            - 'y_center': Average Y coordinate of the row
+            - 'texts': List of text strings in the row
+            - 'bboxes': List of bounding boxes in the row
+            
+    Example:
+        >>> ocr_data = {'text': ['Name', 'Date', 'Value'], 
+        ...             'bbox': [[10,10,50,30], [100,12,150,28], [200,11,250,29]]}
+        >>> rows = group_ocr_by_rows(ocr_data, y_tolerance=5)
+        >>> print(f"Grouped into {len(rows)} row(s)")
+    """
+    if not ocr_data or not ocr_data.get('text'):
+        return []
+    
+    # Create list of (y_center, text, bbox)
+    elements = []
+    for i, text in enumerate(ocr_data['text']):
+        if text.strip():
+            bbox = ocr_data['bbox'][i]
+            x1, y1, x2, y2 = map(int, bbox)
+            y_center = (y1 + y2) // 2
+            elements.append({
+                'y_center': y_center,
+                'text': text,
+                'bbox': bbox
+            })
+    
+    # Sort by Y coordinate
+    elements.sort(key=lambda e: e['y_center'])
+    
+    # Group into rows
+    rows = []
+    current_row = None
+    
+    for elem in elements:
+        if current_row is None:
+            current_row = {
+                'y_center': elem['y_center'],
+                'texts': [elem['text']],
+                'bboxes': [elem['bbox']]
+            }
+        else:
+            # Check if within tolerance of current row
+            if abs(elem['y_center'] - current_row['y_center']) <= y_tolerance:
+                current_row['texts'].append(elem['text'])
+                current_row['bboxes'].append(elem['bbox'])
+            else:
+                # Start new row
+                rows.append(current_row)
+                current_row = {
+                    'y_center': elem['y_center'],
+                    'texts': [elem['text']],
+                    'bboxes': [elem['bbox']]
+                }
+    
+    # Add last row
+    if current_row:
+        rows.append(current_row)
+    
+    return rows
+
+
+def find_date_bbox_in_row(
+    row_data: Dict[str, Any],
+    begin_date_str: str,
+    begin_date_normalized: str,
+    column_boundaries: List[int]
+) -> Optional[Tuple[int, int, int, int]]:
+    """
+    Find the bounding box of the date within a row.
+    
+    Searches through text elements in a row to find one that matches the target date.
+    
+    Args:
+        row_data: Row data dict with 'texts' and 'bboxes' keys
+        begin_date_str: Original date string (e.g., "1/5/2026")
+        begin_date_normalized: Normalized date string (e.g., "152026")
+        column_boundaries: List of column boundary x-coordinates (currently unused)
+        
+    Returns:
+        Bounding box (x1, y1, x2, y2) or None if not found
+        
+    Example:
+        >>> row = {'texts': ['ESPN', '1/5/2026', 'Active'], 
+        ...        'bboxes': [[10,10,50,30], [60,10,120,30], [130,10,180,30]]}
+        >>> bbox = find_date_bbox_in_row(row, '1/5/2026', '152026', [])
+        >>> print(bbox)  # (60, 10, 120, 30)
+    """
+    from src.workflow_module.actions.helpers import date_utils
+    
+    for i, text in enumerate(row_data['texts']):
+        text_normalized = date_utils.normalize_date(text)
+        
+        if begin_date_normalized in text_normalized or begin_date_str in text:
+            return row_data['bboxes'][i]
+    
+    return None
+
+
+def search_date_in_cropped_table(
+    cropped_table: np.ndarray,
+    column_boundaries: List[int],
+    begin_date: str,
+    crop_x: int,
+    crop_y: int
+) -> Tuple[bool, Optional[int], Optional[int], str]:
+    """
+    Search for the first row containing the begin_date in a cropped table.
+    
+    This is a high-level function that:
+    1. Performs OCR on the table
+    2. Groups results into rows
+    3. Searches for matching date
+    4. Returns click coordinates
+    
+    Args:
+        cropped_table: Cropped table image
+        column_boundaries: List of column boundary x-coordinates
+        begin_date: Date string to search for
+        crop_x, crop_y: Offset coordinates for converting to screen coordinates
+        
+    Returns:
+        Tuple of (found: bool, click_x: Optional[int], click_y: Optional[int], message: str)
+        
+    Example:
+        >>> table_img = cv2.imread('cropped_table.png')
+        >>> found, x, y, msg = search_date_in_cropped_table(table_img, [], '1/5/2026', 205, 280)
+        >>> if found:
+        ...     print(f"Date found at ({x}, {y})")
+    """
+    from src.workflow_module.actions.helpers import ocr_utils
+    from src.workflow_module.actions.helpers import date_utils
+    
+    print(f"[TABLE_UTILS] Searching for begin_date '{begin_date}' in cropped table...")
+    
+    # Perform OCR on the entire table
+    scanner = ocr_utils.TextScanner()
+    ocr_success, ocr_data = scanner.get_text_data(cropped_table)
+    
+    if not ocr_success or not ocr_data or not ocr_data.get('text'):
+        return False, None, None, "OCR failed on table"
+    
+    print(f"[TABLE_UTILS] OCR found {len(ocr_data['text'])} text elements")
+    
+    # Normalize the target date
+    begin_date_str = str(begin_date)
+    begin_date_normalized = date_utils.normalize_date(begin_date_str)
+    
+    # Group OCR results by rows
+    rows = group_ocr_by_rows(ocr_data)
+    print(f"[TABLE_UTILS] Grouped OCR into {len(rows)} rows")
+    
+    # Search for matching date in each row
+    header_height = 40  # Skip header row
+    
+    for row_idx, row_data in enumerate(rows):
+        row_y_center = row_data['y_center']
+        
+        # Skip header row
+        if row_y_center < header_height:
+            continue
+        
+        # Check if this row contains the begin_date
+        row_texts = row_data['texts']
+        row_text_combined = ' '.join(row_texts)
+        
+        # Normalize and check for match
+        row_text_normalized = date_utils.normalize_date(row_text_combined)
+        
+        if begin_date_normalized in row_text_normalized or begin_date_str in row_text_combined:
+            print(f"[TABLE_UTILS] ✓ Found matching date in row {row_idx}: '{row_text_combined}'")
+            
+            # Find the date column
+            date_bbox = find_date_bbox_in_row(
+                row_data, 
+                begin_date_str, 
+                begin_date_normalized, 
+                column_boundaries
+            )
+            
+            if date_bbox:
+                x1, y1, x2, y2 = date_bbox
+                click_x_local = (x1 + x2) // 2
+                click_y_local = (y1 + y2) // 2
+            else:
+                # Fallback: use row center
+                click_x_local = cropped_table.shape[1] // 2
+                click_y_local = row_y_center
+            
+            # Convert to screen coordinates
+            click_x = click_x_local + crop_x
+            click_y = click_y_local + crop_y
+            
+            print(f"[TABLE_UTILS] Click coordinates: local=({click_x_local}, {click_y_local}), "
+                  f"screen=({click_x}, {click_y})")
+            
+            return True, click_x, click_y, f"Date found in row {row_idx}"
+    
+    print(f"[TABLE_UTILS] ✗ Date '{begin_date}' not found in table")
+    return False, None, None, f"Date '{begin_date}' not found"

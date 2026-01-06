@@ -57,20 +57,26 @@ def type_text_in_field(
     """
     print(f"[FIELD_UTILS] Entering '{text_to_type}' into '{field_label}' field")
     
-    # Use default search region if not provided
+    # ============================================================================
+    # STEP 1: Setup search region
+    # ============================================================================
     if search_region is None:
         search_region = DEFAULT_SEARCH_REGION
     
     region_x, region_y, region_width, region_height = search_region
     
-    # Take screenshot and crop to search region
+    # ============================================================================
+    # STEP 2: Take screenshot and crop to search region
+    # ============================================================================
     cropped_image = take_screenshot_and_crop(search_region)
     if cropped_image is None:
         return False, "Failed to take screenshot and crop to search region"
     
     print(f"[FIELD_UTILS] Searching for '{field_label}' in region {search_region}")
     
-    # Find the field label text
+    # ============================================================================
+    # STEP 3: Find the field label text using OCR
+    # ============================================================================
     success, found, bbox = scanner.find_text_with_position(
         cropped_image,
         field_label,
@@ -80,7 +86,9 @@ def type_text_in_field(
     if not success or not found or bbox is None:
         return False, f"Could not determine exact position of '{field_label}' text in cropped image"
     
-    # Calculate field position (label position + offset)
+    # ============================================================================
+    # STEP 4: Calculate field position (label position + offset)
+    # ============================================================================
     cropped_text_x, cropped_text_y, text_width, text_height = bbox
     field_x = region_x + cropped_text_x
     field_y = region_y + cropped_text_y + text_height + field_spacing
@@ -88,26 +96,34 @@ def type_text_in_field(
     print(f"[FIELD_UTILS] ✓ '{field_label}' text found at ({field_x}, {field_y - field_spacing - text_height})")
     print(f"[FIELD_UTILS] Calculated field position: ({field_x}, {field_y}) - {field_spacing}px below '{field_label}' text")
     
-    # Click on the field
+    # ============================================================================
+    # STEP 5: Click on the field
+    # ============================================================================
     click_success, click_msg = actions.click_at_position(field_x, field_y)
     if not click_success:
         return False, f"Failed to click on {field_label} field: {click_msg}"
     
     time.sleep(0.5)
     
-    # Clear the field
+    # ============================================================================
+    # STEP 6: Clear the field
+    # ============================================================================
     clear_success, clear_msg = actions.clear_field()
     if not clear_success:
         print(f"[FIELD_UTILS] Warning: Failed to clear field: {clear_msg}")
     
     time.sleep(0.2)
     
-    # Type the text
+    # ============================================================================
+    # STEP 7: Type the text
+    # ============================================================================
     type_success, type_msg = actions.type_text(text_to_type, interval=typing_interval)
     if not type_success:
         return False, f"Failed to type {field_label} text: {type_msg}"
     
-    # Optionally press Enter
+    # ============================================================================
+    # STEP 8: Optionally press Enter
+    # ============================================================================
     if press_enter:
         time.sleep(0.2)
         enter_success, enter_msg = actions.press_key('enter', presses=1)

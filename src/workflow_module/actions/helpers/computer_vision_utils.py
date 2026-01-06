@@ -17,7 +17,7 @@ This module focuses on low-level CV operations that other modules can build upon
 import cv2
 import numpy as np
 import pyautogui
-from typing import Optional, Tuple, Dict
+from typing import Optional, Tuple, Dict, List
 from datetime import datetime
 from pathlib import Path
 
@@ -645,3 +645,344 @@ def detect_underline(image: np.ndarray,
     except Exception as e:
         print(f"[CV ERROR] Failed to detect underline: {e}")
         return False
+
+# ============================================================================
+# NEW FUNCTIONS FOR STEP 08 (Added 2026-01-06)
+# ============================================================================
+
+def detect_blue_highlighted_expanded_row(screenshot: np.ndarray, exclude_bottom_pixels: int = 100 ) -> Tuple[bool, Optional[Dict[str, int]]]:
+    """
+    Detect the blue highlighted expanded row in the first table.
+    
+    This function identifies an expanded row by detecting blue color regions.
+    The expanded row contains nested content (second table) inside it.
+    
+    Args:
+        screenshot: Current screenshot as numpy array
+        exclude_bottom_pixels: Number of pixels to exclude from bottom (taskbar area)
+        
+    Returns:
+        Tuple of (found: bool, row_info: Optional[Dict])
+        row_info contains: {'x': int, 'y': int, 'width': int, 'height': int}
+        
+    Example:
+        >>> screenshot = take_screenshot()
+        >>> found, info = detect_blue_highlighted_expanded_row(screenshot)
+        >>> if found:
+        ...     print(f"Blue row at ({info['x']}, {info['y']})")
+    """
+    print("[CV_UTILS] Detecting blue highlighted expanded row...")
+    
+    # Use existing find_blue_highlighted_row function
+    from src.workflow_module.actions.helpers.computer_vision_utils import find_blue_highlighted_row
+    
+    found, position, size = find_blue_highlighted_row(screenshot)
+    
+    if not found or position is None or size is None:
+        print("[CV_UTILS] ✗ Blue highlighted row not found")
+        return False, None
+    
+    x, y = position
+    width, height = size
+    
+    row_info = {
+        'x': x,
+        'y': y,
+        'width': width,
+        'height': height
+    }
+    
+    print(f"[CV_UTILS] ✓ Found blue row at ({x}, {y}) with size {width}x{height}")
+    
+    return True, row_info
+
+
+def calculate_crop_region_from_expanded_row(screenshot: np.ndarray,blue_row_info: Optional[Dict[str, int]]) -> Tuple[int, int, int, int]:
+    """
+    Calculate the crop region to capture ONLY the blue highlighted expanded row.
+    
+    The blue row is an expanded row that contains:
+    - First table row data (Network Code, Order #, etc.)
+    - Nested second table inside it (with Instruction, Begin Date, etc.)
+    
+    We crop to JUST the blue row boundaries to isolate it from other rows.
+    
+    Args:
+        screenshot: Current screenshot
+        blue_row_info: Information about the blue highlighted row
+                      Dict with keys: 'x', 'y', 'width', 'height'
+        
+    Returns:
+        Tuple of (crop_x, crop_y, crop_width, crop_height)
+        
+    Example:
+        >>> found, row_info = detect_blue_highlighted_expanded_row(screenshot)
+        >>> if found:
+        ...     x, y, w, h = calculate_crop_region_from_expanded_row(screenshot, row_info)
+        ...     cropped = screenshot[y:y+h, x:x+w]
+    """
+    print("[CV_UTILS] Calculating crop region for blue row area...")
+    
+    screen_height, screen_width = screenshot.shape[:2]
+    
+    # Crop to EXACTLY the blue row area (which contains the nested second table)
+    if blue_row_info:
+        crop_x = blue_row_info['x']
+        crop_y = blue_row_info['y']
+        crop_width = blue_row_info['width']
+        crop_height = blue_row_info['height']
+        print(f"[CV_UTILS] ✓ Using blue row exact dimensions:")
+        print(f"[CV_UTILS]   Position: x={crop_x}, y={crop_y}")
+        print(f"[CV_UTILS]   Size: w={crop_width}, h={crop_height}")
+    else:
+        # Fallback if blue row not detected
+        crop_x = 205
+        crop_y = 230
+        crop_width = 1500
+        crop_height = 200  # Reasonable default height for expanded row
+        print(f"[CV_UTILS] ⚠ Blue row not found, using defaults:")
+        print(f"[CV_UTILS]   Position: x={crop_x}, y={crop_y}")
+        print(f"[CV_UTILS]   Size: w={crop_width}, h={crop_height}")
+    
+    # Ensure crop region is within screen bounds
+    if crop_x + crop_width > screen_width:
+        crop_width = screen_width - crop_x
+        print(f"[CV_UTILS]   Adjusted width to {crop_width} (screen bounds)")
+    
+    if crop_y + crop_height > screen_height:
+        crop_height = screen_height - crop_y
+        print(f"[CV_UTILS]   Adjusted height to {crop_height} (screen bounds)")
+    
+    print(f"[CV_UTILS] Final crop region: x={crop_x}, y={crop_y}, w={crop_width}, h={crop_height}")
+    print(f"[CV_UTILS] This captures the expanded row with nested second table inside")
+    
+    return crop_x, crop_y, crop_width, crop_height
+
+def extract_table_with_column_splits(
+    screenshot: np.ndarray,
+    crop_x: int,
+    crop_y: int,
+    crop_width: int,
+    crop_height: int,
+    column_template_path: str,
+    match_threshold: float = 0.85
+) -> Tuple[Optional[np.ndarray], List[int]]:
+    """
+    Extract a table region and detect column boundaries using a template.
+    
+    This function:
+    1. Crops the specified region from the screenshot
+    2. Loads the column separator template
+    3. Finds all column separators
+    4. Calculates column boundaries
+    
+    Args:
+        screenshot: Current screenshot
+        crop_x, crop_y: Top-left coordinates of table region
+        crop_width, crop_height: Dimensions of table region
+        column_template_path: Path to column separator template image
+        match_threshold: Minimum confidence for template matching
+        
+    Returns:
+        Tuple of (cropped_table: np.ndarray, column_boundaries: List[int])
+        
+    Example:
+        >>> screenshot = take_screenshot()
+        >>> table, boundaries = extract_table_with_column_splits(
+        ...     screenshot, 205, 280, 1500, 200, 'column_template.png'
+        ... )
+        >>> print(f"Found {len(boundaries)} column boundaries")
+    """
+    from src.workflow_module.actions.helpers.computer_vision_utils import crop_image, load_image
+    from src.workflow_module.actions.helpers.table_utils import (
+        find_all_template_matches,
+        calculate_column_boundaries
+    )
+    
+    print("[CV_UTILS] Extracting table and detecting column splits...")
+    
+    # Validate crop dimensions
+    if crop_width <= 0 or crop_height <= 0:
+        print(f"[CV_UTILS] ✗ Invalid crop dimensions: {crop_width}x{crop_height}")
+        return None, []
+    
+    # Crop the table region
+    cropped_table = crop_image(screenshot, crop_x, crop_y, crop_width, crop_height)
+    
+    if cropped_table is None:
+        print(f"[CV_UTILS] ✗ Failed to crop table region")
+        return None, []
+    
+    print(f"[CV_UTILS] ✓ Cropped table: {crop_width}x{crop_height}")
+    
+    # Load column separator template
+    column_template = load_image(column_template_path)
+    
+    if column_template is None:
+        print(f"[CV_UTILS] ⚠ Column template not found, using empty boundaries")
+        return cropped_table, []
+    
+    template_height, template_width = column_template.shape[:2]
+    print(f"[CV_UTILS] Column template loaded: {template_width}x{template_height}")
+    
+    # Find all column separators
+    separator_matches = find_all_template_matches(
+        cropped_table,
+        column_template,
+        confidence=match_threshold,
+        min_distance=10
+    )
+    
+    print(f"[CV_UTILS] Found {len(separator_matches)} column separator(s)")
+    
+    # Calculate column boundaries
+    column_boundaries = calculate_column_boundaries(
+        separator_matches,
+        template_width,
+        crop_width
+    )
+    
+    print(f"[CV_UTILS] Calculated {len(column_boundaries)} column boundaries: {column_boundaries}")
+    
+    return cropped_table, column_boundaries
+
+def visualize_column_splits_in_table(
+    table_img: np.ndarray,
+    column_boundaries: List[int],
+    save_path: Optional[str] = None
+) -> np.ndarray:
+    """
+    Visualize column boundaries on a table image.
+    
+    Draws vertical lines at each column boundary with alternating colors.
+    
+    Args:
+        table_img: Table image to annotate
+        column_boundaries: List of column boundary x-coordinates
+        save_path: Optional path to save the annotated image
+        
+    Returns:
+        Annotated image with column boundaries drawn
+        
+    Example:
+        >>> table = cv2.imread('table.png')
+        >>> boundaries = [0, 100, 200, 300]
+        >>> annotated = visualize_column_splits_in_table(table, boundaries, 'output.png')
+    """
+    print(f"[CV_UTILS] Visualizing {len(column_boundaries)} column splits...")
+    
+    annotated = table_img.copy()
+    table_height = table_img.shape[0]
+    
+    # Define colors for alternating columns
+    colors = [
+        (255, 0, 0),    # Blue
+        (0, 255, 0),    # Green
+        (0, 0, 255),    # Red
+        (255, 255, 0),  # Cyan
+        (255, 0, 255),  # Magenta
+        (0, 255, 255),  # Yellow
+    ]
+    
+    # Draw vertical lines at each boundary
+    for i, x_pos in enumerate(column_boundaries):
+        color = colors[i % len(colors)]
+        cv2.line(annotated, (x_pos, 0), (x_pos, table_height), color, 2)
+        
+        # Add label at top
+        cv2.putText(
+            annotated,
+            f"Col {i}",
+            (x_pos + 5, 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            color,
+            1
+        )
+    
+    if save_path:
+        cv2.imwrite(save_path, annotated)
+        print(f"[CV_UTILS] ✓ Saved column visualization to {save_path}")
+    
+    return annotated
+
+def execute_double_click_at_position(
+    click_x: int,
+    click_y: int,
+    screenshot: np.ndarray,
+    save_path_before: Optional[str] = None,
+    save_path_after: Optional[str] = None
+) -> Tuple[bool, str]:
+    """
+    Execute a double-click at the specified screen coordinates.
+    
+    This function:
+    1. Visualizes the click position (optional)
+    2. Moves the mouse to the position
+    3. Performs a double-click
+    4. Captures the result (optional)
+    
+    Args:
+        click_x, click_y: Screen coordinates to click
+        screenshot: Current screenshot for visualization
+        save_path_before: Optional path to save annotated screenshot before click
+        save_path_after: Optional path to save screenshot after click
+        
+    Returns:
+        Tuple of (success: bool, message: str)
+        
+    Example:
+        >>> screenshot = take_screenshot()
+        >>> success, msg = execute_double_click_at_position(
+        ...     500, 300, screenshot, 'before.png', 'after.png'
+        ... )
+        >>> print(msg)
+    """
+    import pyautogui
+    import time
+    from src.workflow_module.actions.helpers.computer_vision_utils import take_screenshot
+    
+    print(f"[CV_UTILS] Executing double-click at ({click_x}, {click_y})...")
+    
+    # Visualize click position (if save path provided)
+    if save_path_before:
+        annotated = screenshot.copy()
+        # Draw crosshair
+        cv2.drawMarker(
+            annotated,
+            (click_x, click_y),
+            (0, 255, 0),  # Green
+            cv2.MARKER_CROSS,
+            30,
+            2
+        )
+        # Draw circle
+        cv2.circle(annotated, (click_x, click_y), 15, (0, 255, 0), 2)
+        # Add label
+        cv2.putText(
+            annotated,
+            f"Click: ({click_x}, {click_y})",
+            (click_x + 20, click_y - 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (0, 255, 0),
+            2
+        )
+        cv2.imwrite(save_path_before, annotated)
+        print(f"[CV_UTILS] Saved pre-click visualization to {save_path_before}")
+    
+    # Move mouse and double-click
+    pyautogui.moveTo(click_x, click_y, duration=0.2)
+    time.sleep(0.2)
+    pyautogui.doubleClick()
+    print(f"[CV_UTILS] ✓ Double-click executed at ({click_x}, {click_y})")
+    
+    # Wait and capture result (if save path provided)
+    if save_path_after:
+        time.sleep(0.5)
+        post_click_screenshot = take_screenshot()
+        if post_click_screenshot is not None:
+            cv2.imwrite(save_path_after, post_click_screenshot)
+            print(f"[CV_UTILS] Saved post-click screenshot to {save_path_after}")
+    
+    return True, f"Double-click completed at ({click_x}, {click_y})"
