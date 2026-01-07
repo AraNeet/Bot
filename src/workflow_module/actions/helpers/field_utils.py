@@ -7,6 +7,7 @@ field labels and calculating field positions with offsets.
 """
 
 from typing import Tuple, Optional
+import re
 from src.workflow_module.actions.helpers import actions
 from src.workflow_module.actions.helpers.computer_vision_utils import take_screenshot_and_crop
 from src.workflow_module.actions.helpers.ocr_utils import TextScanner
@@ -135,4 +136,49 @@ def type_text_in_field(
     success_msg = f"Successfully entered '{text_to_type}' into {field_label} field"
     print(f"[FIELD_UTILS] ✓ {success_msg}")
     return True, success_msg
+
+# ============================================================================
+# RESULTS COUNT EXTRACTION
+# ============================================================================
+
+def get_results_count() -> Optional[int]:
+    """
+    Extract the number of results from the results count region.
+    
+    Returns:
+        Number of results as integer, or None if failed to extract
+    """
+    try:
+        # Take screenshot and crop results region (x, y, width, height)
+        results_region = take_screenshot_and_crop((206, 225, 225, 25))
+        if results_region is None:
+            print("[GET_RESULTS] Failed to take screenshot and crop results region")
+            return None
+        
+        # OCR the region
+        success, data = scanner.get_text_data(results_region)
+        if not success or not data['text']:
+            print("[GET_RESULTS] OCR failed or no text found")
+            return None
+        
+        # Extract number from text
+        # Expected format could be like "30 results" or "Results: 30" etc.
+        all_text = ' '.join(data['text'])
+        print(f"[GET_RESULTS] OCR text from results region: '{all_text}'")
+        
+        # Extract all numbers from the text
+        numbers = re.findall(r'\d+', all_text)
+        
+        if numbers:
+            # Take the first number found
+            result_count = int(numbers[0])
+            print(f"[GET_RESULTS] Extracted result count: {result_count}")
+            return result_count
+        else:
+            print("[GET_RESULTS] No numbers found in results region")
+            return None
+            
+    except Exception as e:
+        print(f"[GET_RESULTS] Error extracting results count: {e}")
+        return None
 

@@ -4,19 +4,24 @@ Handler for: Select Row by Values
 """
 
 from typing import Tuple, Dict, Any, Optional
-from src.workflow_module.actions.helpers import actions
 from src.workflow_module.actions.helpers import computer_vision_utils
-from src.workflow_module.actions.helpers import table_utils
+from src.workflow_module.actions.helpers import field_utils
 from src.workflow_module.actions.helpers.ocr_utils import TextScanner
+# Import step 07 helpers (using importlib to handle numeric module name)
+import importlib.util
+import os
+helpers_path = os.path.join(os.path.dirname(__file__), '07_helpers.py')
+spec = importlib.util.spec_from_file_location("helpers_07", helpers_path)
+helpers = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(helpers)
 import time
 import pyautogui
-import os
 
 # Constants
 TABLE_CROP_X = 206
 TABLE_CROP_Y = 225
 TABLE_CROP_WIDTH = 1450
-TABLE_CROP_HEIGHT = 780
+TABLE_CROP_HEIGHT = 850
 SCROLLBAR_CHECK_REGION = (205, 225, 1450, 780)
 TARGET_REGION_Y = 225
 TARGET_REGION_HEIGHT = 250
@@ -50,7 +55,7 @@ def ensure_table_at_top(table_center_x, table_center_y):
         if scroll_num % 10 == 0:
             print(f"[ACTION_HANDLER] Table not at top, scrolling up (iteration {scroll_num})...")
             
-        table_utils.scroll_to_table_top(table_center_x, table_center_y, TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH)
+        helpers.scroll_to_table_top(table_center_x, table_center_y)
         
     if not at_top:
         print(f"[ACTION_HANDLER] Warning: Reached max scroll attempts ({max_scroll_attempts}), assuming at top")
@@ -79,7 +84,7 @@ def action(estimate_number: str = "", advertiser_name: str = "", begin_date: str
         return False, "Template load failed"
 
     # Step 3: Check results count
-    results_count = table_utils.get_results_count()
+    results_count = field_utils.get_results_count()
     should_scroll = True
     if results_count is not None and results_count <= 30:
         print(f"[ACTION_HANDLER] Results count ({results_count}) <= 30, will NOT scroll")
@@ -87,18 +92,17 @@ def action(estimate_number: str = "", advertiser_name: str = "", begin_date: str
 
     # Step 4: Search initial view
     print(f"[ACTION_HANDLER] Searching initial view...")
-    found, msg, match_info = table_utils.search_current_view(
+    found, msg, match_info = helpers.search_current_view(
         target_texts, estimate_number, TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH, TABLE_CROP_HEIGHT, 
         template, select_row=False
     )
     
     if found and match_info:
         print(f"[ACTION_HANDLER] ✓ Match found in initial view")
-        return table_utils.click_and_position_row(
+        return helpers.click_and_position_row(
             match_info, table_center_x, table_center_y,
-            TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH, TABLE_CROP_HEIGHT,
-            template, target_texts, estimate_number,
-            TARGET_REGION_Y, TARGET_REGION_HEIGHT
+            TARGET_REGION_Y, TARGET_REGION_HEIGHT,
+            TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH, TABLE_CROP_HEIGHT
         )
 
     if not should_scroll:
@@ -120,18 +124,17 @@ def action(estimate_number: str = "", advertiser_name: str = "", begin_date: str
             time.sleep(0.05)
         time.sleep(0.3)
         
-        found, msg, match_info = table_utils.search_current_view(
+        found, msg, match_info = helpers.search_current_view(
             target_texts, estimate_number, TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH, TABLE_CROP_HEIGHT,
             template, select_row=True
         )
         
         if found and match_info:
             print(f"[ACTION_HANDLER] ✓ Match found at scroll {scroll_attempt}")
-            return table_utils.click_and_position_row(
+            return helpers.click_and_position_row(
                 match_info, table_center_x, table_center_y,
-                TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH, TABLE_CROP_HEIGHT,
-                template, target_texts, estimate_number,
-                TARGET_REGION_Y, TARGET_REGION_HEIGHT
+                TARGET_REGION_Y, TARGET_REGION_HEIGHT,
+                TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH, TABLE_CROP_HEIGHT
             )
         
         if scroll_attempt % 5 == 0:

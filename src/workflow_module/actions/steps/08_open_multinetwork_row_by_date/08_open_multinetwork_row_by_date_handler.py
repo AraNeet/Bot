@@ -22,21 +22,27 @@ from typing import Tuple
 
 # Import helper modules
 from src.workflow_module.actions.helpers import computer_vision_utils
-from src.workflow_module.actions.helpers import table_utils
 from src.workflow_module.actions.helpers.debug_utils import Debugger
+# Import step 08 helpers (normal import with path manipulation for numeric module name)
+import importlib
+import sys
+helpers_dir = os.path.dirname(__file__)
+if helpers_dir not in sys.path:
+    sys.path.insert(0, helpers_dir)
+helpers = importlib.import_module('08_helpers')
+sys.path.remove(helpers_dir)
 
-
-def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[bool, str]:
+def action(begin_date: str = "", **kwargs) -> Tuple[bool, str]:
     """
     Find and double-click on a row in the nested second table by begin_date.
-    
+
     This is the main entry point for the handler. It orchestrates the entire process:
     1. Detect the expanded row (blue highlighted)
     2. Calculate crop region from blue row dimensions
     3. Extract and split columns (using templates)
     4. Search for matching date
     5. Execute double-click action
-    
+
     Args:
         begin_date: The date to search for in the table (e.g., "01/01/2024")
         estimate_number: Estimate number for reference (optional, not currently used)
@@ -76,7 +82,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         
         # Step 4: Detect blue highlighted expanded row
         print("[HANDLER] Step 4: Detecting blue highlighted expanded row...")
-        found_blue, blue_row_info = computer_vision_utils.detect_blue_highlighted_expanded_row(
+        found_blue, blue_row_info = helpers.detect_blue_highlighted_expanded_row(
             screenshot
         )
         
@@ -97,7 +103,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         # Step 6: Calculate crop region from blue row dimensions
         print("[HANDLER] Step 6: Calculating crop region...")
         crop_x, crop_y, crop_width, crop_height = \
-            computer_vision_utils.calculate_crop_region_from_expanded_row(
+            helpers.calculate_crop_region_from_expanded_row(
                 screenshot,
                 blue_row_info
             )
@@ -128,7 +134,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         )
         
         cropped_table, column_boundaries = \
-            table_utils.extract_table_with_column_splits(
+            helpers.extract_table_with_column_splits(
                 screenshot,
                 crop_x,
                 crop_y,
@@ -145,7 +151,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         
         # Step 10: Visualize column splits for debugging
         if column_boundaries:
-            annotated_table = computer_vision_utils.visualize_column_splits_in_table(
+            annotated_table = helpers.visualize_column_splits_in_table(
                 cropped_table,
                 column_boundaries
             )
@@ -154,7 +160,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         # Step 11: Search for matching date in table
         print("[HANDLER] Step 11: Searching for date in table...")
         found_date, click_x, click_y, search_message = \
-            table_utils.search_date_in_cropped_table(
+            helpers.search_date_in_cropped_table(
                 cropped_table,
                 column_boundaries,
                 begin_date,
@@ -182,7 +188,7 @@ def action(begin_date: str = "", estimate_number: str = "", **kwargs) -> Tuple[b
         print("[HANDLER] Step 13: Executing double-click...")
         save_path_before = os.path.join(debug.output_dir, "06_before_click.png")
         save_path_after = os.path.join(debug.output_dir, "07_after_click.png")
-        success, click_message = computer_vision_utils.execute_double_click_at_position(
+        success, click_message = helpers.execute_double_click_at_position(
             click_x,
             click_y,
             screenshot,

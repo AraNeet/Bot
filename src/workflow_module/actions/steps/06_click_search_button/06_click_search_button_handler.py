@@ -14,7 +14,7 @@ from src.workflow_module.actions.helpers import computer_vision_utils
 from src.workflow_module.actions.helpers.computer_vision_utils import take_screenshot_and_crop
 from src.workflow_module.actions.helpers.ocr_utils import TextScanner
 from src.workflow_module.actions.helpers.verification_utils import calculate_text_similarity, extract_string_from_text
-from src.workflow_module.actions.helpers.table_utils import get_results_count
+from src.workflow_module.actions.helpers.field_utils import get_results_count
 import time
 import cv2
 
