@@ -34,10 +34,6 @@ def action(**kwargs) -> Tuple[bool, str]:
     if cropped_image is None:
         return False, "Failed to take screenshot and crop to search region"
     
-    # Save debug image
-    debug_filename = f"search_button_search_region_{int(time.time())}.png"
-    cv2.imwrite(debug_filename, cropped_image)
-    
     # Step 2: Find search button via OCR
     success, found, bbox = scanner.find_text_with_position(cropped_image, "search", case_sensitive=False)
     if not success or not found or bbox is None:

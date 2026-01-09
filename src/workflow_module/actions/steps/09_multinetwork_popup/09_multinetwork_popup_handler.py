@@ -49,7 +49,7 @@ def wait_for_loading(max_wait_seconds=300):
              debugger.visualize_search_region(screenshot, region, "loading_search")
 
         template_found, _, _ = computer_vision_utils.find_template_in_region(
-            screenshot, template_path, region, confidence=0.4
+            screenshot, template_path, region, confidence=0.7
         )
         
         is_loading = circle_found or template_found
@@ -68,33 +68,73 @@ def action(**kwargs) -> Tuple[bool, str]:
     """Detect and handle the Multi-Network popup."""
     print("[ACTION_HANDLER] Checking for Multi-Network popup...")
     
-    # Step 1: Take initial screenshot
-    screenshot = computer_vision_utils.take_screenshot()
-    if screenshot is None: return False, "Failed to take screenshot"
-    debugger.save_image(screenshot, "01_initial.png")
+    # Step 1: Setup for detection
+    # We will try up to 3 times with a 2-second delay
+    max_attempts = 3
+    attempt_delay = 2
     
-    h, w = screenshot.shape[:2]
-    center_region = (int(w*0.2), int(h*0.2), int(w*0.6), int(h*0.6))
-    debugger.visualize_search_region(screenshot, center_region, "02_popup_search_region")
+    found = False
+    pos = None
+    cropped_screenshot = None
+    popup_template_path = None
+    template_size = (0, 0)
     
     handler_dir = os.path.dirname(os.path.abspath(__file__))
     popup_template_path = os.path.join(handler_dir, '09_MutliNetworkPopUp.png')
     
-    # Load template for debug info (size)
+    # Load template
     template_img = computer_vision_utils.load_image(popup_template_path)
-    template_size = (0, 0)
-    if template_img is not None:
-        template_size = (template_img.shape[1], template_img.shape[0])
+    if template_img is None:
+        return False, "Failed to load popup template"
+    template_size = (template_img.shape[1], template_img.shape[0])
+    
+    # Calculate center region based on screen size
+    screen_w, screen_h = pyautogui.size()
+    center_region = (int(screen_w*0.2), int(screen_h*0.2), int(screen_w*0.6), int(screen_h*0.6))
+    
+    # Step 2: Detection loop (Find popup template)
+    for attempt in range(max_attempts):
+        print(f"[ACTION_HANDLER] Detection attempt {attempt + 1}/{max_attempts}...")
+        
+        # Take cropped screenshot directly
+        cropped_screenshot = computer_vision_utils.take_screenshot_and_crop(center_region)
+        if cropped_screenshot is None: 
+            if attempt < max_attempts - 1:
+                time.sleep(attempt_delay)
+                continue
+            else:
+                return False, "Failed to take screenshot"
+                
+        # Save for debug
+        debugger.save_image(cropped_screenshot, f"01_initial_cropped_{attempt}.png")
+        
+        # Search in the cropped image (treating the whole crop as the region)
+        h_crop, w_crop = cropped_screenshot.shape[:2]
+        found, conf, pos_local = computer_vision_utils.match_template_in_region(
+            cropped_screenshot, template_img, (0, 0, w_crop, h_crop), confidence=0.7
+        )
+        
+        if found:
+            # Convert local position (relative to crop) to global position
+            global_x = center_region[0] + pos_local[0]
+            global_y = center_region[1] + pos_local[1]
+            pos = (global_x, global_y)
+            
+            print(f"[ACTION_HANDLER] Popup found on attempt {attempt + 1} with confidence {conf}")
+            
+            # Debug match on the cropped image
+            debugger.visualize_template_match(
+                cropped_screenshot, found, pos_local, template_size, 
+                "03_popup_match_cropped", confidence=conf
+            )
+            break
+            
+        if attempt < max_attempts - 1:
+            print(f"[ACTION_HANDLER] Popup not found, waiting {attempt_delay}s before retry...")
+            time.sleep(attempt_delay)
 
-    # Step 2: Find popup template
-    found, conf, pos = computer_vision_utils.find_template_in_region(
-        screenshot, popup_template_path, center_region, confidence=0.7
-    )
-    
-    debugger.visualize_template_match(screenshot, found, pos, template_size, "03_popup_match", confidence=conf if conf else 0.0)
-    
     if not found or not pos:
-        print("[ACTION_HANDLER] Popup not found. Checking for loading...")
+        print("[ACTION_HANDLER] Popup not found after retries. Checking for loading...")
         wait_for_loading(max_wait_seconds=10) # Short wait if we missed popup
         return True, "Popup not found, assuming flow can proceed"
 
@@ -104,76 +144,63 @@ def action(**kwargs) -> Tuple[bool, str]:
     # Step 3: Locate button via OCR around popup center
     # Define search area around popup center
     search_w, search_h = 400, 200
-    search_x = max(0, popup_x - search_w // 2)
-    search_y = max(0, popup_y - search_h // 2)
+    search_x_global = max(0, popup_x - search_w // 2)
+    search_y_global = max(0, popup_y - search_h // 2)
     
-    popup_crop = computer_vision_utils.crop_image(screenshot, search_x, search_y, search_w, search_h)
-    debugger.save_image(popup_crop, "04_popup_crop_for_ocr.png")
+    # Convert global search coordinates to local crop coordinates
+    search_x_local = search_x_global - center_region[0]
+    search_y_local = search_y_global - center_region[1]
     
-    scanner = ocr_utils.TextScanner()
-    success, ocr_data = scanner.get_text_data(popup_crop)
+    # Crop from the already captured cropped_screenshot
+    popup_crop = computer_vision_utils.crop_image(
+        cropped_screenshot, search_x_local, search_y_local, search_w, search_h
+    )
     
-    # Visualize OCR results
-    debugger.visualize_ocr(popup_crop, ocr_data, "05_popup_ocr_results", highlight_text="open")
+    if popup_crop is None:
+        print("[ACTION_HANDLER] Failed to crop OCR region from screenshot. Taking new full screenshot.")
+        # Fallback to full screenshot if the crop was out of bounds of our center region capture
+        full_screenshot = computer_vision_utils.take_screenshot()
+        if full_screenshot is not None:
+             popup_crop = computer_vision_utils.crop_image(full_screenshot, search_x_global, search_y_global, search_w, search_h)
+    
+    if popup_crop is not None:
+        debugger.save_image(popup_crop, "04_popup_crop_for_ocr.png")
+        
+        scanner = ocr_utils.TextScanner()
+        success, ocr_data = scanner.get_text_data(popup_crop)
+        
+        # Visualize OCR results
+        debugger.visualize_ocr(popup_crop, ocr_data, "05_popup_ocr_results", highlight_text="open")
+    else:
+        success, ocr_data = False, None
+        print("[ACTION_HANDLER] Failed to get OCR crop.")
 
     click_x, click_y = popup_x, popup_y + 70 # Default fallback offset
     
     if success and ocr_data and ocr_data.get('text'):
-        best_match_idx = -1
-        best_score = 0
-        
+        found_button = False
         for i, text in enumerate(ocr_data['text']):
-            text_lower = text.lower()
-            
-            # Score matches to ensure we pick "Multi-Network" over "Single Network"
-            # We want to strictly find "Multi"
-            score = 0
-            
-            # Check for "multi" (essential)
-            if "multi" in text_lower:
-                score += 2
-            
-            # Check for "network"
-            if "network" in text_lower:
-                score += 1
+            if "multi" in text.lower() and "open" in text.lower():
+                bbox = ocr_data['bbox'][i]
+                cx = (bbox[0] + bbox[2]) // 2
+                cy = (bbox[1] + bbox[3]) // 2
                 
-            # Check for "open"
-            if "open" in text_lower:
-                score += 1
-                
-            # Penalize "single" to be absolutely sure
-            if "single" in text_lower:
-                score = 0
-            
-            # We only want matches that definitely have "multi"
-            if score >= 2:  # Must at least have "multi"
-                 if score > best_score:
-                    best_score = score
-                    best_match_idx = i
-                 # If scores are equal, prefer longer text (likely the full sentence)
-                 elif score == best_score:
-                    if len(text) > len(ocr_data['text'][best_match_idx]):
-                        best_match_idx = i
+                # Calculate global click position
+                click_x = search_x_global + cx
+                click_y = search_y_global + cy
+                print(f"[ACTION_HANDLER] OCR found button: {text}")
+                found_button = True
+                break
         
-        if best_match_idx >= 0:
-            bbox = ocr_data['bbox'][best_match_idx]
-            # center relative to crop
-            cx = (bbox[0] + bbox[2]) // 2
-            cy = (bbox[1] + bbox[3]) // 2
-            click_x = search_x + cx
-            click_y = search_y + cy
-            print(f"[ACTION_HANDLER] OCR found button: {ocr_data['text'][best_match_idx]}")
-        else:
-            print("[ACTION_HANDLER] WARNING: Could not find 'Multi-Network' text. Using fallback position.")
+        if not found_button:
+            print("[ACTION_HANDLER] WARNING: Could not find 'Open... Multi...' text. Using fallback position.")
 
     print(f"[ACTION_HANDLER] Clicking at ({click_x}, {click_y})")
     
     # Step 4: Click button
-    # Visualize click point
-    debug_click = screenshot.copy()
-    debugger.draw_point(debug_click, (click_x, click_y), color=(0, 0, 255), radius=10, label="Click")
-    debugger.save_image(debug_click, "06_click_point.png")
-
+    # Visualization might be tricky without full screenshot, skipping click point visualization on full screen
+    # or we can visualize on the cropped screenshot if it's within bounds
+    
     actions.click_at_position(click_x, click_y)
     
     return True, "Handled Multi-Network popup"

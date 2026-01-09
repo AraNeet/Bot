@@ -124,53 +124,6 @@ class TextScanner:
             print(f"[OCR ERROR] {error_msg}")
             return False, error_msg
 
-    def find_text(self, image: np.ndarray, 
-                  search_text: str,
-                  case_sensitive: bool = False) -> Tuple[bool, bool]:
-        """
-        Search for specific text in an image using PaddleOCR.
-        
-        Args:
-            image: Input image as numpy array
-            search_text: Text to search for
-            case_sensitive: Whether search should be case-sensitive
-            preprocess: Whether to preprocess image before OCR
-            
-        Returns:
-            Tuple of (success: bool, found: bool)
-            - success: Whether OCR extraction succeeded
-            - found: Whether the search text was found
-            
-        Example:
-            success, found = scanner.find_text(screenshot, "Submit")
-            if success and found:
-                print("Submit button found!")
-        """
-        try:
-            # Extract all text first
-            success, extracted_text = self.extract_text(image)
-            
-            if not success:
-                return False, False
-            
-            # Search for the text
-            search_lower = search_text.lower() if not case_sensitive else search_text
-            text_lower = extracted_text.lower() if not case_sensitive else extracted_text
-            
-            found = search_lower in text_lower
-            
-            if found:
-                print(f"[OCR] ✓ Found text: '{search_text}'")
-            else:
-                print(f"[OCR] ✗ Text not found: '{search_text}'")
-            
-            return True, found
-            
-        except Exception as e:
-            error_msg = f"Text search failed: {e}"
-            print(f"[OCR ERROR] {error_msg}")
-            return False, False
-
     def get_text_data(self, image: np.ndarray) -> Tuple[bool, Any]:
         """
         Get detailed OCR data including text positions using PaddleOCR.
@@ -315,72 +268,6 @@ class TextScanner:
             print(f"[OCR ERROR] {error_msg}")
             return False, False, None
         
-
-def find_topmost_text_position(search_text: str,
-                               region_image: np.ndarray,
-                               region_offset_x: int,
-                               region_offset_y: int) -> Tuple[bool, Optional[int]]:
-    """
-    Find the top-most occurrence of search text within a region and return its Y position.
-    
-    This is useful for finding reference points like estimate numbers to determine
-    crop boundaries. Returns the Y position in global screen coordinates.
-    
-    Args:
-        search_text: Text to search for (e.g., estimate number)
-        region_image: Cropped region image to search within
-        region_offset_x: X offset of region in global coordinates
-        region_offset_y: Y offset of region in global coordinates
-        
-    Returns:
-        Tuple of (found: bool, y_position: Optional[int])
-        - found: Whether the text was found
-        - y_position: Global Y coordinate of top-most occurrence, or None if not found
-        
-    Example:
-        # Search for estimate number in blue row region
-        search_region = screenshot[blue_y:blue_y+blue_h, blue_x:blue_x+blue_w]
-        found, y_pos = find_topmost_text_position(
-            "12345", search_region, blue_x, blue_y
-        )
-        if found:
-            print(f"Estimate number Y position: {y_pos}")
-    """
-    try:
-        scanner = TextScanner()
-        success, data = scanner.get_text_data(region_image)
-        
-        if not success or not data['text']:
-            print(f"[OCR] No text data extracted from region")
-            return False, None
-        
-        search_text_str = str(search_text)
-        print(f"[OCR] Searching for '{search_text_str}' in {len(data['text'])} text elements")
-        
-        # Find all occurrences and choose the top-most (smallest Y), then left-most if tied
-        best_local_bbox = None  # (x1, y1, x2, y2)
-        
-        for i, text in enumerate(data['text']):
-            if text and search_text_str in text:
-                x1, y1, x2, y2 = map(int, data['bbox'][i])
-                
-                # Choose top-most (smallest y1), or left-most if same y1
-                if best_local_bbox is None or y1 < best_local_bbox[1] or \
-                   (y1 == best_local_bbox[1] and x1 < best_local_bbox[0]):
-                    best_local_bbox = (x1, y1, x2, y2)
-        
-        if best_local_bbox is not None:
-            # Convert to global coordinates
-            global_y = region_offset_y + best_local_bbox[1]
-            print(f"[OCR] ✓ Found top-most '{search_text_str}' at global Y={global_y} (local bbox={best_local_bbox})")
-            return True, global_y
-        else:
-            print(f"[OCR] Text '{search_text_str}' not found in region")
-            return False, None
-            
-    except Exception as e:
-        print(f"[OCR ERROR] Error finding text position: {e}")
-        return False, None
 
 def match_text_positions(target_texts: List[str], data: Dict[str, List]) -> List[Tuple[int, int, int, int]]:
     """
