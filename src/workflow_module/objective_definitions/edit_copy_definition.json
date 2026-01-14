@@ -67,10 +67,13 @@
                 "parameters": {}
             },
             {
-                "action_type": "type_isci_code",
-                "description": "Enter ISCI 1 value",
+                "action_type": "edit_definition",
+                "description": "Edit definition details including Begin Date and Comments",
                 "parameters": {
-                    "isci_1": ""
+                    "begin_date": "",
+                    "end_date": "",
+                    "revision_number": "",
+                    "agent_name": ""
                 }
             },
             {

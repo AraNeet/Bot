@@ -194,12 +194,14 @@ def _parse_new_format(objectives: Dict[str, Any], config: Dict[str, Any]) -> Tup
     """
     alerts = objectives.get("alerts", [])
     agency = objectives.get("agency", "")
+    revision_number = objectives.get("revision_number", "")
     
     if not alerts:
         return False, "No alerts found in objectives file"
     
     print(f"\n[PARSER] Found {len(alerts)} alert(s)")
     print(f"[PARSER] Agency: {agency}")
+    print(f"[PARSER] Revision Number: {revision_number}")
     
     supported_objectives = []
     objectives_config = config.get("objectives", {})
@@ -269,7 +271,11 @@ def _parse_new_format(objectives: Dict[str, Any], config: Dict[str, Any]) -> Tup
                 # Note: estimate_number uses order_id from alert level
                 # isci_1 extracted from first copy_instruction's copy_id if available
                 "estimate_number": estimate_number_value,  # Use order_id as estimate_number
-                "isci_1": isci_1_value
+                "isci_1": isci_1_value,
+                "revision_number": revision_number,
+                "agent_name": "test agent",
+                "valid_flight_start": flight_start_date,
+                "valid_flight_end": flight_end_date
             }
             
             # Check requirements

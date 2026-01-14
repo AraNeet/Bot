@@ -129,7 +129,6 @@ def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> 
     
     return False, f"Failed to click search button after {max_attempts} attempts"
 
-# All helper functions have been moved to helpers/verification_utils.py
 
 
 

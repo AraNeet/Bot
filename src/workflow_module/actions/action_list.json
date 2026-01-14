@@ -59,9 +59,9 @@
     "has_verifier": true,
     "has_error_handler": true
   },
-  "type_isci_code": {
-    "module": "src.workflow_module.actions.steps.11_type_isci_code.11_type_isci_code_handler",
-    "description": "Enter ISCI code into the field",
+  "edit_definition": {
+    "module": "src.workflow_module.actions.steps.11_edit_definition.11_edit_definition_handler",
+    "description": "Edit definition details including Begin Date and Comments",
     "has_verifier": true,
     "has_error_handler": true
   },

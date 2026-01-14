@@ -25,9 +25,13 @@
                     "type": "number",
                     "description": "Estimate Number"
                 },
-                "isci_1": {
+                "revision_number": {
+                    "type": "number",
+                    "description": "Revision Number"
+                },
+                "agent_name": {
                     "type": "string",
-                    "description": "Isci 1 code"
+                    "description": "Name of the agent"
                 }
             },
             "optional_fields": {}
