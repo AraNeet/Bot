@@ -77,6 +77,13 @@
                 }
             },
             {
+                "action_type": "edit_media_details",
+                "description": "Edit Media Details - delete existing ISCI entries and enter new ones",
+                "parameters": {
+                    "isci_list": []
+                }
+            },
+            {
                 "action_type": "save_instruction",
                 "description": "Save the edited instruction",
                 "parameters": {}

@@ -34,7 +34,13 @@
                     "description": "Name of the agent"
                 }
             },
-            "optional_fields": {}
+            "optional_fields": {
+                "isci_list": {
+                    "type": "string",
+                    "description": "Isci List code",
+                    "default": []
+                }
+            }
         }
     }
 }

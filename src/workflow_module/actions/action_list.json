@@ -65,6 +65,12 @@
     "has_verifier": true,
     "has_error_handler": true
   },
+  "edit_media_details": {
+    "module": "src.workflow_module.actions.steps.12_edit_media_details.12_edit_media_details_handler",
+    "description": "Edit Media Details - delete existing ISCI entries and enter new ones",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
   "save_instruction": {
     "module": "src.workflow_module.actions.steps.12_save_instruction.12_save_instruction_handler",
     "description": "Save the edited instruction",

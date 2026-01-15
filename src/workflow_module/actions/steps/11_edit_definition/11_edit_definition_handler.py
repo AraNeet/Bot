@@ -96,18 +96,13 @@ def action(begin_date: str = "", end_date: str = "", revision_number: str = "", 
     original_comment = helpers.extract_field_value(screenshot, comment_pos, field_type="comment")
     print(f"[ACTION_HANDLER] Original comment: '{original_comment}'")
     
-    # Update comment: double-click, copy, paste, then append
+    # Update comment: click to focus, move to END, then append new text
     actions.click_at_position(*comment_pos)
-    time.sleep(0.2)
-    actions.click_at_position(*comment_pos, clicks=2)
-    time.sleep(0.2)
+    time.sleep(0.3)
     
-    with pyautogui.hold('ctrl'):
-        pyautogui.press('c')
-    time.sleep(0.1)
-    with pyautogui.hold('ctrl'):
-        pyautogui.press('v')
-    time.sleep(0.1)
+    # Press End key to move cursor to end of the text
+    pyautogui.press('end')
+    time.sleep(0.2)
     
     if not agent_name:
         agent_name = "test agent"

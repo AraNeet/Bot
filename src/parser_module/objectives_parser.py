@@ -259,9 +259,12 @@ def _parse_new_format(objectives: Dict[str, Any], config: Dict[str, Any]) -> Tup
             # Extract isci_1 from first copy_instruction if available
             # The copy_id in copy_instructions might be the ISCI code
             isci_1_value = ""
+            isci_list = []
             if copy_instructions and len(copy_instructions) > 0:
                 first_copy = copy_instructions[0]
                 isci_1_value = first_copy.get("copy_id", "")
+                # Extract all ISCI values as a list for edit_media_details
+                isci_list = [copy.get("copy_id", "") for copy in copy_instructions if copy.get("copy_id")]
             
             mapped_values = {
                 "agency_name": agency,
@@ -272,6 +275,7 @@ def _parse_new_format(objectives: Dict[str, Any], config: Dict[str, Any]) -> Tup
                 # isci_1 extracted from first copy_instruction's copy_id if available
                 "estimate_number": estimate_number_value,  # Use order_id as estimate_number
                 "isci_1": isci_1_value,
+                "isci_list": isci_list,  # List of all ISCI values for edit_media_details
                 "revision_number": revision_number,
                 "agent_name": "test agent",
                 "valid_flight_start": flight_start_date,
