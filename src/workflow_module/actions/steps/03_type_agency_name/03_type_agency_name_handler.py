@@ -61,20 +61,24 @@ def verifier(agency_name: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[
     """
     print(f"[VERIFIER_HANDLER] Verifying agency name entered: '{agency_name}'")
     
+    # Step 1: Handle empty agency name
     if not agency_name:
         return True, "No agency name to verify", None
     
+    # Step 2: Take screenshot for verification
     screenshot = computer_vision_utils.take_screenshot()
     if screenshot is None:
         return False, "Failed to take screenshot for verification", None
     
+    # Step 3: Define region to check for Name search dialog popup
     name_dialog_region = (65, 25, 1217, 383)
     print(f"[VERIFIER_HANDLER] Checking for Name search dialog in region {name_dialog_region}")
     
-    # Get the directory where this handler file is located
+    # Step 4: Get the close button template path
     handler_dir = os.path.dirname(os.path.abspath(__file__))
     close_button_path = os.path.join(handler_dir, '03_close_name_pop_up.png')
     
+    # Step 5: Search for the Name search dialog close button
     close_button_found, close_confidence, close_position = computer_vision_utils.find_template_in_region(
         screenshot,
         close_button_path,
@@ -82,6 +86,7 @@ def verifier(agency_name: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[
         confidence=0.8
     )
     
+    # Step 6: If dialog found, close it and trigger retry
     if close_button_found and close_position:
         print(f"[VERIFIER_HANDLER] ✓ Name search dialog found (confidence: {close_confidence:.2f}), closing it...")
         click_x, click_y = close_position
@@ -96,15 +101,16 @@ def verifier(agency_name: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[
     
     print(f"[VERIFIER_HANDLER] No Name search dialog found (confidence: {close_confidence:.2f}), proceeding with verification")
     
+    # Step 7: Define field region and crop screenshot
     field_region = (668, 180, 130, 40)
     cropped_image = take_screenshot_and_crop(field_region)
     if cropped_image is None:
         return False, "Failed to crop image to agency field region", None
     
-    # Check for underline - primary verification method
+    # Step 8: Check for underline (primary verification method)
     has_underline = computer_vision_utils.detect_underline(cropped_image)
     
-    # Perform OCR for logging/debugging purposes
+    # Step 9: Perform OCR for logging/debugging purposes
     success, extracted_text = scanner.extract_text(cropped_image)
     extracted_agency = extract_string_from_text(extracted_text, agency_name) if success else None
     
@@ -112,6 +118,7 @@ def verifier(agency_name: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[
     print(f"[VERIFIER_HANDLER] Extracted agency name: '{extracted_agency}'")
     print(f"[VERIFIER_HANDLER] Underline detected: {has_underline}")
     
+    # Step 10: Build verification data dictionary
     verification_data = {
         "expected_text": agency_name,
         "extracted_text": extracted_text,
@@ -120,6 +127,7 @@ def verifier(agency_name: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[
         "field_region": field_region
     }
     
+    # Step 11: Return result based on underline detection
     if has_underline:
         success_msg = f"✓ Agency name verified (Underline detected)"
         print(f"[VERIFIER_HANDLER] {success_msg}")

@@ -26,22 +26,25 @@ def calculate_text_similarity(text1: str, text2: str) -> float:
         Similarity score between 0.0 and 1.0
     """
     try:
+        # Step 1: Handle empty strings
         if not text1 or not text2:
             return 0.0
         
-        # Remove spaces and special characters for comparison
+        # Step 2: Clean strings - remove spaces and special characters, lowercase
         clean1 = ''.join(c.lower() for c in text1 if c.isalnum())
         clean2 = ''.join(c.lower() for c in text2 if c.isalnum())
         
+        # Step 3: Handle empty cleaned strings
         if not clean1 or not clean2:
             return 0.0
         
-        # Simple character overlap calculation
+        # Step 4: Calculate character overlap similarity
         matches = sum(1 for c in clean1 if c in clean2)
         similarity = matches / max(len(clean1), len(clean2))
         return similarity
         
     except Exception as e:
+        # Step 5: Handle errors
         print(f"[VERIFICATION_UTILS ERROR] Error calculating text similarity: {e}")
         return 0.0
 

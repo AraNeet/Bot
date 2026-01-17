@@ -48,13 +48,12 @@ def load_instruction_file(objective_type: str,
         }
     }
     """
-
-    # Construct file path
+    # Step 1: Construct the file path from objective type
     json_file = Path(actions_dir) / f"{objective_type}.json"
     
     print(f"[LOADER] Loading instruction file: {json_file}")
     
-    # Check if file exists
+    # Step 2: Check if file exists
     if not json_file.exists():
         error_msg = f"Instruction file not found: {json_file}"
         print(f"[LOADER ERROR] {error_msg}")
@@ -62,6 +61,7 @@ def load_instruction_file(objective_type: str,
                     {"objective_type": objective_type})
         return False, error_msg
     
+    # Step 3: Read and parse JSON file
     try:
         with open(json_file, 'r', encoding='utf-8') as f:
             instruction_data = json.load(f)
@@ -69,13 +69,15 @@ def load_instruction_file(objective_type: str,
         print(f"[LOADER SUCCESS] Instruction file loaded successfully")
         return True, instruction_data
         
+    # Step 4: Handle JSON parsing errors
     except json.JSONDecodeError as e:
         error_msg = f"Invalid JSON in instruction file: {e}"
         print(f"[LOADER ERROR] {error_msg}")
         notify_error(error_msg, "instruction_loader.load_instruction_file",
                     {"objective_type": objective_type, "file": str(json_file)})
         return False, error_msg
-        
+    
+    # Step 5: Handle other file reading errors
     except Exception as e:
         error_msg = f"Error reading instruction file: {e}"
         print(f"[LOADER ERROR] {error_msg}")
@@ -98,8 +100,7 @@ def extract_instructions_list(instruction_data: Dict[str, Any],
     Returns:
         Tuple of (success: bool, instructions_list or error_message)
     """
-
-    # Validate JSON has "definitions" key
+    # Step 1: Validate JSON has "definitions" key
     if "definitions" not in instruction_data:
         error_msg = "Definition file missing 'definitions' key"
         print(f"[LOADER ERROR] {error_msg}")
@@ -107,7 +108,7 @@ def extract_instructions_list(instruction_data: Dict[str, Any],
     
     definitions_dict = instruction_data["definitions"]
     
-    # Validate objective type exists in definitions
+    # Step 2: Validate objective type exists in definitions
     if objective_type not in definitions_dict:
         error_msg = f"No definition found for objective type: {objective_type}"
         print(f"[LOADER ERROR] {error_msg}")
@@ -115,12 +116,13 @@ def extract_instructions_list(instruction_data: Dict[str, Any],
     
     instructions_list = definitions_dict[objective_type]
     
-    # Validate it's a list
+    # Step 3: Validate the extracted value is a list
     if not isinstance(instructions_list, list):
         error_msg = f"Definition must be a list, got: {type(instructions_list)}"
         print(f"[LOADER ERROR] {error_msg}")
         return False, error_msg
     
+    # Step 4: Return the instructions list
     print(f"[LOADER] Extracted {len(instructions_list)} instruction steps")
     return True, instructions_list
 
@@ -192,16 +194,17 @@ def extract_and_organize_values(objective_values: Dict[str, Any]) -> Tuple[bool,
         {}
     )
     """
+    # Step 1: Initialize empty dictionaries for required and optional values
     required_values: dict[str, Any] = {}
     optional_values: dict[str, Any] = {}
 
-    # Check if we have the new format with required/optional keys
+    # Step 2: Check for new format with required/optional keys
     if "required" in objective_values and "optional" in objective_values:
         print("[LOADER] Detected new format with required/optional keys")
         required_values = objective_values.get("required", {})
         optional_values = objective_values.get("optional", {})
         
-        # Check if required values are actually present and not empty
+        # Step 2a: Validate required values are not empty
         if not required_values:
             print("[LOADER ERROR] Required values are empty")
             return False, {}, {}
@@ -212,16 +215,14 @@ def extract_and_organize_values(objective_values: Dict[str, Any]) -> Tuple[bool,
         
         return True, required_values, optional_values
     
-    # Check if we have the flat format (new parser output or legacy format)
+    # Step 3: Check for flat format (new parser output or legacy format)
     elif "required" not in objective_values and "optional" not in objective_values:
         print("[LOADER] Detected flat format (new parser format or legacy)")
-        # Treat all values as required in flat format
-        # This handles both:
-        # - New parser output from alerts JSON (flat mapped_values)
-        # - Legacy objectives file format (flat structure)
+        # Step 3a: Treat all values as required in flat format
         required_values = objective_values.copy()
         optional_values = {}
         
+        # Step 3b: Validate at least some values exist
         if not required_values:
             print("[LOADER ERROR] No values found in flat format")
             return False, {}, {}
@@ -229,7 +230,7 @@ def extract_and_organize_values(objective_values: Dict[str, Any]) -> Tuple[bool,
         print(f"[LOADER] Found {len(required_values)} values (flat format - all treated as required)")
         return True, required_values, optional_values
     
-    # Invalid format - missing required key
+    # Step 4: Handle invalid format (missing 'required' key)
     else:
         print("[LOADER ERROR] Invalid format - missing 'required' key")
         return False, {}, {}
@@ -266,30 +267,31 @@ def merge_values_into_instructions(instructions_list: List[Dict[str, Any]],
             "parameters": {"advertiser_name": "Acme Corp"}
         }
     """
-    # Combine required and optional values for easy lookup
+    # Step 1: Combine required and optional values into single lookup dictionary
     all_values = {**required_values, **optional_values}
     
     merged_instructions = []
     
+    # Step 2: Iterate through each instruction template
     for instruction in instructions_list:
-        # Create a copy to avoid modifying the original
+        # Step 2a: Create a copy to avoid modifying the original
         merged_instruction = instruction.copy()
         template_params = merged_instruction.get("parameters", {}).copy()
         
-        # Fill in each parameter with matching value
+        # Step 2b: Fill in each parameter with matching value from all_values
         for param_key in template_params.keys():
-            # Check if we have a value for this parameter
             if param_key in all_values:
                 template_params[param_key] = all_values[param_key]
                 print(f"[LOADER] Merged '{param_key}' = '{all_values[param_key]}'")
             else:
-                # Parameter remains empty (will be handled by unified_executor)
+                # Step 2c: Parameter remains empty (will be handled by unified_executor)
                 print(f"[LOADER] Parameter '{param_key}' left empty (not in values)")
         
-        # Update the instruction with filled parameters
+        # Step 2d: Update the instruction with filled parameters
         merged_instruction["parameters"] = template_params
         merged_instructions.append(merged_instruction)
     
+    # Step 3: Return the merged instructions list
     print(f"[LOADER] Merged values into {len(merged_instructions)} instructions")
     return merged_instructions
 
@@ -325,29 +327,29 @@ def load_objective_data(objective_type: str,
     """
     print(f"\n[LOADER] Starting load process for objective: {objective_type}")
     
-    # Step 1: Load instruction file
+    # Step 1: Load instruction definition JSON file
     success, file_data = load_instruction_file(objective_type, actions_dir)
     if not success:
         return False, file_data  # file_data contains error message
     
-    # Step 2: Extract instructions list
+    # Step 2: Extract instructions list from loaded JSON
     success, instructions_list = extract_instructions_list(file_data, objective_type)
     if not success:
         return False, instructions_list  # Contains error message
     
-    # Step 3: Extract and organize required/optional values
+    # Step 3: Extract and organize required/optional values from objective data
     success, required_values, optional_values = extract_and_organize_values(objective_values)
     if not success:
         return False, "Failed to get or Missing required values"
     
-    # Step 4: Merge values into instruction parameters
+    # Step 4: Merge values into instruction parameters (fill templates with actual values)
     merged_instructions = merge_values_into_instructions(
         instructions_list,
         required_values,
         optional_values
     )
     
-    # Step 5: Build organized data structure
+    # Step 5: Build and return organized data structure
     loaded_data = {
         "objective_type": objective_type,
         "instructions": merged_instructions,  # Now with filled parameters!

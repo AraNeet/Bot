@@ -35,39 +35,39 @@ def action(isci_list: List[str] = None, **kwargs) -> Tuple[bool, str]:
     """
     print(f"[ACTION_HANDLER] Starting Step 12: Edit Media Details")
     
+    # Step 1: Initialize ISCI list (handle None and string cases)
     if isci_list is None:
         isci_list = []
     
-    # Handle case where isci_list might be passed as a string
     if isinstance(isci_list, str):
         isci_list = [isci_list] if isci_list else []
     
     print(f"  ISCI values to enter: {isci_list}")
     
-    # Initialize debugger
+    # Step 2: Initialize debugger
     debug = Debugger(action_name="action_12_edit_media_details")
     
-    # 1. Take initial screenshot
+    # Step 3: Take initial screenshot
     screenshot = computer_vision_utils.take_screenshot()
     if screenshot is None:
         return False, "Failed to take screenshot"
     debug.save_image(screenshot, "00_initial_screenshot.png")
     
-    # 2. Scroll to Media Details sub-window
+    # Step 4: Scroll to Media Details sub-window
     print("[ACTION_HANDLER] Scrolling to Media Details...")
     success, msg = helpers.scroll_to_media_details(debug)
     if not success:
         print(f"[ACTION_HANDLER] Warning: {msg}")
         # Continue anyway - Media Details might already be visible
     
-    # 3. Delete all existing media entries
+    # Step 5: Delete all existing media entries
     print("[ACTION_HANDLER] Deleting existing media entries...")
     success, msg, deleted_count = helpers.delete_all_existing_media(debug)
     if not success:
         return False, f"Failed to delete existing media: {msg}"
     print(f"[ACTION_HANDLER] Deleted {deleted_count} existing entries")
     
-    # 4. Enter new ISCI values
+    # Step 6: Enter new ISCI values
     if isci_list:
         print(f"[ACTION_HANDLER] Entering {len(isci_list)} new ISCI values...")
         success, msg, entered_count = helpers.enter_all_isci_values(isci_list, debug)
@@ -77,7 +77,7 @@ def action(isci_list: List[str] = None, **kwargs) -> Tuple[bool, str]:
     else:
         print("[ACTION_HANDLER] No ISCI values to enter")
     
-    # 5. Take final screenshot
+    # Step 7: Take final screenshot
     screenshot_after = computer_vision_utils.take_screenshot()
     if screenshot_after is not None:
         debug.save_image(screenshot_after, "99_final_screenshot.png")
@@ -96,26 +96,31 @@ def verifier(isci_list: List[str] = None, **kwargs) -> Tuple[bool, str, Optional
     """
     print("[VERIFIER_HANDLER] Starting verification...")
     
+    # Step 1: Initialize ISCI list (handle None and string cases)
     if isci_list is None:
         isci_list = []
     
     if isinstance(isci_list, str):
         isci_list = [isci_list] if isci_list else []
     
+    # Step 2: Handle empty ISCI list
     if not isci_list:
         return True, "No ISCI values to verify", {"verified": True, "count": 0}
     
+    # Step 3: Initialize debugger
     debug = Debugger(action_name="action_12_verification")
     
-    # Verify all ISCI entries
+    # Step 4: Verify all ISCI entries
     success, msg, results = helpers.verify_isci_entries(isci_list, debug)
     
+    # Step 5: Build verification data
     verification_data = {
         "verified": success,
         "expected_count": len(isci_list),
         "results": results
     }
     
+    # Step 6: Return verification result
     if success:
         print(f"[VERIFIER_HANDLER] [PASS] {msg}")
         return True, msg, verification_data

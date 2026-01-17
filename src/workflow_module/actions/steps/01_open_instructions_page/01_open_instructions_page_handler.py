@@ -37,11 +37,12 @@ def action(**kwargs) -> Tuple[bool, str]:
     """
     print("[ACTION_HANDLER] Navigating to Multinetwork Instructions page...")
     
-    # Step 1: Take screenshot
+    # Step 1: Take screenshot of current screen
     screenshot = computer_vision_utils.take_screenshot()
     if screenshot is None:
         return False, "Failed to take screenshot"
     
+    # Step 2: Define the search region for the multi-network icon
     region_x1 = 93  # Estimated X position in toolbar
     region_y1 = 52   # Estimated Y position below menu tabs
     region_width_x2 = 84 # Width to cover the button text and icon
@@ -50,11 +51,11 @@ def action(**kwargs) -> Tuple[bool, str]:
     
     print(f"[ACTION_HANDLER] Searching for multi_network_icon in region {region}")
     
-    # Get the directory where this handler file is located
+    # Step 3: Get the template image path
     handler_dir = os.path.dirname(os.path.abspath(__file__))
     icon_path = os.path.join(handler_dir, '01_multi_network_Icon.png')
     
-    # Step 2: Use computer vision to find the multi_network_icon
+    # Step 4: Use template matching to find the multi_network_icon
     icon_found, confidence, icon_position = computer_vision_utils.find_template_in_region(
         screenshot, 
         icon_path, 
@@ -62,24 +63,29 @@ def action(**kwargs) -> Tuple[bool, str]:
         confidence=0.9
     )
     
+    # Step 5: Handle icon not found
     if not icon_found:
         return False, f"Multi-network icon not found in region {region} (confidence: {confidence:.2f})"
     
     print(f"[ACTION_HANDLER] ✓ Multi-network icon found at {icon_position} with confidence {confidence:.2f}")
     
-    # Step 3: Click on the icon position
+    # Step 6: Validate icon position
     if icon_position is None:
         return False, "Icon position is None despite being found"
     
+    # Step 7: Click on the icon
     click_x, click_y = icon_position
     print(f"[ACTION_HANDLER] Clicking on multi-network icon at ({click_x}, {click_y})")
     
     success, msg = actions.click_at_position(click_x, click_y)
+    
+    # Step 8: Move mouse away after click
     if success:
         actions.move_mouse(1800, 50, 0)
     if not success:
         return False, f"Failed to click on multi-network icon: {msg}"
-    # Wait a moment for the page to load
+    
+    # Step 9: Wait for page to load
     time.sleep(1.0)
     
     return True, "Successfully navigated to Multinetwork Instructions page"
@@ -100,17 +106,16 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
     print("[VERIFIER_HANDLER] Verifying multi-network page opened...")
     
-    # Define a region to search for "Search Global Comm" text
-    # This should be in the header/title area of the page
+    # Step 1: Define the search region for header text
     search_region = (200, 145, 1450, 50)  # Expanded region to capture header text
     
-    # Take screenshot and crop to the search region
+    # Step 2: Take screenshot and crop to the search region
     cropped_image = take_screenshot_and_crop(search_region)
     
     if cropped_image is None:
         return False, "Failed to take screenshot and crop to search region", None
     
-    # Use OCR to extract text from the cropped region
+    # Step 3: Use OCR to extract text from the cropped region
     success, extracted_text = scanner.extract_text(cropped_image)
     
     if not success:
@@ -118,16 +123,18 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     
     print(f"[VERIFIER_HANDLER] Extracted text from search region: '{extracted_text}'")
     
-    # Check if "Search Global Comm" is present in the extracted text (case-insensitive)
+    # Step 4: Check if "Search Global Comm" is present (case-insensitive)
     extracted_text_lower = extracted_text.lower()
     has_search_global_comm = "search global comm" in extracted_text_lower
     
+    # Step 5: Build verification data dictionary
     verification_data = {
         "extracted_text": extracted_text,
         "search_region": search_region,
         "has_search_global_comm": has_search_global_comm
     }
     
+    # Step 6: Return result based on verification
     if has_search_global_comm:
         success_msg = "✓ Multi-network page opened successfully. Found 'Search Global Comm' text"
         print(f"[VERIFIER_HANDLER] {success_msg}")

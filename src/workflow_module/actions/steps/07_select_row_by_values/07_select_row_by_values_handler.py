@@ -35,28 +35,31 @@ def ensure_table_at_top(table_center_x, table_center_y):
     max_scroll_attempts = 200
     at_top = False
     
+    # Step 1: Loop until table is at top or max attempts reached
     for scroll_num in range(1, max_scroll_attempts + 1):
-        # Check if at top
+        # Step 2: Take screenshot to check current position
         screenshot = computer_vision_utils.take_screenshot()
         
         if screenshot is not None:
-            # Check header region for "Network Code" or "Estimate"
+            # Step 3: Crop header region and extract text via OCR
             header_region = screenshot[TABLE_CROP_Y:TABLE_CROP_Y+100, TABLE_CROP_X:TABLE_CROP_X+TABLE_CROP_WIDTH]
             success, extracted_text = scanner.extract_text(header_region)
             
             if success:
+                # Step 4: Check if header text indicates top of table
                 text_lower = extracted_text.lower()
                 if "network code" in text_lower or "estimate" in text_lower:
                     print(f"[ACTION_HANDLER] ✓ Table is at top position")
                     at_top = True
                     break
         
-        # Not at top, scroll up
+        # Step 5: Not at top, scroll up
         if scroll_num % 10 == 0:
             print(f"[ACTION_HANDLER] Table not at top, scrolling up (iteration {scroll_num})...")
             
         helpers.scroll_to_table_top(table_center_x, table_center_y)
-        
+    
+    # Step 6: Log warning if max attempts reached
     if not at_top:
         print(f"[ACTION_HANDLER] Warning: Reached max scroll attempts ({max_scroll_attempts}), assuming at top")
 
@@ -65,38 +68,40 @@ def action(estimate_number: str = "", advertiser_name: str = "", begin_date: str
     """
     Main action handler to select a row by matching values.
     """
+    # Step 1: Validate required parameters
     target_texts = [estimate_number, advertiser_name, begin_date, end_date]
     if any(t is None for t in target_texts):
         return False, "Missing required params"
 
-    # Calculate table center coordinates
+    # Step 2: Calculate table center coordinates
     table_center_x = TABLE_CROP_X + TABLE_CROP_WIDTH // 2
     table_center_y = TABLE_CROP_Y + TABLE_CROP_HEIGHT // 2
     
-    # Step 1: Ensure table is at the top
+    # Step 3: Ensure table is scrolled to the top
     ensure_table_at_top(table_center_x, table_center_y)
 
-    # Step 2: Load column template
+    # Step 4: Load column separator template for table parsing
     handler_dir = os.path.dirname(os.path.abspath(__file__))
     column_line_path = os.path.join(handler_dir, '07_ColumnLine.png')
     template = computer_vision_utils.load_image(column_line_path)
     if template is None:
         return False, "Template load failed"
 
-    # Step 3: Check results count
+    # Step 5: Check results count to determine if scrolling needed
     results_count = field_utils.get_results_count()
     should_scroll = True
     if results_count is not None and results_count <= 30:
         print(f"[ACTION_HANDLER] Results count ({results_count}) <= 30, will NOT scroll")
         should_scroll = False
 
-    # Step 4: Search initial view
+    # Step 6: Search initial view (without scrolling first)
     print(f"[ACTION_HANDLER] Searching initial view...")
     found, msg, match_info = helpers.search_current_view(
         target_texts, estimate_number, TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH, TABLE_CROP_HEIGHT, 
         template, select_row=False
     )
     
+    # Step 7: If found in initial view, click and position the row
     if found and match_info:
         print(f"[ACTION_HANDLER] ✓ Match found in initial view")
         return helpers.click_and_position_row(
@@ -105,10 +110,11 @@ def action(estimate_number: str = "", advertiser_name: str = "", begin_date: str
             TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH, TABLE_CROP_HEIGHT
         )
 
+    # Step 8: If not scrolling, return not found
     if not should_scroll:
         return False, "Target not found in initial view (results <= 30)"
 
-    # Step 5: Search with scrolling
+    # Step 9: Start search with scrolling
     print(f"[ACTION_HANDLER] Starting search with scrolling...")
     pyautogui.moveTo(table_center_x, table_center_y, duration=0.2)
     time.sleep(0.3)
@@ -117,18 +123,21 @@ def action(estimate_number: str = "", advertiser_name: str = "", begin_date: str
     scroll_amount = -35
     scrolls_per_page = 11
 
+    # Step 10: Scroll through table searching for target row
     for scroll_attempt in range(1, max_scroll_attempts + 1):
-        # Scroll down one 'page'
+        # Step 10a: Scroll down one 'page'
         for _ in range(scrolls_per_page):
             pyautogui.scroll(scroll_amount)
             time.sleep(0.05)
         time.sleep(0.3)
         
+        # Step 10b: Search current view after scrolling
         found, msg, match_info = helpers.search_current_view(
             target_texts, estimate_number, TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH, TABLE_CROP_HEIGHT,
             template, select_row=True
         )
         
+        # Step 10c: If found, click and position the row
         if found and match_info:
             print(f"[ACTION_HANDLER] ✓ Match found at scroll {scroll_attempt}")
             return helpers.click_and_position_row(
@@ -137,9 +146,11 @@ def action(estimate_number: str = "", advertiser_name: str = "", begin_date: str
                 TABLE_CROP_X, TABLE_CROP_Y, TABLE_CROP_WIDTH, TABLE_CROP_HEIGHT
             )
         
+        # Step 10d: Log progress periodically
         if scroll_attempt % 5 == 0:
              print(f"[ACTION_HANDLER] Scrolled {scroll_attempt} pages...")
 
+    # Step 11: Return failure if not found after all scroll attempts
     return False, f"Target not found after scrolling {max_scroll_attempts} pages"
 
 

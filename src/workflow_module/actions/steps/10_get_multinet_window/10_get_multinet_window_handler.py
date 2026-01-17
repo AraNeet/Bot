@@ -28,29 +28,33 @@ def action(**kwargs) -> Tuple[bool, str]:
     """
     print("[ACTION_HANDLER] Checking if Multi-Network window is open...")
 
-
+    # Step 1: Define region to search for window title
     region = (200, 145, 1450, 25)
     
+    # Step 2: Set retry parameters
     max_attempts = 5
     wait_time = 10  # seconds between attempts
     
+    # Step 3: Initialize OCR scanner
     scanner = TextScanner()
     
+    # Step 4: Loop through detection attempts
     for attempt in range(1, max_attempts + 1):
         print(f"[ACTION_HANDLER] Attempt {attempt}/{max_attempts}: Looking for 'multinet' text...")
         
-        # Take screenshot and crop directly
+        # Step 5: Take screenshot and crop to title region
         title_region = computer_vision_utils.take_screenshot_and_crop(region)
         
         if title_region is None:
             print(f"[ACTION_HANDLER] Failed to capture region on attempt {attempt}")
         else:
-            # Use OCR to search for 'multinet' text
+            # Step 6: Use OCR to search for 'multinet' text
             success, ocr_data = scanner.get_text_data(title_region)
             
             if success and ocr_data.get('text'):
+                # Step 7: Check each detected text for 'multinet'
                 for text in ocr_data['text']:
-                    # Normalize text for check
+                    # Normalize text for check (remove hyphens and spaces)
                     if 'multinet' in text.lower().replace('-', '').replace(' ', ''):
                         msg = f"✓ Found 'multinet' window: '{text}'"
                         print(f"[ACTION_HANDLER] {msg}")
@@ -58,10 +62,12 @@ def action(**kwargs) -> Tuple[bool, str]:
             
             print(f"[ACTION_HANDLER] 'multinet' not found in text: {ocr_data.get('text', [])}")
 
+        # Step 8: Wait before retry
         if attempt < max_attempts:
             print(f"[ACTION_HANDLER] Waiting {wait_time} seconds before retry...")
             time.sleep(wait_time)
-            
+    
+    # Step 9: Return failure if not found after all attempts
     return False, f"Multi-Network window not detected after {max_attempts} attempts"
 
 

@@ -78,20 +78,24 @@ def verifier(estimate_number: str = "", **kwargs) -> Tuple[bool, str, Optional[D
     """Verify that the estimate number was entered correctly using OCR similarity check."""
     print(f"[VERIFIER_HANDLER] Verifying estimate number entered: '{estimate_number}'")
     
+    # Step 1: Handle empty estimate number
     if not estimate_number:
         return True, "No estimate number to verify", None
     
+    # Step 2: Define field region and crop screenshot
     field_region = (286, 175, 80, 48)
     cropped_image = take_screenshot_and_crop(field_region)
     if cropped_image is None:
         return False, "Failed to take screenshot and crop to estimate field region", None
     
+    # Step 3: Extract text using OCR
     success, extracted_text = scanner.extract_text(cropped_image)
     if not success:
         return False, f"Failed to extract text from estimate field: {extracted_text}", None
     
     print(f"[VERIFIER_HANDLER] Extracted text: '{extracted_text}'")
     
+    # Step 4: Extract estimate number from OCR text
     extracted_estimate_number = extract_number_from_text(extracted_text, estimate_number)
     if not extracted_estimate_number:
         error_msg = f"Could not extract estimate number from: '{extracted_text}'"
@@ -107,8 +111,10 @@ def verifier(estimate_number: str = "", **kwargs) -> Tuple[bool, str, Optional[D
     
     print(f"[VERIFIER_HANDLER] Extracted estimate number: '{extracted_estimate_number}'")
     
+    # Step 5: Calculate similarity between expected and extracted
     similarity = calculate_text_similarity(estimate_number, extracted_estimate_number)
     
+    # Step 6: Build verification data dictionary
     verification_data = {
         "expected_text": estimate_number,
         "extracted_text": extracted_text,
@@ -118,6 +124,7 @@ def verifier(estimate_number: str = "", **kwargs) -> Tuple[bool, str, Optional[D
         "threshold": 0.80
     }
     
+    # Step 7: Return result based on similarity threshold
     if similarity >= 0.80:
         success_msg = f"✓ Estimate number verified with {similarity:.2%} similarity (extracted: '{extracted_estimate_number}')"
         print(f"[VERIFIER_HANDLER] {success_msg}")

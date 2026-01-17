@@ -34,14 +34,17 @@ def load_action_list(config_path: str = "src/workflow_module/actions/action_list
         Dictionary mapping action types to handler modules
     """
     try:
+        # Step 1: Open and parse JSON file
         with open(config_path, 'r') as f:
             config = json.load(f)
         print(f"[UNIFIED_EXECUTOR] Loaded action list from {config_path}")
         return config
     except FileNotFoundError:
+        # Step 2: Handle file not found
         print(f"[UNIFIED_EXECUTOR ERROR] Action list file not found: {config_path}")
         return {}
     except json.JSONDecodeError as e:
+        # Step 3: Handle JSON parse errors
         print(f"[UNIFIED_EXECUTOR ERROR] Failed to parse action list: {e}")
         return {}
 
@@ -62,21 +65,25 @@ def get_handler_module(action_type: str):
     Returns:
         Handler module object with action, verifier, and error_handler functions
     """
+    # Step 1: Check if action type is in the loaded action list
     if action_type not in ACTION_LIST:
         return None
     
+    # Step 2: Get handler info and module path
     handler_info = ACTION_LIST[action_type]
     module_path = handler_info.get('module')
     
+    # Step 3: Validate module path exists
     if not module_path:
         print(f"[UNIFIED_EXECUTOR ERROR] No module path for action type: {action_type}")
         return None
     
+    # Step 4: Dynamically import the handler module
     try:
-        # Import the handler module dynamically
         module = importlib.import_module(module_path)
         return module
     except ImportError as e:
+        # Step 5: Handle import errors
         print(f"[UNIFIED_EXECUTOR ERROR] Failed to import handler module {module_path}: {e}")
         return None
 
@@ -117,11 +124,12 @@ def execute_action_with_verification(
             verify=True
         )
     """
+    # Step 1: Log execution start
     print(f"\n[UNIFIED_EXECUTOR] Executing action: {action_type}")
     print(f"[UNIFIED_EXECUTOR] Parameters: {parameters}")
     print(f"[UNIFIED_EXECUTOR] Max retries: {max_retries}, Verify: {verify}")
     
-    # Check if action type is supported
+    # Step 2: Check if action type is supported
     if action_type not in ACTION_LIST:
         error_msg = f"Unsupported action type: '{action_type}'"
         print(f"[UNIFIED_EXECUTOR ERROR] {error_msg}")
@@ -135,14 +143,14 @@ def execute_action_with_verification(
         
         return False, error_msg, None
     
-    # Load handler module
+    # Step 3: Load the handler module dynamically
     handler_module = get_handler_module(action_type)
     if handler_module is None:
         error_msg = f"Failed to load handler module for action type: '{action_type}'"
         print(f"[UNIFIED_EXECUTOR ERROR] {error_msg}")
         return False, error_msg, None
     
-    # Verify handler module has required functions
+    # Step 4: Verify handler module has the required 'action' function
     if not hasattr(handler_module, 'action'):
         error_msg = f"Handler module for '{action_type}' missing 'action' function"
         print(f"[UNIFIED_EXECUTOR ERROR] {error_msg}")

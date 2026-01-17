@@ -24,6 +24,7 @@ Responsibilities:
 from typing import Dict, Any, List, Tuple, Optional
 from src.notification_module.error_notifier import notify_error
 from src.workflow_module.actions import unified_executor
+from src.startup_module.system_initializer import refresh_app_window_state
 
 
 def execute_single_instruction(instruction: Dict[str, Any],
@@ -55,25 +56,26 @@ def execute_single_instruction(instruction: Dict[str, Any],
     Returns:
         Tuple of (success: bool, message)
     """
-    # Extract instruction components
+    # Step 1: Extract instruction components from the instruction dictionary
     action_type = instruction.get("action_type")
     description = instruction.get("description", "No description")
     parameters = instruction.get("parameters", {})
     
+    # Step 2: Print instruction details for logging/debugging
     print(f"\n{'─'*60}")
     print(f"[EXECUTOR] Step {instruction_index}/{total_instructions}: {action_type}")
     print(f"[EXECUTOR] Description: {description}")
     print(f"[EXECUTOR] Parameters: {parameters}")
     print(f"{'─'*60}")
     
-    # Check if action type is supported
+    # Step 3: Check if this action type is supported by unified_executor
     supported_actions = unified_executor.get_supported_actions()
     if action_type not in supported_actions:
         warning_msg = f"Action '{action_type}' is unsupported, skipping this step"
         print(f"[EXECUTOR WARNING] ⚠ {warning_msg}")
         return True, warning_msg
     
-    # Execute action with integrated verification using unified executor
+    # Step 4: Execute action via unified_executor (handles retry logic and verification)
     print(f"[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...")
     success, message, verification_data = unified_executor.execute_action_with_verification(
         action_type=action_type,
@@ -82,6 +84,7 @@ def execute_single_instruction(instruction: Dict[str, Any],
         verify=True  # Enable verification
     )
     
+    # Step 5: Return results based on execution outcome
     if success:
         print(f"[EXECUTOR SUCCESS] {message}")
         if verification_data:
@@ -101,10 +104,11 @@ def execute_single_objective(objective: Dict[str, Any],
     Execute all instructions for a single objective.
     
     This function:
-    1. Extracts objective details
-    2. Executes each instruction sequentially
-    3. Stops on first failure (fail-fast)
-    4. Returns detailed execution results
+    1. Refreshes app window state (updates APP_NAME from current window title)
+    2. Extracts objective details
+    3. Executes each instruction sequentially
+    4. Stops on first failure (fail-fast)
+    5. Returns detailed execution results
     
     Args:
         objective: Prepared objective from planner with structure:
@@ -130,11 +134,18 @@ def execute_single_objective(objective: Dict[str, Any],
         "failure_reason": "..." (if failed)
     }
     """
-    # Extract objective details
+    # Step 1: Refresh app window state (updates APP_NAME in bot.env with current window title)
+    # The window title changes dynamically based on the current page/context
+    refresh_success, window = refresh_app_window_state()
+    if not refresh_success:
+        print("[EXECUTOR WARNING] Could not refresh app window state, continuing anyway...")
+    
+    # Step 2: Extract objective details from the objective dictionary
     objective_type = objective.get("objective_type", "unknown")
     value_set_index = objective.get("value_set_index", objective_index)
     instructions = objective.get("instructions", [])
     
+    # Step 3: Print objective header for logging
     print(f"\n{'='*60}")
     print(f"[EXECUTOR] Executing Objective {objective_index}/{total_objectives}")
     print(f"[EXECUTOR] Type: {objective_type}")
@@ -142,7 +153,7 @@ def execute_single_objective(objective: Dict[str, Any],
     print(f"[EXECUTOR] Instructions: {len(instructions)}")
     print(f"{'='*60}")
     
-    # Initialize result tracking
+    # Step 4: Initialize result tracking dictionary
     result = {
         "objective_type": objective_type,
         "value_set_index": value_set_index,
@@ -152,7 +163,7 @@ def execute_single_objective(objective: Dict[str, Any],
         "failure_reason": None
     }
     
-    # Execute each instruction
+    # Step 5: Execute each instruction sequentially (fail-fast on first failure)
     for inst_index, instruction in enumerate(instructions, start=1):
         success, msg = execute_single_instruction(
             instruction=instruction,
@@ -161,11 +172,12 @@ def execute_single_objective(objective: Dict[str, Any],
             max_retries=max_retries
         )
         
+        # Step 5a: Update result on success
         if success:
             result["instructions_completed"] += 1
             print(f"[EXECUTOR] ✓ Instruction {inst_index}/{len(instructions)} completed")
+        # Step 5b: Stop objective on failure (fail-fast)
         else:
-            # Instruction failed - stop this objective
             result["status"] = "FAILED"
             result["failure_reason"] = msg
             print(f"[EXECUTOR ERROR] ✗ Instruction {inst_index}/{len(instructions)} failed")
@@ -173,7 +185,7 @@ def execute_single_objective(objective: Dict[str, Any],
             print(f"[EXECUTOR] Stopping objective due to instruction failure")
             return False, result
     
-    # All instructions completed successfully
+    # Step 6: Mark objective as successful and return
     result["status"] = "SUCCESS"
     print(f"\n[EXECUTOR SUCCESS] ✓ Objective '{objective_type}' (set #{value_set_index}) completed")
     print(f"[EXECUTOR SUCCESS] All {len(instructions)} instructions executed successfully")
@@ -223,11 +235,12 @@ def execute_workflow(prepared_objectives: List[Dict[str, Any]],
         ]
     }
     """
+    # Step 1: Print workflow start header
     print("\n" + "="*70)
     print("WORKFLOW EXECUTOR - STARTING EXECUTION")
     print("="*70)
     
-    # Initialize results tracking
+    # Step 2: Initialize results tracking dictionary
     results = {
         "total_objectives": len(prepared_objectives),
         "completed_objectives": 0,
@@ -238,14 +251,15 @@ def execute_workflow(prepared_objectives: List[Dict[str, Any]],
         "details": []
     }
     
-    # Count total instructions
+    # Step 3: Count total instructions across all objectives
     results["total_instructions"] = sum(
         len(obj.get("instructions", [])) 
         for obj in prepared_objectives
     )
     
-    # Step 2: Execute each prepared objective
+    # Step 4: Execute each prepared objective sequentially
     for obj_index, objective in enumerate(prepared_objectives, start=1):
+        # Step 4a: Execute the objective
         success, result_details = execute_single_objective(
             objective=objective,
             objective_index=obj_index,
@@ -253,13 +267,14 @@ def execute_workflow(prepared_objectives: List[Dict[str, Any]],
             max_retries=max_retries
         )
         
-        # Update overall statistics
+        # Step 4b: Update overall statistics
         completed_insts = result_details.get("instructions_completed", 0)
         total_insts = result_details.get("total_instructions", 0)
         
         results["completed_instructions"] += completed_insts
         results["failed_instructions"] += (total_insts - completed_insts)
         
+        # Step 4c: Handle success/failure
         if success:
             results["completed_objectives"] += 1
             print(f"\n[EXECUTOR] Objective {obj_index}/{len(prepared_objectives)}: SUCCESS ✓")
@@ -267,10 +282,10 @@ def execute_workflow(prepared_objectives: List[Dict[str, Any]],
             results["failed_objectives"] += 1
             print(f"\n[EXECUTOR] Objective {obj_index}/{len(prepared_objectives)}: FAILED ✗")
             
-            # Add failure details
+            # Step 4d: Record failure details
             result_details["failure_index"] = obj_index
             
-            # Notify about objective failure
+            # Step 4e: Send error notification for objective failure
             notify_error(
                 f"Workflow stopped due to failure in objective '{result_details['objective_type']}'",
                 "workflow_executor.execute_workflow",
@@ -283,15 +298,15 @@ def execute_workflow(prepared_objectives: List[Dict[str, Any]],
                 }
             )
         
-        # Add detailed result
+        # Step 4f: Add detailed result to results list
         results["details"].append(result_details)
         
-        # Stop workflow on objective failure (fail-fast)
+        # Step 4g: Stop workflow on objective failure (fail-fast)
         if not success:
             print(f"\n[EXECUTOR] Stopping workflow execution due to objective failure")
             break
     
-    # Determine overall success
+    # Step 5: Determine overall success and return results
     overall_success = results['failed_objectives'] == 0
     
     return overall_success, results

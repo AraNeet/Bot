@@ -63,29 +63,34 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """Verify that the search button was clicked successfully and results are present."""
     print("[VERIFIER_HANDLER] Verifying search button clicked and checking results...")
     
-    # Wait 2 seconds before verification
+    # Step 1: Wait for search results to load
     time.sleep(2.0)
     
+    # Step 2: Define field region and crop screenshot
     field_region = (205, 225, 50, 30)
     cropped_image = take_screenshot_and_crop(field_region)
     if cropped_image is None:
         return False, "Failed to take screenshot and crop to order field region", None
     
+    # Step 3: Extract text using OCR
     success, extracted_text = scanner.extract_text(cropped_image)
     if not success:
         return False, f"Failed to extract text from order field: {extracted_text}", None
     
+    # Step 4: Extract "Results" text from OCR output
     extracted_results = extract_string_from_text(extracted_text, "Results")
     if not extracted_results:
         return False, f"Expected 'Results', could not extract from: '{extracted_text}'", None
     
+    # Step 5: Calculate similarity
     similarity = calculate_text_similarity("Results", extracted_results)
     
-    # Check results count
+    # Step 6: Check results count
     results_count = get_results_count()
     if results_count is None:
         return False, "Failed to extract results count from the page", None
     
+    # Step 7: Build verification data dictionary
     verification_data = {
         "expected_text": "Results",
         "extracted_text": extracted_text,
@@ -93,10 +98,11 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         "results_count": results_count
     }
     
-    # Check if results count is greater than 0
+    # Step 8: Check if results count is greater than 0
     if results_count == 0:
         return False, f"✗ Search returned 0 results. No data found matching the search criteria.", verification_data
     
+    # Step 9: Return result based on similarity threshold
     if similarity >= 0.80:
         return True, f"✓ Search results verified with {similarity:.2%} similarity. Found {results_count} result(s).", verification_data
     else:

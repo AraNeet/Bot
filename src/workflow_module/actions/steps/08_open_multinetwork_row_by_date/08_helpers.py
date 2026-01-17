@@ -62,33 +62,37 @@ def find_all_template_matches(
         >>> matches = find_all_template_matches(screenshot, template, confidence=0.8)
         >>> print(f"Found {len(matches)} matches")
     """
+    # Step 1: Get template dimensions
     template_height, template_width = template_img.shape[:2]
     
-    # Create match heatmap
+    # Step 2: Create match heatmap using template matching
     match_heatmap = cv2.matchTemplate(source_img, template_img, cv2.TM_CCOEFF_NORMED)
     
     matches = []
     
+    # Step 3: Iteratively find all matches above threshold
     while True:
-        # Find best remaining match
+        # Step 3a: Find best remaining match
         min_val, max_confidence, min_loc, best_position = cv2.minMaxLoc(match_heatmap)
         
-        # Stop if below threshold
+        # Step 3b: Stop if below threshold
         if max_confidence < confidence:
             break
         
-        # Record this match
+        # Step 3c: Record this match
         matches.append((best_position, max_confidence))
         
-        # Mask nearby area to prevent duplicates
+        # Step 3d: Calculate mask dimensions
         mask_height = max(template_height, min_distance)
         mask_width = max(template_width, min_distance)
         
+        # Step 3e: Calculate mask bounds
         y_start = max(0, best_position[1] - mask_height // 2)
         y_end = min(match_heatmap.shape[0], best_position[1] + mask_height // 2)
         x_start = max(0, best_position[0] - mask_width // 2)
         x_end = min(match_heatmap.shape[1], best_position[0] + mask_width // 2)
         
+        # Step 3f: Mask nearby area to prevent duplicates
         match_heatmap[y_start:y_end, x_start:x_end] = 0
     
     return matches
@@ -156,10 +160,11 @@ def group_ocr_by_rows(
         >>> rows = group_ocr_by_rows(ocr_data, y_tolerance=5)
         >>> print(f"Grouped into {len(rows)} row(s)")
     """
+    # Step 1: Validate input
     if not ocr_data or not ocr_data.get('text'):
         return []
     
-    # Create list of (y_center, text, bbox)
+    # Step 2: Create list of elements with y_center, text, and bbox
     elements = []
     for i, text in enumerate(ocr_data['text']):
         if text.strip():
@@ -172,27 +177,29 @@ def group_ocr_by_rows(
                 'bbox': bbox
             })
     
-    # Sort by Y coordinate
+    # Step 3: Sort elements by Y coordinate
     elements.sort(key=lambda e: e['y_center'])
     
-    # Group into rows
+    # Step 4: Group elements into rows based on Y proximity
     rows = []
     current_row = None
     
     for elem in elements:
         if current_row is None:
+            # Step 4a: Start first row
             current_row = {
                 'y_center': elem['y_center'],
                 'texts': [elem['text']],
                 'bboxes': [elem['bbox']]
             }
         else:
-            # Check if within tolerance of current row
+            # Step 4b: Check if within tolerance of current row
             if abs(elem['y_center'] - current_row['y_center']) <= y_tolerance:
+                # Add to current row
                 current_row['texts'].append(elem['text'])
                 current_row['bboxes'].append(elem['bbox'])
             else:
-                # Start new row
+                # Step 4c: Start new row
                 rows.append(current_row)
                 current_row = {
                     'y_center': elem['y_center'],
@@ -200,7 +207,7 @@ def group_ocr_by_rows(
                     'bboxes': [elem['bbox']]
                 }
     
-    # Add last row
+    # Step 5: Add last row
     if current_row:
         rows.append(current_row)
     
@@ -266,44 +273,45 @@ def search_date_in_cropped_table(
     """
     print(f"[08_HELPERS] Searching for begin_date '{begin_date}' in cropped table...")
     
-    # Perform OCR on the entire table
+    # Step 1: Perform OCR on the entire table
     scanner = ocr_utils.TextScanner()
     ocr_success, ocr_data = scanner.get_text_data(cropped_table)
     
+    # Step 2: Validate OCR results
     if not ocr_success or not ocr_data or not ocr_data.get('text'):
         return False, None, None, "OCR failed on table"
     
     print(f"[08_HELPERS] OCR found {len(ocr_data['text'])} text elements")
     
-    # Normalize the target date
+    # Step 3: Normalize the target date
     begin_date_str = str(begin_date)
     begin_date_normalized = normalize_date(begin_date_str)
     
-    # Group OCR results by rows
+    # Step 4: Group OCR results by rows
     rows = group_ocr_by_rows(ocr_data)
     print(f"[08_HELPERS] Grouped OCR into {len(rows)} rows")
     
-    # Search for matching date in each row
+    # Step 5: Search for matching date in each row
     header_height = 40  # Skip header row
     
     for row_idx, row_data in enumerate(rows):
         row_y_center = row_data['y_center']
         
-        # Skip header row
+        # Step 5a: Skip header row
         if row_y_center < header_height:
             continue
         
-        # Check if this row contains the begin_date
+        # Step 5b: Get row texts and combine
         row_texts = row_data['texts']
         row_text_combined = ' '.join(row_texts)
         
-        # Normalize and check for match
+        # Step 5c: Normalize and check for match
         row_text_normalized = normalize_date(row_text_combined)
         
         if begin_date_normalized in row_text_normalized or begin_date_str in row_text_combined:
             print(f"[08_HELPERS] ✓ Found matching date in row {row_idx}: '{row_text_combined}'")
             
-            # Find the date column
+            # Step 5d: Find the date column bounding box
             date_bbox = find_date_bbox_in_row(
                 row_data, 
                 begin_date_str, 
@@ -311,6 +319,7 @@ def search_date_in_cropped_table(
                 column_boundaries
             )
             
+            # Step 5e: Calculate click coordinates
             if date_bbox:
                 x1, y1, x2, y2 = date_bbox
                 click_x_local = (x1 + x2) // 2
@@ -320,7 +329,7 @@ def search_date_in_cropped_table(
                 click_x_local = cropped_table.shape[1] // 2
                 click_y_local = row_y_center
             
-            # Convert to screen coordinates
+            # Step 5f: Convert to screen coordinates
             click_x = click_x_local + crop_x
             click_y = click_y_local + crop_y
             
@@ -329,6 +338,7 @@ def search_date_in_cropped_table(
             
             return True, click_x, click_y, f"Date found in row {row_idx}"
     
+    # Step 6: Return failure if date not found
     print(f"[08_HELPERS] ✗ Date '{begin_date}' not found in table")
     return False, None, None, f"Date '{begin_date}' not found"
 
@@ -365,12 +375,12 @@ def extract_table_with_column_splits(
     
     print("[08_HELPERS] Extracting table and detecting column splits...")
     
-    # Validate crop dimensions
+    # Step 1: Validate crop dimensions
     if crop_width <= 0 or crop_height <= 0:
         print(f"[08_HELPERS] ✗ Invalid crop dimensions: {crop_width}x{crop_height}")
         return None, []
     
-    # Crop the table region
+    # Step 2: Crop the table region
     cropped_table = computer_vision_utils.crop_image(screenshot, crop_x, crop_y, crop_width, crop_height)
     
     if cropped_table is None:
@@ -379,7 +389,7 @@ def extract_table_with_column_splits(
     
     print(f"[08_HELPERS] ✓ Cropped table: {crop_width}x{crop_height}")
     
-    # Load column separator template
+    # Step 3: Load column separator template
     column_template = computer_vision_utils.load_image(column_template_path)
     
     if column_template is None:
@@ -389,7 +399,7 @@ def extract_table_with_column_splits(
     template_height, template_width = column_template.shape[:2]
     print(f"[08_HELPERS] Column template loaded: {template_width}x{template_height}")
     
-    # Find all column separators
+    # Step 4: Find all column separators via template matching
     separator_matches = find_all_template_matches(
         cropped_table,
         column_template,
@@ -399,7 +409,7 @@ def extract_table_with_column_splits(
     
     print(f"[08_HELPERS] Found {len(separator_matches)} column separator(s)")
     
-    # Calculate column boundaries
+    # Step 5: Calculate column boundaries from separator positions
     column_boundaries = calculate_column_boundaries(
         separator_matches,
         template_width,
@@ -408,6 +418,7 @@ def extract_table_with_column_splits(
     
     print(f"[08_HELPERS] Calculated {len(column_boundaries)} column boundaries: {column_boundaries}")
     
+    # Step 6: Return cropped table and column boundaries
     return cropped_table, column_boundaries
 
 def detect_blue_highlighted_expanded_row(screenshot: np.ndarray, exclude_bottom_pixels: int = 100) -> Tuple[bool, Optional[Dict[str, int]]]:
@@ -457,17 +468,18 @@ def detect_blue_highlighted_expanded_row(screenshot: np.ndarray, exclude_bottom_
 
 def calculate_crop_region_from_expanded_row(screenshot: np.ndarray, blue_row_info: Optional[Dict[str, int]]) -> Tuple[int, int, int, int]:
     """
-    Calculate the crop region to capture ONLY the blue highlighted expanded row.
+    Calculate the crop region to capture the highlighted row AND the nested table below it.
     
-    The blue row is an expanded row that contains:
-    - First table row data (Network Code, Order #, etc.)
-    - Nested second table inside it (with Instruction, Begin Date, etc.)
+    The color detection only finds the highlighted ROW HEADER (yellow/gold, ~40-50px tall).
+    The nested second table below it has a WHITE/GRAY background, so it's not detected.
     
-    We crop to JUST the blue row boundaries to isolate it from other rows.
+    We need to extend the crop region downward to include:
+    - The highlighted row header (~40-50px)
+    - The nested second table below (~80-150px depending on number of rows)
     
     Args:
         screenshot: Current screenshot
-        blue_row_info: Information about the blue highlighted row
+        blue_row_info: Information about the highlighted row header
                       Dict with keys: 'x', 'y', 'width', 'height'
         
     Returns:
@@ -479,30 +491,50 @@ def calculate_crop_region_from_expanded_row(screenshot: np.ndarray, blue_row_inf
         ...     x, y, w, h = calculate_crop_region_from_expanded_row(screenshot, row_info)
         ...     cropped = screenshot[y:y+h, x:x+w]
     """
-    print("[08_HELPERS] Calculating crop region for blue row area...")
+    print("[08_HELPERS] Calculating crop region for expanded row area...")
     
+    # Step 1: Get screen dimensions
     screen_height, screen_width = screenshot.shape[:2]
     
-    # Crop to EXACTLY the blue row area (which contains the nested second table)
+    # Step 2: Define extension height for nested table
+    # The nested table has: header row (~25px) + 1-5 data rows (~25px each)
+    NESTED_TABLE_EXTENSION = 120  # Conservative estimate to capture nested table
+    
+    # Step 3: Calculate crop region based on blue row info
     if blue_row_info:
+        # Step 3a: Extract row position and dimensions
         crop_x = blue_row_info['x']
         crop_y = blue_row_info['y']
         crop_width = blue_row_info['width']
-        crop_height = blue_row_info['height']
-        print(f"[08_HELPERS] ✓ Using blue row exact dimensions:")
+        header_height = blue_row_info['height']
+        
+        print(f"[08_HELPERS] Highlighted row header detected:")
         print(f"[08_HELPERS]   Position: x={crop_x}, y={crop_y}")
-        print(f"[08_HELPERS]   Size: w={crop_width}, h={crop_height}")
+        print(f"[08_HELPERS]   Header size: w={crop_width}, h={header_height}")
+        
+        # Step 3b: Extend crop height if header is small
+        if header_height < 80:
+            # Extend to capture nested second table below the header
+            crop_height = header_height + NESTED_TABLE_EXTENSION
+            print(f"[08_HELPERS] ✓ Extending crop to include nested table:")
+            print(f"[08_HELPERS]   Header height: {header_height}px")
+            print(f"[08_HELPERS]   Extension for nested table: {NESTED_TABLE_EXTENSION}px")
+            print(f"[08_HELPERS]   Total crop height: {crop_height}px")
+        else:
+            # Step 3c: Header is already large enough
+            crop_height = header_height
+            print(f"[08_HELPERS] ✓ Using header dimensions (already large enough)")
     else:
-        # Fallback if blue row not detected
+        # Step 4: Fallback if highlighted row not detected
         crop_x = 205
         crop_y = 230
         crop_width = 1500
-        crop_height = 200  # Reasonable default height for expanded row
-        print(f"[08_HELPERS] ⚠ Blue row not found, using defaults:")
+        crop_height = 200
+        print(f"[08_HELPERS] ⚠ Highlighted row not found, using defaults:")
         print(f"[08_HELPERS]   Position: x={crop_x}, y={crop_y}")
         print(f"[08_HELPERS]   Size: w={crop_width}, h={crop_height}")
     
-    # Ensure crop region is within screen bounds
+    # Step 5: Ensure crop region is within screen bounds
     if crop_x + crop_width > screen_width:
         crop_width = screen_width - crop_x
         print(f"[08_HELPERS]   Adjusted width to {crop_width} (screen bounds)")
@@ -511,8 +543,9 @@ def calculate_crop_region_from_expanded_row(screenshot: np.ndarray, blue_row_inf
         crop_height = screen_height - crop_y
         print(f"[08_HELPERS]   Adjusted height to {crop_height} (screen bounds)")
     
+    # Step 6: Return final crop region
     print(f"[08_HELPERS] Final crop region: x={crop_x}, y={crop_y}, w={crop_width}, h={crop_height}")
-    print(f"[08_HELPERS] This captures the expanded row with nested second table inside")
+    print(f"[08_HELPERS] This captures the header row + nested second table below")
     
     return crop_x, crop_y, crop_width, crop_height
 

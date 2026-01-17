@@ -58,33 +58,36 @@ def position_row_in_target_region(table_center_x: int, table_center_y: int,
     Returns:
         Tuple of (success: bool, message: str)
     """
+    # Step 1: Calculate target region bounds
     target_region_bottom = target_region_y + target_region_height
     
-    # Wait for the row to be highlighted in blue after clicking
+    # Step 2: Wait for row highlight after clicking
     time.sleep(0.3)
     
-    # Detect blue highlighted row using cropped screenshot
+    # Step 3: Take cropped screenshot for blue row detection
     cropped_screenshot = take_screenshot_and_crop((crop_x, crop_y, crop_width, crop_height))
     if cropped_screenshot is None:
         print(f"[07_HELPERS] Warning: Failed to take and crop screenshot for blue detection")
         return False, "Failed to take and crop screenshot"
     
-    # Adjust target region coordinates to be relative to cropped image
+    # Step 4: Adjust target region coordinates to cropped image space
     target_region_y_cropped = target_region_y - crop_y
     target_region_bottom_cropped = target_region_bottom - crop_y
     
+    # Step 5: Detect blue highlighted row
     found_blue, row_info = computer_vision_utils.find_blue_highlighted_row(cropped_screenshot)
     if not found_blue or row_info is None:
         print(f"[07_HELPERS] Warning: Could not detect blue highlighted row after clicking")
         return False, "Could not detect blue highlighted row"
     
+    # Step 6: Extract row position information
     blue_row_y = row_info['y']
     blue_row_height = row_info['height']
     blue_row_center_y = blue_row_y + (blue_row_height // 2)
     blue_row_top = blue_row_y
     blue_row_bottom = blue_row_y + blue_row_height
     
-    # Convert cropped coordinates back to screen coordinates for logging
+    # Step 7: Convert to screen coordinates for logging
     blue_row_y_screen = blue_row_y + crop_y
     blue_row_center_y_screen = blue_row_center_y + crop_y
     
@@ -92,8 +95,7 @@ def position_row_in_target_region(table_center_x: int, table_center_y: int,
     print(f"[07_HELPERS] Blue row bounds: top={blue_row_top + crop_y}, bottom={blue_row_bottom + crop_y}")
     print(f"[07_HELPERS] Target region bounds: top={target_region_y}, bottom={target_region_bottom}")
     
-    # Check if the entire row (or at least most of it) is already within the target region
-    # Use cropped coordinates for comparison
+    # Step 8: Check if row is already in target region
     row_in_region = (blue_row_top >= target_region_y_cropped) and (blue_row_center_y <= target_region_bottom_cropped)
     
     if row_in_region:
@@ -101,6 +103,7 @@ def position_row_in_target_region(table_center_x: int, table_center_y: int,
         print(f"[07_HELPERS] ✓ No scrolling needed - row is already positioned correctly")
         return True, "Row already in target region"
     
+    # Step 9: Row not in target region, prepare to scroll
     print(f"[07_HELPERS] ✗ Row NOT in target region (top={blue_row_top + crop_y} vs target_top={target_region_y}, center={blue_row_center_y_screen} vs target_bottom={target_region_bottom})")
     print(f"[07_HELPERS] Scrolling down to position row in target region {target_region_y}-{target_region_bottom}...")
     
@@ -109,20 +112,22 @@ def position_row_in_target_region(table_center_x: int, table_center_y: int,
     
     max_position_scrolls = 100
     scroll_amount = -20  # Scroll down slowly (negative value)
-    
     last_blue_center_y = blue_row_center_y
     
+    # Step 10: Scroll loop to position row
     for scroll_num in range(1, max_position_scrolls + 1):
+        # Step 10a: Scroll down
         pyautogui.scroll(scroll_amount)
         time.sleep(0.05)
         
+        # Step 10b: Take new screenshot
         check_cropped_screenshot = take_screenshot_and_crop((crop_x, crop_y, crop_width, crop_height))
         if check_cropped_screenshot is None:
             if scroll_num % 10 == 0:
                 print(f"[07_HELPERS] Warning: Screenshot failed at scroll {scroll_num}")
             continue
         
-        # Detect blue row position
+        # Step 10c: Detect blue row position
         check_found, check_row_info = computer_vision_utils.find_blue_highlighted_row(check_cropped_screenshot)
         
         if check_found and check_row_info:
@@ -130,13 +135,13 @@ def position_row_in_target_region(table_center_x: int, table_center_y: int,
             new_blue_height = check_row_info['height']
             new_blue_center_y = new_blue_y + (new_blue_height // 2)
             
-            # Check if row is now in target region (using cropped coordinates)
+            # Step 10d: Check if row is now in target region
             if target_region_y_cropped <= new_blue_center_y <= target_region_bottom_cropped:
                 new_blue_center_y_screen = new_blue_center_y + crop_y
                 print(f"[07_HELPERS] ✓ Row positioned in target region after {scroll_num} scroll(s) (y={new_blue_center_y_screen})")
                 return True, f"Row positioned in target region at y={new_blue_center_y_screen}"
             
-            # Check if we stopped moving (end of scroll)
+            # Step 10e: Check if row stopped moving (end of scroll)
             if abs(new_blue_center_y - last_blue_center_y) < 5:
                 new_blue_center_y_screen = new_blue_center_y + crop_y
                 print(f"[07_HELPERS] Row position unchanged at y={new_blue_center_y_screen}. Assuming end of table.")
@@ -144,12 +149,14 @@ def position_row_in_target_region(table_center_x: int, table_center_y: int,
             
             last_blue_center_y = new_blue_center_y
             
+            # Step 10f: Log progress periodically
             if scroll_num % 10 == 0:
                 new_blue_center_y_screen = new_blue_center_y + crop_y
                 print(f"[07_HELPERS] Positioning scroll {scroll_num}: blue row at y={new_blue_center_y_screen}, continuing...")
         elif scroll_num % 10 == 0:
             print(f"[07_HELPERS] Warning: Blue row not detected at scroll {scroll_num}, continuing...")
     
+    # Step 11: Return success even if max scrolls reached
     print(f"[07_HELPERS] Warning: Reached max positioning scrolls ({max_position_scrolls}), continuing anyway")
     return True, "Reached max positioning scrolls, continuing with current position"
 
@@ -173,17 +180,19 @@ def click_and_position_row(match_info: Dict, table_center_x: int, table_center_y
     Returns:
         Tuple of (success: bool, message: str)
     """
+    # Step 1: Extract click information from match_info
     click_x = match_info['click_x']
     click_y = match_info['click_y']
     button = match_info['button']
     matched_count = match_info['matched_count']
     
+    # Step 2: Click on the matched row
     print(f"[07_HELPERS] Clicking at ({click_x}, {click_y}) with button={button}")
     success, action_msg = actions.click_at_position(click_x, click_y, clicks=1, button=button)
     if not success:
         return False, f"Failed to click at position: {action_msg}"
     
-    # Position row in target region
+    # Step 3: Position row in target region
     time.sleep(0.3)
     position_success, position_msg = position_row_in_target_region(
         table_center_x, table_center_y,
@@ -191,9 +200,11 @@ def click_and_position_row(match_info: Dict, table_center_x: int, table_center_y
         crop_x, crop_y, crop_width, crop_height
     )
     
+    # Step 4: Log warning if positioning failed
     if not position_success:
         print(f"[07_HELPERS] Warning: {position_msg}")
     
+    # Step 5: Return success
     return True, f"Row found and clicked! Matched {matched_count} targets"
 
 # ============================================================================
@@ -219,35 +230,40 @@ def detect_column_separators(source_img, template_img, match_threshold=0.9, mask
     Returns:
         List of ((x, y), confidence) tuples
     """
+    # Step 1: Get template dimensions
     template_height, template_width = template_img.shape[:2]
     
-    # Create match heatmap
+    # Step 2: Create match heatmap using template matching
     match_heatmap = cv2.matchTemplate(source_img, template_img, cv2.TM_CCOEFF_NORMED)
     
     column_separator_positions = []
     
+    # Step 3: Iteratively find all matches above threshold
     while True:
-        # Find best remaining match
+        # Step 3a: Find best remaining match
         min_val, max_confidence, min_loc, best_match_position = cv2.minMaxLoc(match_heatmap)
         
-        # Stop if below threshold
+        # Step 3b: Stop if below threshold
         if max_confidence < match_threshold:
             break
         
-        # Record this separator
+        # Step 3c: Record this separator position
         column_separator_positions.append((best_match_position, max_confidence))
         
-        # Mask nearby area to prevent duplicate detections
+        # Step 3d: Calculate mask dimensions
         mask_height = int(template_height * mask_size_factor)
         mask_width = int(template_width * mask_size_factor)
         
+        # Step 3e: Calculate mask bounds
         y_start = max(0, best_match_position[1] - mask_height // 2)
         y_end = min(match_heatmap.shape[0], best_match_position[1] + mask_height // 2)
         x_start = max(0, best_match_position[0] - mask_width // 2)
         x_end = min(match_heatmap.shape[1], best_match_position[0] + mask_width // 2)
         
+        # Step 3f: Mask nearby area to prevent duplicate detections
         match_heatmap[y_start:y_end, x_start:x_end] = 0
     
+    # Step 4: Debug output
     if debug:
         if column_separator_positions:
             print(f"[DETECT_SEPARATORS] Found {len(column_separator_positions)} separators (threshold: {match_threshold}):")
@@ -279,19 +295,21 @@ def create_separated_columns_image(source_img, column_separator_positions, templ
     Returns:
         Combined image with separated columns, or None if processing fails
     """
+    # Step 1: Validate input
     if not column_separator_positions:
         print("[CREATE_COLUMNS] No column separators found")
         return None
     
-    # Calculate column boundaries
     print(f"[CREATE_COLUMNS] Processing {len(column_separator_positions)} separators")
     
+    # Step 2: Calculate split positions from separator positions
     column_split_positions = []
     for position, score in column_separator_positions:
         x_position = position[0]
         split_center = x_position + (template_width // 2)
         column_split_positions.append(split_center)
     
+    # Step 3: Build column boundaries (including image edges)
     unique_split_positions = sorted(set(column_split_positions))
     image_width = source_img.shape[1]
     all_column_boundaries = [0] + unique_split_positions + [image_width]
@@ -299,7 +317,7 @@ def create_separated_columns_image(source_img, column_separator_positions, templ
     if debug:
         print(f"[CREATE_COLUMNS] Column boundaries: {all_column_boundaries}")
     
-    # Crop all columns
+    # Step 4: Crop all columns
     print(f"[CREATE_COLUMNS] Cropping {len(all_column_boundaries)-1} columns")
     
     all_columns = []
@@ -313,19 +331,19 @@ def create_separated_columns_image(source_img, column_separator_positions, templ
             column_width = right_edge - left_edge
             print(f"[CREATE_COLUMNS] Column {column_index+1}: x={left_edge} to x={right_edge} (width={column_width}px)")
     
+    # Step 5: Validate columns were extracted
     if not all_columns:
         print("[CREATE_COLUMNS] No columns extracted")
         return None
     
-    # Keep all columns (no filtering)
     total_columns = len(all_columns)
     print(f"[CREATE_COLUMNS] Using all {total_columns} columns (no filtering)")
     
-    # Create white padding
+    # Step 6: Create white padding between columns
     image_height = source_img.shape[0]
     white_padding = np.full((image_height, padding_width, 3), 255, dtype=np.uint8)
     
-    # Combine columns with padding
+    # Step 7: Combine columns with padding
     final_parts = [all_columns[0]]
     for next_column in all_columns[1:]:
         final_parts.append(white_padding)
@@ -333,6 +351,7 @@ def create_separated_columns_image(source_img, column_separator_positions, templ
     
     separated_columns_image = np.hstack(final_parts)
     
+    # Step 8: Log result and save debug image if enabled
     final_width = separated_columns_image.shape[1]
     print(f"[CREATE_COLUMNS] Created separated columns image: {final_width}px wide, {len(all_columns)} columns")
     

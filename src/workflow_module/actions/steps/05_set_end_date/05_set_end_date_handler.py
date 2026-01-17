@@ -60,20 +60,24 @@ def verifier(end_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str
     """
     print(f"[VERIFIER_HANDLER] Verifying end date entered: '{end_date}'")
     
+    # Step 1: Handle empty end date
     if not end_date:
         return True, "No end date to verify", None
     
+    # Step 2: Define field region and crop screenshot
     field_region = (1105, 175, 114, 50)
     cropped_image = take_screenshot_and_crop(field_region)
     if cropped_image is None:
         return False, "Failed to crop image to end date field region", None
     
+    # Step 3: Extract text using OCR
     success, extracted_text = scanner.extract_text(cropped_image)
     if not success:
         return False, f"Failed to extract text from end date field: {extracted_text}", None
     
     print(f"[VERIFIER_HANDLER] Extracted text: '{extracted_text}'")
     
+    # Step 4: Extract date from OCR text
     extracted_date = extract_date_from_text(extracted_text, end_date)
     if not extracted_date:
         error_msg = f"Could not extract date from: '{extracted_text}'"
@@ -89,8 +93,10 @@ def verifier(end_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str
     
     print(f"[VERIFIER_HANDLER] Extracted end date: '{extracted_date}'")
     
+    # Step 5: Calculate similarity between expected and extracted date
     similarity = calculate_text_similarity(end_date, extracted_date)
     
+    # Step 6: Build verification data dictionary
     verification_data = {
         "expected_text": end_date,
         "extracted_text": extracted_text,
@@ -100,6 +106,7 @@ def verifier(end_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str
         "threshold": 0.80
     }
     
+    # Step 7: Return result based on similarity threshold
     if similarity >= 0.80:
         success_msg = f"✓ End date verified with {similarity:.2%} similarity (extracted: '{extracted_date}')"
         print(f"[VERIFIER_HANDLER] {success_msg}")

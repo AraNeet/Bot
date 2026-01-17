@@ -67,41 +67,55 @@ class Debugger:
     def visualize_template_match(self, screenshot: np.ndarray, found: bool, position: Optional[Tuple[int, int]], 
                                template_size: Tuple[int, int], step_name: str, confidence: float = 0.0):
         """Saves a screenshot with the template match highlighted."""
+        # Step 1: Create copy of screenshot for annotation
         debug_img = screenshot.copy()
+        
+        # Step 2: If match found, draw bounding box and center point
         if found and position:
             cx, cy = position
             w, h = template_size
+            # Step 2a: Calculate top-left corner from center point
             top_left = (cx - w // 2, cy - h // 2)
+            # Step 2b: Draw rectangle and center point
             self.draw_rect(debug_img, (top_left[0], top_left[1], w, h), color=COLOR_GREEN, label=f"Match ({confidence:.2f})")
             self.draw_point(debug_img, position, color=COLOR_BLUE)
         else:
-             cv2.putText(debug_img, "Template Not Found", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, COLOR_RED, 2)
-             
+            # Step 3: If not found, add "Not Found" text
+            cv2.putText(debug_img, "Template Not Found", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, COLOR_RED, 2)
+        
+        # Step 4: Save annotated image
         self.save_image(debug_img, f"{step_name}_match_result.png")
 
     def visualize_ocr(self, image: np.ndarray, ocr_data: Dict, step_name: str, highlight_text: str = None):
         """Saves an image with OCR bounding boxes drawn."""
+        # Step 1: Validate input data
         if image is None or not ocr_data or 'text' not in ocr_data:
             return
 
+        # Step 2: Create copy of image for annotation
         debug_img = image.copy()
         
+        # Step 3: Iterate through all OCR detected text items
         for i, text in enumerate(ocr_data['text']):
             if not text: continue
             
+            # Step 3a: Extract bounding box coordinates
             x1, y1, x2, y2 = map(int, ocr_data['bbox'][i])
             w = x2 - x1
             h = y2 - y1
             
+            # Step 3b: Set default color and thickness
             color = COLOR_CYAN
             thickness = 1
             
-            # Highlight specific text if requested
+            # Step 3c: Highlight specific text if requested
             if highlight_text and highlight_text.lower() in text.lower():
                 color = COLOR_MAGENTA
                 thickness = 2
-                
-            self.draw_rect(debug_img, (x1, y1, w, h), color=color, thickness=thickness)
             
+            # Step 3d: Draw rectangle around detected text
+            self.draw_rect(debug_img, (x1, y1, w, h), color=color, thickness=thickness)
+        
+        # Step 4: Save annotated image
         self.save_image(debug_img, f"{step_name}_ocr_result.png")
 

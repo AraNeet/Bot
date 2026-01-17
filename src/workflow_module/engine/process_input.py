@@ -56,28 +56,30 @@ def process_input_workflow(parser_results: Dict[str, Any],
         else:
             print(f"Workflow failed: {results}")
     """
+    # Step 1: Print workflow start header
     print("\n" + "="*70)
     print("WORKFLOW ENGINE - WORKFLOW START")
     print("="*70)
     
-
-    # Step 1: Plan workflow (preparation phase)
+    # Step 2: Plan workflow (preparation phase) - loads and validates all objectives
     print("\n[ENGINE] Starting planning phase...")
     success, result = workflow_planner.plan_workflow(
         parser_results=parser_results,
         actions_dir=actions_dir
     )
     
+    # Step 3: Handle planning failure
     if not success:
         error_msg = f"Planning phase failed: {result}"
         print(f"[ENGINE ERROR] {error_msg}")
         return False, error_msg
     
+    # Step 4: Extract prepared objectives for execution
     prepared_objectives = result.get("prepared_objectives", [])
     print(f"[ENGINE SUCCESS] ✓ Planning phase complete")
     print(f"[ENGINE] Prepared {len(prepared_objectives)} objectives for execution")
     
-    # Step 2: Execute workflow (execution phase)
+    # Step 5: Execute workflow (execution phase) - runs all prepared objectives
     print("\n[ENGINE] Starting execution phase...")
     success, execution_results = workflow_executor.execute_workflow(
         prepared_objectives=prepared_objectives,
@@ -85,23 +87,24 @@ def process_input_workflow(parser_results: Dict[str, Any],
         max_retries=max_retries
     )
     
-    # Step 3: Print detailed execution summary
+    # Step 6: Print detailed execution summary header
     print("\n" + "="*70)
     print("WORKFLOW EXECUTION SUMMARY")
     print("="*70)
     
-    # Overall statistics
+    # Step 7: Print objectives statistics
     print(f"\nObjectives:")
     print(f"  Total:     {execution_results['total_objectives']}")
     print(f"  Completed: {execution_results['completed_objectives']} ✓")
     print(f"  Failed:    {execution_results['failed_objectives']} {'✗' if execution_results['failed_objectives'] > 0 else ''}")
     
+    # Step 8: Print instructions statistics
     print(f"\nInstructions:")
     print(f"  Total:     {execution_results['total_instructions']}")
     print(f"  Completed: {execution_results['completed_instructions']} ✓")
     print(f"  Failed:    {execution_results['failed_instructions']} {'✗' if execution_results['failed_instructions'] > 0 else ''}")
     
-    # Detailed breakdown
+    # Step 9: Print detailed breakdown for each objective
     if execution_results['details']:
         print(f"\nDetailed Results:")
         for detail in execution_results['details']:
@@ -118,7 +121,7 @@ def process_input_workflow(parser_results: Dict[str, Any],
                 failure_reason = detail.get('failure_reason', 'Unknown error')
                 print(f"     └─ Reason: {failure_reason}")
     
-    # Final status
+    # Step 10: Print final status
     print(f"\n{'─'*70}")
     if execution_results['failed_objectives'] == 0:
         print("Overall Status: SUCCESS ✓")
@@ -126,7 +129,7 @@ def process_input_workflow(parser_results: Dict[str, Any],
         print("Overall Status: FAILED ✗")
     print(f"{'='*70}\n")
     
-    # Final workflow completion message
+    # Step 11: Print workflow completion message and return
     print("\n" + "="*70)
     if success:
         print("WORKFLOW ENGINE - WORKFLOW COMPLETE ✓")

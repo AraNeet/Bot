@@ -362,13 +362,14 @@ def find_template_in_region(screenshot: np.ndarray,
         print(f"[CV ERROR] Template finding failed: {e}")
         return False, 0.0, None
 
-def find_blue_highlighted_row(screenshot: np.ndarray,
-                             exclude_bottom_pixels: int = 100) -> Tuple[bool, Optional[Dict[str, int]]]:
+def find_highlighted_row(screenshot: np.ndarray,
+                         exclude_bottom_pixels: int = 100) -> Tuple[bool, Optional[Dict[str, int]]]:
     """
-    Find a blue highlighted row in the screenshot using HSV color detection.
+    Find a highlighted/selected row in the screenshot using HSV color detection.
     
-    This function detects expanded/selected rows that have a blue background color.
-    It filters contours by size and position to find the most likely blue row.
+    This function detects expanded/selected rows that have a colored background.
+    It looks for YELLOW/GOLD colors (typical selection highlight in Crossroad app)
+    as well as BLUE colors as a fallback.
     
     Args:
         screenshot: Screenshot image as numpy array (BGR format)
@@ -380,84 +381,127 @@ def find_blue_highlighted_row(screenshot: np.ndarray,
         
     Example:
         screenshot = take_screenshot()
-        found, row_info = find_blue_highlighted_row(screenshot)
+        found, row_info = find_highlighted_row(screenshot)
         if found:
-            print(f"Blue row at ({row_info['x']}, {row_info['y']})")
+            print(f"Highlighted row at ({row_info['x']}, {row_info['y']})")
     """
     try:
         screen_height, screen_width = screenshot.shape[:2]
         bottom_exclusion_y = max(0, screen_height - exclude_bottom_pixels)
         
-        print(f"[CV] Detecting blue highlighted row...")
+        print(f"[CV] Detecting highlighted row (yellow/gold or blue)...")
         print(f"[CV] Screen size: {screen_width}x{screen_height}")
         print(f"[CV] Excluding bottom {exclude_bottom_pixels}px (Y >= {bottom_exclusion_y})")
         
-        # Convert to HSV and create blue mask
+        # Convert to HSV
         hsv = cv2.cvtColor(screenshot, cv2.COLOR_BGR2HSV)
+        
+        # Define color ranges for highlighted rows
+        # Yellow/Gold/Tan (primary - this is what Crossroad uses for selected rows)
+        # HSV: Hue 15-35, Saturation 50-255, Value 150-255
+        lower_yellow = np.array([15, 50, 150])
+        upper_yellow = np.array([35, 255, 255])
+        yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+        
+        # Also check for orange-ish gold (slightly wider range)
+        lower_gold = np.array([10, 80, 180])
+        upper_gold = np.array([30, 255, 255])
+        gold_mask = cv2.inRange(hsv, lower_gold, upper_gold)
+        
+        # Blue (fallback - in case some versions use blue)
         lower_blue = np.array([100, 50, 50])
         upper_blue = np.array([130, 255, 255])
         blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)
         
-        # Find contours in blue mask
-        contours, _ = cv2.findContours(blue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # Combine masks (prioritize yellow/gold)
+        combined_mask = cv2.bitwise_or(yellow_mask, gold_mask)
+        combined_mask = cv2.bitwise_or(combined_mask, blue_mask)
+        
+        # Find contours
+        contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         if not contours:
-            print(f"[CV] No blue contours found")
+            print(f"[CV] No highlighted contours found")
             return False, None
         
-        print(f"[CV] Found {len(contours)} blue contour(s)")
+        print(f"[CV] Found {len(contours)} potential contour(s)")
         
         # Filter candidate contours by size and position
         candidate_contours = []
         for cnt in contours:
             x, y, w, h = cv2.boundingRect(cnt)
             
-            # Skip if in bottom exclusion zone
+            # Skip if in bottom exclusion zone (taskbar area)
             if y >= bottom_exclusion_y:
                 continue
             
-            # Filter by height (typical row height range)
-            if h < 18 or h > 40:
+            # Filter by height (typical row height range: 20-50px for a single row)
+            if h < 18 or h > 60:
                 continue
             
-            # Filter by width (should be reasonably wide for a table row)
-            if w < 300:
+            # Filter by width (should be reasonably wide for a table row, at least 400px)
+            if w < 400:
+                continue
+            
+            # Filter by Y position (should be in the table area, typically below 200px from top)
+            if y < 150:
                 continue
             
             candidate_contours.append((cnt, x, y, w, h))
         
+        print(f"[CV] {len(candidate_contours)} contour(s) passed filters")
+        
         # Choose best candidate
-        blue_x, blue_y, blue_w, blue_h = None, None, None, None
+        row_x, row_y, row_w, row_h = None, None, None, None
         
         if candidate_contours:
-            # Sort by width and area (prioritize wider rows)
-            candidate_contours.sort(key=lambda item: (item[3], cv2.contourArea(item[0])), reverse=True)
-            chosen_cnt, blue_x, blue_y, blue_w, blue_h = candidate_contours[0]
-            print(f"[CV] Selected candidate from {len(candidate_contours)} filtered contour(s)")
+            # Sort by width (prioritize wider rows - table rows are usually full width)
+            candidate_contours.sort(key=lambda item: item[3], reverse=True)
+            chosen_cnt, row_x, row_y, row_w, row_h = candidate_contours[0]
+            print(f"[CV] Selected best candidate from {len(candidate_contours)} filtered contour(s)")
         else:
-            # Fallback: use largest contour regardless of filters
-            largest_contour = max(contours, key=cv2.contourArea)
-            blue_x, blue_y, blue_w, blue_h = cv2.boundingRect(largest_contour)
+            # Fallback: try to find the largest contour that looks like a row
+            print(f"[CV] No candidates passed strict filters, trying relaxed search...")
             
-            # If in exclusion zone, adjust Y position
-            if blue_y >= bottom_exclusion_y:
-                blue_y = max(0, bottom_exclusion_y - max(blue_h, 40))
+            # Relaxed search: just filter by minimum width
+            relaxed_candidates = []
+            for cnt in contours:
+                x, y, w, h = cv2.boundingRect(cnt)
+                if w >= 300 and h >= 15 and y < bottom_exclusion_y and y > 100:
+                    relaxed_candidates.append((cnt, x, y, w, h))
             
-            print(f"[CV] No candidates passed filters, using largest contour with adjusted position")
+            if relaxed_candidates:
+                relaxed_candidates.sort(key=lambda item: item[3], reverse=True)
+                chosen_cnt, row_x, row_y, row_w, row_h = relaxed_candidates[0]
+                print(f"[CV] Found candidate with relaxed filters")
+            else:
+                print(f"[CV] No highlighted row found even with relaxed filters")
+                return False, None
         
         row_info = {
-            'x': blue_x,
-            'y': blue_y,
-            'width': blue_w,
-            'height': blue_h
+            'x': row_x,
+            'y': row_y,
+            'width': row_w,
+            'height': row_h
         }
         
-        print(f"[CV] ✓ Found blue highlighted row at ({blue_x}, {blue_y}) with size {blue_w}x{blue_h}")
+        print(f"[CV] ✓ Found highlighted row at ({row_x}, {row_y}) with size {row_w}x{row_h}")
         return True, row_info
         
     except Exception as e:
-        print(f"[CV ERROR] Error finding blue highlighted row: {e}")
+        print(f"[CV ERROR] Error finding highlighted row: {e}")
         return False, None
+
+
+def find_blue_highlighted_row(screenshot: np.ndarray,
+                             exclude_bottom_pixels: int = 100) -> Tuple[bool, Optional[Dict[str, int]]]:
+    """
+    Alias for find_highlighted_row for backwards compatibility.
+    
+    Note: The actual row color in Crossroad is yellow/gold, not blue.
+    This function now calls find_highlighted_row which detects both colors.
+    """
+    return find_highlighted_row(screenshot, exclude_bottom_pixels)
 
 def detect_loading_circle(screenshot: np.ndarray,
                          center_region_ratio: float = 0.4,
