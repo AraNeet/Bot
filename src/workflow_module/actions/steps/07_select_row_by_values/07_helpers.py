@@ -38,12 +38,69 @@ def scroll_to_table_top(table_center_x: int, table_center_y: int) -> None:
     pyautogui.scroll(50)  # Positive value scrolls up
     time.sleep(0.05)
 
+def is_row_expanded(screenshot: np.ndarray, row_info: Dict[str, int], min_expanded_height: int = 80) -> bool:
+    """
+    Check if a detected row is expanded (has nested content visible).
+    
+    An expanded row will have:
+    - Height > min_expanded_height (nested table adds height)
+    - Or visible nested content below the row header
+    
+    Args:
+        screenshot: Current screenshot
+        row_info: Row info dict with 'x', 'y', 'width', 'height'
+        min_expanded_height: Minimum height to consider expanded (default: 80px)
+        
+    Returns:
+        True if row appears expanded, False otherwise
+    """
+    # Validate row_info has required keys
+    required_keys = ['x', 'y', 'width', 'height']
+    if not all(key in row_info for key in required_keys):
+        return False
+    
+    height = row_info.get('height', 0)
+    
+    # Check 1: Height threshold - expanded rows are taller
+    if height >= min_expanded_height:
+        print(f"[07_HELPERS] Row height {height}px >= {min_expanded_height}px threshold - appears expanded")
+        return True
+    
+    # Check 2: Look for nested content below the row
+    x = row_info.get('x', 0)
+    y = row_info.get('y', 0)
+    width = row_info.get('width', 0)
+    
+    # Check region below the row header for nested content
+    screen_height, screen_width = screenshot.shape[:2]
+    check_y_start = min(y + height, screen_height - 10)
+    check_y_end = min(y + height + 100, screen_height)
+    check_x_start = max(0, x)
+    check_x_end = min(x + width, screen_width)
+    
+    if check_y_end > check_y_start and check_x_end > check_x_start:
+        nested_region = screenshot[check_y_start:check_y_end, check_x_start:check_x_end]
+        
+        if nested_region is not None and nested_region.size > 0:
+            gray = cv2.cvtColor(nested_region, cv2.COLOR_BGR2GRAY)
+            std_dev = np.std(gray)
+            if std_dev > 15:
+                print(f"[07_HELPERS] Found nested content below row (std_dev: {std_dev:.1f}) - appears expanded")
+                return True
+    
+    print(f"[07_HELPERS] Row height {height}px < {min_expanded_height}px and no nested content - appears collapsed")
+    return False
+
+
 def position_row_in_target_region(table_center_x: int, table_center_y: int,
                                    target_region_y: int, target_region_height: int,
                                    crop_x: int, crop_y: int, crop_width: int, crop_height: int) -> Tuple[bool, str]:
     """
     After clicking a row, scroll down to position it within the target region if needed.
     Uses blue color detection to find the highlighted row position.
+    
+    For expanded rows, ensures the row HEADER (top) stays visible in the target region,
+    not just the center, so the selected row remains visible even when expanded content is large.
     
     Args:
         table_center_x: X coordinate for mouse position during scrolling
@@ -80,83 +137,134 @@ def position_row_in_target_region(table_center_x: int, table_center_y: int,
         print(f"[07_HELPERS] Warning: Could not detect blue highlighted row after clicking")
         return False, "Could not detect blue highlighted row"
     
-    # Step 6: Extract row position information
+    # Step 6: Check if row is expanded
+    row_is_expanded = is_row_expanded(cropped_screenshot, row_info)
+    
+    # Step 7: Extract row position information
     blue_row_y = row_info['y']
     blue_row_height = row_info['height']
     blue_row_center_y = blue_row_y + (blue_row_height // 2)
     blue_row_top = blue_row_y
     blue_row_bottom = blue_row_y + blue_row_height
     
-    # Step 7: Convert to screen coordinates for logging
+    # Step 8: Convert to screen coordinates for logging
     blue_row_y_screen = blue_row_y + crop_y
     blue_row_center_y_screen = blue_row_center_y + crop_y
     
     print(f"[07_HELPERS] Blue highlighted row detected at y={blue_row_y_screen} (cropped y={blue_row_y}), center_y={blue_row_center_y_screen}, height={blue_row_height}")
     print(f"[07_HELPERS] Blue row bounds: top={blue_row_top + crop_y}, bottom={blue_row_bottom + crop_y}")
     print(f"[07_HELPERS] Target region bounds: top={target_region_y}, bottom={target_region_bottom}")
+    print(f"[07_HELPERS] Row is {'EXPANDED' if row_is_expanded else 'COLLAPSED'}")
     
-    # Step 8: Check if row is already in target region
-    row_in_region = (blue_row_top >= target_region_y_cropped) and (blue_row_center_y <= target_region_bottom_cropped)
+    # Step 9: Check if row is already in target region
+    # For expanded rows, prioritize keeping the HEADER (top) visible
+    # For collapsed rows, use center position
+    if row_is_expanded:
+        # Expanded row: Ensure row HEADER (top) is in target region
+        # Allow some margin at the bottom for expanded content
+        header_margin = 50  # Allow 50px margin for expanded content below header
+        row_header_in_region = (blue_row_top >= target_region_y_cropped) and (blue_row_top <= target_region_bottom_cropped - header_margin)
+        
+        if row_header_in_region:
+            print(f"[07_HELPERS] ✓ Expanded row HEADER already in target region (top={blue_row_top + crop_y})")
+            print(f"[07_HELPERS] ✓ No scrolling needed - row header is already positioned correctly")
+            return True, "Expanded row header already in target region"
+    else:
+        # Collapsed row: Use center position (original logic)
+        row_in_region = (blue_row_top >= target_region_y_cropped) and (blue_row_center_y <= target_region_bottom_cropped)
+        
+        if row_in_region:
+            print(f"[07_HELPERS] ✓ Row already in target region (top={blue_row_top + crop_y}, center={blue_row_center_y_screen})")
+            print(f"[07_HELPERS] ✓ No scrolling needed - row is already positioned correctly")
+            return True, "Row already in target region"
     
-    if row_in_region:
-        print(f"[07_HELPERS] ✓ Row already in target region (top={blue_row_top + crop_y}, center={blue_row_center_y_screen})")
-        print(f"[07_HELPERS] ✓ No scrolling needed - row is already positioned correctly")
-        return True, "Row already in target region"
-    
-    # Step 9: Row not in target region, prepare to scroll
-    print(f"[07_HELPERS] ✗ Row NOT in target region (top={blue_row_top + crop_y} vs target_top={target_region_y}, center={blue_row_center_y_screen} vs target_bottom={target_region_bottom})")
-    print(f"[07_HELPERS] Scrolling down to position row in target region {target_region_y}-{target_region_bottom}...")
+    # Step 10: Row not in target region, prepare to scroll
+    if row_is_expanded:
+        print(f"[07_HELPERS] ✗ Expanded row HEADER NOT in target region (top={blue_row_top + crop_y} vs target_top={target_region_y})")
+        print(f"[07_HELPERS] Scrolling to position expanded row HEADER in target region {target_region_y}-{target_region_bottom}...")
+    else:
+        print(f"[07_HELPERS] ✗ Row NOT in target region (top={blue_row_top + crop_y} vs target_top={target_region_y}, center={blue_row_center_y_screen} vs target_bottom={target_region_bottom})")
+        print(f"[07_HELPERS] Scrolling down to position row in target region {target_region_y}-{target_region_bottom}...")
     
     pyautogui.moveTo(table_center_x, table_center_y, duration=0.2)
     time.sleep(0.2)
     
     max_position_scrolls = 100
     scroll_amount = -20  # Scroll down slowly (negative value)
+    last_blue_top = blue_row_top
     last_blue_center_y = blue_row_center_y
     
-    # Step 10: Scroll loop to position row
+    # Step 11: Scroll loop to position row
     for scroll_num in range(1, max_position_scrolls + 1):
-        # Step 10a: Scroll down
+        # Step 11a: Scroll down
         pyautogui.scroll(scroll_amount)
         time.sleep(0.05)
         
-        # Step 10b: Take new screenshot
+        # Step 11b: Take new screenshot
         check_cropped_screenshot = take_screenshot_and_crop((crop_x, crop_y, crop_width, crop_height))
         if check_cropped_screenshot is None:
             if scroll_num % 10 == 0:
                 print(f"[07_HELPERS] Warning: Screenshot failed at scroll {scroll_num}")
             continue
         
-        # Step 10c: Detect blue row position
+        # Step 11c: Detect blue row position
         check_found, check_row_info = computer_vision_utils.find_blue_highlighted_row(check_cropped_screenshot)
         
         if check_found and check_row_info:
             new_blue_y = check_row_info['y']
             new_blue_height = check_row_info['height']
             new_blue_center_y = new_blue_y + (new_blue_height // 2)
+            new_blue_top = new_blue_y
             
-            # Step 10d: Check if row is now in target region
-            if target_region_y_cropped <= new_blue_center_y <= target_region_bottom_cropped:
-                new_blue_center_y_screen = new_blue_center_y + crop_y
-                print(f"[07_HELPERS] ✓ Row positioned in target region after {scroll_num} scroll(s) (y={new_blue_center_y_screen})")
-                return True, f"Row positioned in target region at y={new_blue_center_y_screen}"
+            # Step 11c1: Re-check if row is expanded (row state may change during scrolling)
+            check_row_is_expanded = is_row_expanded(check_cropped_screenshot, check_row_info)
+            if check_row_is_expanded != row_is_expanded:
+                print(f"[07_HELPERS] Row expansion state changed: {row_is_expanded} -> {check_row_is_expanded}")
+                row_is_expanded = check_row_is_expanded
             
-            # Step 10e: Check if row stopped moving (end of scroll)
-            if abs(new_blue_center_y - last_blue_center_y) < 5:
-                new_blue_center_y_screen = new_blue_center_y + crop_y
-                print(f"[07_HELPERS] Row position unchanged at y={new_blue_center_y_screen}. Assuming end of table.")
+            # Step 11d: Check if row is now in target region
+            # For expanded rows, check if HEADER is in target region
+            # For collapsed rows, check if center is in target region
+            if row_is_expanded:
+                # Expanded row: Check if header (top) is in target region
+                header_margin = 50  # Allow margin for expanded content
+                if target_region_y_cropped <= new_blue_top <= (target_region_bottom_cropped - header_margin):
+                    new_blue_top_screen = new_blue_top + crop_y
+                    print(f"[07_HELPERS] ✓ Expanded row HEADER positioned in target region after {scroll_num} scroll(s) (top={new_blue_top_screen})")
+                    return True, f"Expanded row header positioned in target region at y={new_blue_top_screen}"
+            else:
+                # Collapsed row: Check if center is in target region
+                if target_region_y_cropped <= new_blue_center_y <= target_region_bottom_cropped:
+                    new_blue_center_y_screen = new_blue_center_y + crop_y
+                    print(f"[07_HELPERS] ✓ Row positioned in target region after {scroll_num} scroll(s) (y={new_blue_center_y_screen})")
+                    return True, f"Row positioned in target region at y={new_blue_center_y_screen}"
+            
+            # Step 11e: Check if row stopped moving (end of scroll)
+            position_unchanged = abs(new_blue_top - last_blue_top) < 5 if row_is_expanded else abs(new_blue_center_y - last_blue_center_y) < 5
+            if position_unchanged:
+                if row_is_expanded:
+                    new_blue_top_screen = new_blue_top + crop_y
+                    print(f"[07_HELPERS] Expanded row header position unchanged at y={new_blue_top_screen}. Assuming end of table.")
+                else:
+                    new_blue_center_y_screen = new_blue_center_y + crop_y
+                    print(f"[07_HELPERS] Row position unchanged at y={new_blue_center_y_screen}. Assuming end of table.")
                 return True, "End of scroll reached, continuing with current row position"
             
+            last_blue_top = new_blue_top
             last_blue_center_y = new_blue_center_y
             
-            # Step 10f: Log progress periodically
+            # Step 11f: Log progress periodically
             if scroll_num % 10 == 0:
-                new_blue_center_y_screen = new_blue_center_y + crop_y
-                print(f"[07_HELPERS] Positioning scroll {scroll_num}: blue row at y={new_blue_center_y_screen}, continuing...")
+                if row_is_expanded:
+                    new_blue_top_screen = new_blue_top + crop_y
+                    print(f"[07_HELPERS] Positioning scroll {scroll_num}: expanded row header at y={new_blue_top_screen}, continuing...")
+                else:
+                    new_blue_center_y_screen = new_blue_center_y + crop_y
+                    print(f"[07_HELPERS] Positioning scroll {scroll_num}: blue row at y={new_blue_center_y_screen}, continuing...")
         elif scroll_num % 10 == 0:
             print(f"[07_HELPERS] Warning: Blue row not detected at scroll {scroll_num}, continuing...")
     
-    # Step 11: Return success even if max scrolls reached
+    # Step 12: Return success even if max scrolls reached
     print(f"[07_HELPERS] Warning: Reached max positioning scrolls ({max_position_scrolls}), continuing anyway")
     return True, "Reached max positioning scrolls, continuing with current position"
 
@@ -192,19 +300,21 @@ def click_and_position_row(match_info: Dict, table_center_x: int, table_center_y
     if not success:
         return False, f"Failed to click at position: {action_msg}"
     
-    # Step 3: Position row in target region
-    time.sleep(0.3)
+    # Step 3: Wait for row to potentially expand after clicking
+    time.sleep(0.5)  # Give time for row to expand if it's going to
+    
+    # Step 4: Position row in target region
     position_success, position_msg = position_row_in_target_region(
         table_center_x, table_center_y,
         target_region_y, target_region_height,
         crop_x, crop_y, crop_width, crop_height
     )
     
-    # Step 4: Log warning if positioning failed
+    # Step 5: Log warning if positioning failed
     if not position_success:
         print(f"[07_HELPERS] Warning: {position_msg}")
     
-    # Step 5: Return success
+    # Step 6: Return success
     return True, f"Row found and clicked! Matched {matched_count} targets"
 
 # ============================================================================

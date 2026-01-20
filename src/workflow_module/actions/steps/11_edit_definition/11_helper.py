@@ -117,7 +117,8 @@ def find_field_input_box(screenshot, label_text: str, search_region: Tuple[int, 
 
 def extract_field_value(screenshot, click_pos: Tuple[int, int], field_type: str = "date") -> str:
     """Extract value from field at position."""
-    box_w, box_h = (300, 50) if field_type == "comment" else (100, 30)
+    # Use larger box for comments to capture full text (especially if multiple entries were added)
+    box_w, box_h = (600, 100) if field_type == "comment" else (100, 30)
     x = max(0, click_pos[0] - (box_w // 2))
     y = max(0, click_pos[1] - (box_h // 2))
     
