@@ -98,7 +98,7 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
     Verify that the multi-network instructions page was opened successfully.
     
-    This function checks if "Search Global Comm" text is present in the page,
+    This function checks if "Order #" and "Advertiser" text is present in the page,
     which indicates that the Multi-Network Instructions page has loaded.
     
     Returns:
@@ -107,7 +107,7 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     print("[VERIFIER_HANDLER] Verifying multi-network page opened...")
     
     # Step 1: Define the search region for header text
-    search_region = (200, 145, 1450, 50)  # Expanded region to capture header text
+    search_region = (206, 152, 1439, 79)  # Region for verifying page headers
     
     # Step 2: Take screenshot and crop to the search region
     cropped_image = take_screenshot_and_crop(search_region)
@@ -123,24 +123,26 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     
     print(f"[VERIFIER_HANDLER] Extracted text from search region: '{extracted_text}'")
     
-    # Step 4: Check if "Search Global Comm" is present (case-insensitive)
+    # Step 4: Check if "Order #" and "Advertiser" is present (case-insensitive)
     extracted_text_lower = extracted_text.lower()
-    has_search_global_comm = "search global comm" in extracted_text_lower
+    has_order_num = "order #" in extracted_text_lower
+    has_advertiser = "advertiser" in extracted_text_lower
     
     # Step 5: Build verification data dictionary
     verification_data = {
         "extracted_text": extracted_text,
         "search_region": search_region,
-        "has_search_global_comm": has_search_global_comm
+        "has_order_num": has_order_num,
+        "has_advertiser": has_advertiser
     }
     
     # Step 6: Return result based on verification
-    if has_search_global_comm:
-        success_msg = "✓ Multi-network page opened successfully. Found 'Search Global Comm' text"
+    if has_order_num and has_advertiser:
+        success_msg = "✓ Multi-network page opened successfully. Found 'Order #' and 'Advertiser' text"
         print(f"[VERIFIER_HANDLER] {success_msg}")
         return True, success_msg, verification_data
     else:
-        error_msg = f"✗ Multi-network page verification failed. Expected 'Search Global Comm' in search region, but found: '{extracted_text}'"
+        error_msg = f"✗ Multi-network page verification failed. Expected 'Order #' and 'Advertiser' in search region, but found: '{extracted_text}'"
         print(f"[VERIFIER_HANDLER] {error_msg}")
         return False, error_msg, verification_data
 

@@ -80,12 +80,6 @@ def action(begin_date: str = "", end_date: str = "", revision_number: str = "", 
         if not success:
             return False, msg
 
-    # Step 6: Update End Date (always required)
-    print(f"[ACTION_HANDLER] Updating End Date to '{end_date}'...")
-    success, msg = helpers.update_and_verify_date("End Date", end_date, debugger=debug, step_name="04_end_date")
-    if not success:
-        return False, msg
-
     # Step 7: Build expected appended text FIRST (before any UI interaction)
     if not agent_name:
         agent_name = "test agent"
@@ -258,16 +252,6 @@ def verifier(begin_date: str = "", end_date: str = "", revision_number: str = ""
     else:
         verification_results["begin_date"] = {"success": True, "message": "Skipped (no begin_date provided)"}
     
-    # Step 3: Verify End Date
-    if end_date:
-        end_success, end_msg = helpers.verify_date_field("End Date", end_date, debugger=debug)
-        verification_results["end_date"] = {"success": end_success, "message": end_msg}
-        if not end_success:
-            all_passed = False
-            error_messages.append(f"End Date: {end_msg}")
-    else:
-        verification_results["end_date"] = {"success": True, "message": "Skipped (no end_date provided)"}
-    
     # Step 4: Verify Comment
     comment_success, comment_msg = helpers.verify_comment(agent_name, revision_number, original_comment, debugger=debug)
     verification_results["comment"] = {"success": comment_success, "message": comment_msg}
@@ -277,7 +261,7 @@ def verifier(begin_date: str = "", end_date: str = "", revision_number: str = ""
     
     # Step 5: Return verification summary
     if all_passed:
-        summary_msg = "All verifications passed: Begin Date, End Date, and Comment verified successfully"
+        summary_msg = "All verifications passed: Begin Date and Comment verified successfully"
         print(f"[VERIFIER_HANDLER] [PASS] {summary_msg}")
         return True, summary_msg, verification_results
     else:

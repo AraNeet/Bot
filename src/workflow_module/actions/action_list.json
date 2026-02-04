@@ -71,6 +71,12 @@
     "has_verifier": true,
     "has_error_handler": true
   },
+  "edit_assignment_percentage": {
+    "module": "src.workflow_module.actions.steps.13_edit_assignment_percentage.13_edit_assignment_percentage_handler",
+    "description": "Edit Assignment Percentage - clear existing and enter new values",
+    "has_verifier": true,
+    "has_error_handler": true
+  },
   "save_instruction": {
     "module": "src.workflow_module.actions.steps.12_save_instruction.12_save_instruction_handler",
     "description": "Save the edited instruction",
@@ -83,9 +89,9 @@
     "has_verifier": true,
     "has_error_handler": true
   },
-  "type_estimate_number": {
-    "module": "src.workflow_module.actions.steps.14_type_estimate_number.14_type_estimate_number_handler",
-    "description": "Enter estimate number in the search field",
+  "save_action": {
+    "module": "src.workflow_module.actions.steps.14_save_action.14_save_action_handler",
+    "description": "Save and close the multinetwork",
     "has_verifier": true,
     "has_error_handler": true
   }

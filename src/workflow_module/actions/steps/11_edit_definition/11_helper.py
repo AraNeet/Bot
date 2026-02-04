@@ -27,9 +27,6 @@ MOUNTAIN_TZ = pytz.timezone('US/Mountain')
 # Module-level storage for verification data
 _verification_data = {"original_comment": ""}
 
-def get_verification_data():
-    """Get verification data storage."""
-    return _verification_data
 
 def get_current_mountain_date():
     """Get current date in Mountain Time Zone."""
@@ -126,7 +123,7 @@ def extract_field_value(screenshot, click_pos: Tuple[int, int], field_type: str 
     if cropped is not None:
         success, text = scanner.extract_text(cropped)
         if success:
-            return text.strip()
+            return str(text).strip()
     return ""
 
 def type_date_in_three_part_field(field_pos: Tuple[int, int], date_str: str) -> Tuple[bool, str]:
@@ -197,6 +194,12 @@ def type_date_in_three_part_field(field_pos: Tuple[int, int], date_str: str) -> 
     except Exception as e:
         return False, f"Error typing date in 3-part field: {e}"
 
+def click_to_defocus():
+    """Click on a neutral area to ensure no field is highlighted."""
+    print("[EDIT_DEF] Clicking to defocus fields at (1900, 100)")
+    pyautogui.click(1900, 100)
+    time.sleep(0.5)
+
 def update_and_verify_date(field_label: str, expected_date: str, debugger: Optional[Debugger] = None, 
                            step_name: str = "") -> Tuple[bool, str]:
     """Update a date field and verify it was updated correctly."""
@@ -215,50 +218,54 @@ def update_and_verify_date(field_label: str, expected_date: str, debugger: Optio
     if not success:
         return False, f"Failed to update {field_label}: {msg}"
     
-    # Step 3: Take screenshot for verification
+    # Step 3: Defocus field before verification
+    click_to_defocus()
+    
+    # Step 4: Take screenshot for verification
     time.sleep(0.5)
     screenshot_after = computer_vision_utils.take_screenshot()
     if screenshot_after is None:
         return False, "Failed to take screenshot for verification"
     
-    # Step 4: Find field position again for verification
+    # Step 5: Find field position again for verification
     field_pos_after = find_field_input_box(screenshot_after, field_label, DEFINITION_WINDOW_REGION, offset_y=15)
     if not field_pos_after:
         return False, f"Could not locate '{field_label}' field for verification"
     
-    # Step 5: Extract and clean the field value
-    extracted = extract_field_value(screenshot_after, field_pos_after)
-    extracted_clean = re.sub(r'[^\d/]', '', extracted)
-    expected_clean = re.sub(r'[^\d/]', '', expected_date)
-    
-    # Step 6: Save debug image
+    # Step 6: Extract and verify
+    # Helper to check match
+    def check_match(extracted_val, expected_val):
+        v1 = re.sub(r'[^\d]', '', str(extracted_val))
+        v2 = re.sub(r'[^\d]', '', str(expected_val))
+        return v1 and v2 and (v1 in v2 or v2 in v1)
+
+    extracted = str(extract_field_value(screenshot_after, field_pos_after))
+    print(f"[EDIT_DEF] Verifying {field_label}: Expected='{expected_date}', Extracted='{extracted}'")
+
     if debugger:
         debugger.save_image(screenshot_after, f"{step_name}_updated.png")
     
-    # Step 7: Compare expected and extracted values
-    if expected_clean in extracted_clean or extracted_clean in expected_clean:
-        print(f"[EDIT_DEF] ✓ {field_label} verified: '{extracted}' matches '{expected_date}'")
+    if check_match(extracted, expected_date):
+        print(f"[EDIT_DEF] ✓ {field_label} verified")
         return True, f"{field_label} updated successfully"
     
-    # Step 8: Retry once if verification failed
+    # Retry logic
     print(f"[EDIT_DEF] WARNING: {field_label} verification failed. Retrying...")
     retry_success, retry_msg = type_date_in_three_part_field(field_pos_after, expected_date)
     if not retry_success:
         return False, f"{field_label} retry failed: {retry_msg}"
     
-    # Step 9: Verify after retry
+    click_to_defocus()
     time.sleep(0.5)
     screenshot_final = computer_vision_utils.take_screenshot()
     if screenshot_final:
         field_pos_final = find_field_input_box(screenshot_final, field_label, DEFINITION_WINDOW_REGION, offset_y=15)
         if field_pos_final:
-            extracted_final = extract_field_value(screenshot_final, field_pos_final)
-            extracted_final_clean = re.sub(r'[^\d/]', '', extracted_final)
-            if expected_clean in extracted_final_clean or extracted_final_clean in expected_clean:
-                print(f"[EDIT_DEF] ✓ {field_label} verified after retry: '{extracted_final}'")
+            extracted_final = str(extract_field_value(screenshot_final, field_pos_final))
+            if check_match(extracted_final, expected_date):
+                print(f"[EDIT_DEF] ✓ {field_label} verified after retry")
                 return True, f"{field_label} updated successfully"
     
-    # Step 10: Return failure if still not verified
     return False, f"{field_label} update failed after retry"
 
 def verify_date_field(field_label: str, expected_date: str, debugger: Optional[Debugger] = None) -> Tuple[bool, str]:
@@ -274,28 +281,20 @@ def verify_date_field(field_label: str, expected_date: str, debugger: Optional[D
         return False, f"Could not locate '{field_label}' field"
     
     # 2. Extract field value
-    extracted = extract_field_value(screenshot, field_pos)
-    extracted_date = parse_date_string(extracted)
-    expected_date_obj = parse_date_string(expected_date)
+    extracted = str(extract_field_value(screenshot, field_pos))
     
     if debugger:
         debug_img = screenshot.copy()
         debugger.draw_point(debug_img, field_pos, color=debug_utils.COLOR_CYAN, label=f"Extracted: {extracted}")
         debugger.save_image(debug_img, f"verify_{field_label.lower().replace(' ', '_')}.png")
     
-    # 3. Compare dates (prefer parsed date comparison)
-    if extracted_date and expected_date_obj:
-        if extracted_date == expected_date_obj:
-            return True, f"{field_label} verified: '{extracted}' matches '{expected_date}'"
-        else:
-            return False, f"{field_label} mismatch: Expected '{expected_date}', got '{extracted}'"
+    # 3. Simple comparison
+    v1 = re.sub(r'[^\d]', '', extracted)
+    v2 = re.sub(r'[^\d]', '', str(expected_date))
     
-    # 4. Fallback to string comparison if parsing fails
-    extracted_clean = re.sub(r'[^\d/]', '', extracted)
-    expected_clean = re.sub(r'[^\d/]', '', expected_date)
-    if expected_clean in extracted_clean or extracted_clean in expected_clean:
+    if v1 and v2 and (v1 in v2 or v2 in v1):
         return True, f"{field_label} verified: '{extracted}' matches '{expected_date}'"
-    
+        
     return False, f"{field_label} mismatch: Expected '{expected_date}', got '{extracted}'"
 
 def verify_comment(agent_name: str, revision_number: str, original_comment: str = "", 

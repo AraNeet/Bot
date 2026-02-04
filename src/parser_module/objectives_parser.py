@@ -260,11 +260,25 @@ def _parse_new_format(objectives: Dict[str, Any], config: Dict[str, Any]) -> Tup
             # The copy_id in copy_instructions might be the ISCI code
             isci_1_value = ""
             isci_list = []
+            assignment_data = {}  # Maps alias (A, B, C...) to rotation percentage
+            
             if copy_instructions and len(copy_instructions) > 0:
                 first_copy = copy_instructions[0]
                 isci_1_value = first_copy.get("copy_id", "")
                 # Extract all ISCI values as a list for edit_media_details
                 isci_list = [copy.get("copy_id", "") for copy in copy_instructions if copy.get("copy_id")]
+                
+                # Extract rotation_percent for assignment_data
+                # Maps alias letters (A, B, C...) to percentage values
+                for idx, copy in enumerate(copy_instructions):
+                    rotation_percent = copy.get("rotation_percent", "")
+                    if rotation_percent:
+                        # Convert index to letter (0=A, 1=B, 2=C, etc.)
+                        alias_letter = chr(ord('A') + idx)
+                        # Remove % sign if present and store just the number
+                        percent_value = rotation_percent.replace("%", "").strip()
+                        assignment_data[alias_letter] = percent_value
+                        print(f"    [ASSIGNMENT] {alias_letter} -> {percent_value}%")
             
             mapped_values = {
                 "agency_name": agency,
@@ -276,6 +290,7 @@ def _parse_new_format(objectives: Dict[str, Any], config: Dict[str, Any]) -> Tup
                 "estimate_number": estimate_number_value,  # Use order_id as estimate_number
                 "isci_1": isci_1_value,
                 "isci_list": isci_list,  # List of all ISCI values for edit_media_details
+                "assignment_data": assignment_data,  # Maps alias (A, B, C...) to rotation percentage for edit_assignment_percentage
                 "revision_number": revision_number,
                 "agent_name": "test agent",
                 "valid_flight_start": flight_start_date,

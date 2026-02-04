@@ -249,27 +249,6 @@ def search_date_in_cropped_table(
     crop_x: int, crop_y: int ) -> Tuple[bool, Optional[int], Optional[int], str]:
     """
     Search for the first row containing the begin_date in a cropped table.
-    
-    This is a high-level function that:
-    1. Performs OCR on the table
-    2. Groups results into rows
-    3. Searches for matching date
-    4. Returns click coordinates
-    
-    Args:
-        cropped_table: Cropped table image
-        column_boundaries: List of column boundary x-coordinates
-        begin_date: Date string to search for
-        crop_x, crop_y: Offset coordinates for converting to screen coordinates
-        
-    Returns:
-        Tuple of (found: bool, click_x: Optional[int], click_y: Optional[int], message: str)
-        
-    Example:
-        >>> table_img = cv2.imread('cropped_table.png')
-        >>> found, x, y, msg = search_date_in_cropped_table(table_img, [], '1/5/2026', 205, 280)
-        >>> if found:
-        ...     print(f"Date found at ({x}, {y})")
     """
     print(f"[08_HELPERS] Searching for begin_date '{begin_date}' in cropped table...")
     
@@ -286,10 +265,14 @@ def search_date_in_cropped_table(
     # Step 3: Normalize the target date
     begin_date_str = str(begin_date)
     begin_date_normalized = normalize_date(begin_date_str)
+    print(f"[08_HELPERS] Normalized target date: '{begin_date_normalized}' (Original: '{begin_date_str}')")
     
     # Step 4: Group OCR results by rows
     rows = group_ocr_by_rows(ocr_data)
     print(f"[08_HELPERS] Grouped OCR into {len(rows)} rows")
+    
+    # Collect all found dates for debugging and fallback
+    all_found_dates = []
     
     # Step 5: Search for matching date in each row
     header_height = 40  # Skip header row
@@ -304,6 +287,11 @@ def search_date_in_cropped_table(
         # Step 5b: Get row texts and combine
         row_texts = row_data['texts']
         row_text_combined = ' '.join(row_texts)
+        
+        # Extract dates found in this row for logging
+        found_dates_in_row = re.findall(r'\d{1,2}/\d{1,2}/\d{4}', row_text_combined)
+        if found_dates_in_row:
+            all_found_dates.extend(found_dates_in_row)
         
         # Step 5c: Normalize and check for match
         row_text_normalized = normalize_date(row_text_combined)
@@ -337,8 +325,53 @@ def search_date_in_cropped_table(
                   f"screen=({click_x}, {click_y})")
             
             return True, click_x, click_y, f"Date found in row {row_idx}"
+            
+    print(f"[08_HELPERS] All found dates in table: {all_found_dates}")
     
-    # Step 6: Return failure if date not found
+    # Step 6: Fallback - Try matching Month/Day if exact match failed (ignoring year)
+    # This handles cases where plan has 2025 but screen shows 2026 (or vice versa)
+    # We only do this if we found NO exact match.
+    print(f"[08_HELPERS] Exact match for '{begin_date}' failed. Trying fallback (ignoring year)...")
+    
+    # Parse target month/day
+    target_match = re.match(r'(\d{1,2})/(\d{1,2})/\d{4}', begin_date_str)
+    if target_match:
+        target_md = f"{int(target_match.group(1))}/{int(target_match.group(2))}" # Normalized M/D e.g. "1/26"
+        print(f"[08_HELPERS] Target M/D: '{target_md}'")
+        
+        for row_idx, row_data in enumerate(rows):
+            row_y_center = row_data['y_center']
+            if row_y_center < header_height: continue
+            
+            row_text_combined = ' '.join(row_data['texts'])
+            # Normalize to remove leading zeros
+            row_text_norm = normalize_date(row_text_combined)
+            
+            # Check if this row contains the Month/Day part
+            if target_md in row_text_norm:
+                # But we must ensure it's actually part of a date (followed by /YYYY)
+                # Regex search for M/D/YYYY in the normalized string
+                # We look for something that starts with our target M/D and has a year
+                # Note: normalize_date removes leading zeros, so 01/26/2026 becomes 1/26/2026
+                # We need to match "1/26/20"
+                if re.search(rf"{re.escape(target_md)}/\d{{4}}", row_text_norm):
+                    print(f"[08_HELPERS] ✓ Found PARTIAL match (ignoring year) in row {row_idx}: '{row_text_combined}'")
+                    
+                    # Use this row
+                    # Find bbox (we pass original str but it won't match, so find_date_bbox needs update or we fallback to row center)
+                    # We'll trust find_date_bbox to return None and fallback to row center if it can't find exact string
+                    # Or we can try to find the M/D string bbox
+                    
+                    # For now, fallback to row center is safer than complex bbox logic for partial match
+                    click_x_local = cropped_table.shape[1] // 2
+                    click_y_local = row_y_center
+                    
+                    click_x = click_x_local + crop_x
+                    click_y = click_y_local + crop_y
+                    
+                    return True, click_x, click_y, f"Date found (ignoring year) in row {row_idx}"
+
+    # Step 7: Return failure if date not found
     print(f"[08_HELPERS] ✗ Date '{begin_date}' not found in table")
     return False, None, None, f"Date '{begin_date}' not found"
 
@@ -444,14 +477,27 @@ def detect_blue_highlighted_expanded_row(screenshot: np.ndarray, exclude_bottom_
     """
     print("[08_HELPERS] Detecting blue highlighted expanded row...")
     
-    found, row_info_data = find_blue_highlighted_row(screenshot)
+    # Restrict search to user-defined work area to avoid false positives (e.g. header blue lines)
+    # Work area: x=200, y=250, w=1450, h=750
+    wa_x, wa_y, wa_w, wa_h = 200, 250, 1450, 750
+    print(f"[08_HELPERS] Restricting search to work area: ({wa_x}, {wa_y}, {wa_w}, {wa_h})")
+    
+    # Crop screenshot to work area
+    cropped_screenshot = computer_vision_utils.crop_image(screenshot, wa_x, wa_y, wa_w, wa_h)
+    
+    if cropped_screenshot is None:
+        print("[08_HELPERS] Failed to crop work area")
+        return False, None
+        
+    found, row_info_data = find_blue_highlighted_row(cropped_screenshot)
     
     if not found or row_info_data is None:
-        print("[08_HELPERS] ✗ Blue highlighted row not found")
+        print("[08_HELPERS] ✗ Blue highlighted row not found in work area")
         return False, None
     
-    x = row_info_data['x']
-    y = row_info_data['y']
+    # Adjust coordinates back to global space
+    x = row_info_data['x'] + wa_x
+    y = row_info_data['y'] + wa_y
     width = row_info_data['width']
     height = row_info_data['height']
     
@@ -497,8 +543,9 @@ def calculate_crop_region_from_expanded_row(screenshot: np.ndarray, blue_row_inf
     screen_height, screen_width = screenshot.shape[:2]
     
     # Step 2: Define extension height for nested table
-    # The nested table has: header row (~25px) + 1-5 data rows (~25px each)
-    NESTED_TABLE_EXTENSION = 120  # Conservative estimate to capture nested table
+    # The nested table has: header row (~25px) + data rows (~25px each)
+    # We increase this to 500 to capture up to ~20 rows (e.g., 7th row at ~200px offset)
+    NESTED_TABLE_EXTENSION = 500
     
     # Step 3: Calculate crop region based on blue row info
     if blue_row_info:

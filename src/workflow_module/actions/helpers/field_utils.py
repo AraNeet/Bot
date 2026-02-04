@@ -6,11 +6,12 @@ This module provides utilities for typing text into form fields by locating
 field labels and calculating field positions with offsets.
 """
 
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union, List
 import re
 from src.workflow_module.actions.helpers import actions
 from src.workflow_module.actions.helpers.computer_vision_utils import take_screenshot_and_crop
 from src.workflow_module.actions.helpers.ocr_utils import TextScanner
+from src.workflow_module.actions.helpers.debug_utils import Debugger
 import time
 
 scanner = TextScanner()
@@ -21,12 +22,13 @@ DEFAULT_FIELD_SPACING = 15  # Pixels below the label text
 
 
 def type_text_in_field(
-    field_label: str,
+    field_label: Union[str, List[str]],
     text_to_type: str,
     press_enter: bool = False,
     search_region: Optional[Tuple[int, int, int, int]] = None,
     field_spacing: int = DEFAULT_FIELD_SPACING,
-    typing_interval: float = 0.02
+    typing_interval: float = 0.02,
+    debugger: Optional[Debugger] = None
 ) -> Tuple[bool, str]:
     """
     Type text into a form field by locating the field label and calculating the field position.
@@ -42,12 +44,14 @@ def type_text_in_field(
     
     Args:
         field_label: The label text to search for (e.g., "advertiser", "agency", "begin", "end")
+                     Can be a string or a list of strings to try.
         text_to_type: The text to type into the field
         press_enter: Whether to press Enter after typing (default: False)
         search_region: Region to search for the label (x, y, width, height). 
                       Defaults to DEFAULT_SEARCH_REGION
         field_spacing: Pixels below the label text to click (default: 15)
         typing_interval: Delay between keystrokes in seconds (default: 0.02)
+        debugger: Optional Debugger instance for saving images
         
     Returns:
         Tuple of (success: bool, message: str)
@@ -56,7 +60,13 @@ def type_text_in_field(
         success, msg = type_text_in_field("advertiser", "Acme Corp", press_enter=True)
         success, msg = type_text_in_field("begin", "09/16/2025", press_enter=False)
     """
-    print(f"[FIELD_UTILS] Entering '{text_to_type}' into '{field_label}' field")
+    # Handle list of labels
+    if isinstance(field_label, str):
+        labels_to_try = [field_label]
+    else:
+        labels_to_try = field_label
+        
+    print(f"[FIELD_UTILS] Entering '{text_to_type}' into '{labels_to_try[0]}' field")
     
     # ============================================================================
     # STEP 1: Setup search region
@@ -73,19 +83,36 @@ def type_text_in_field(
     if cropped_image is None:
         return False, "Failed to take screenshot and crop to search region"
     
-    print(f"[FIELD_UTILS] Searching for '{field_label}' in region {search_region}")
+    if debugger:
+        debugger.save_image(cropped_image, f"search_region_{labels_to_try[0]}.png")
+    
+    print(f"[FIELD_UTILS] Searching for labels {labels_to_try} in region {search_region}")
     
     # ============================================================================
     # STEP 3: Find the field label text using OCR
     # ============================================================================
-    success, found, bbox = scanner.find_text_with_position(
-        cropped_image,
-        field_label,
-        case_sensitive=False
-    )
+    success = False
+    found = False
+    bbox = None
     
+    # Try each label in the list
+    for label in labels_to_try:
+        success, found, bbox = scanner.find_text_with_position(
+            cropped_image,
+            label,
+            case_sensitive=False
+        )
+        if success and found and bbox:
+            print(f"[FIELD_UTILS] ✓ Found label '{label}'")
+            field_label = label # Set the actual found label for later use
+            break
+            
     if not success or not found or bbox is None:
-        return False, f"Could not determine exact position of '{field_label}' text in cropped image"
+        # Debugging: Print what WAS found
+        success_ocr, data = scanner.get_text_data(cropped_image)
+        if success_ocr and data.get('text'):
+            print(f"[FIELD_UTILS] ✗ Label not found. OCR detected text: {data['text']}")
+        return False, f"Could not determine exact position of any of {labels_to_try} text in cropped image"
     
     # ============================================================================
     # STEP 4: Calculate field position (label position + offset)

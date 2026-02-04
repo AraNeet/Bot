@@ -53,37 +53,30 @@ def action(isci_list: List[str] = None, **kwargs) -> Tuple[bool, str]:
         return False, "Failed to take screenshot"
     debug.save_image(screenshot, "00_initial_screenshot.png")
     
-    # Step 4: Scroll to Media Details sub-window
-    print("[ACTION_HANDLER] Scrolling to Media Details...")
-    success, msg = helpers.scroll_to_media_details(debug)
-    if not success:
-        print(f"[ACTION_HANDLER] Warning: {msg}")
-        # Continue anyway - Media Details might already be visible
-    
-    # Step 5: Delete all existing media entries
-    print("[ACTION_HANDLER] Deleting existing media entries...")
-    success, msg, deleted_count = helpers.delete_all_existing_media(debug)
-    if not success:
-        return False, f"Failed to delete existing media: {msg}"
-    print(f"[ACTION_HANDLER] Deleted {deleted_count} existing entries")
-    
-    # Step 6: Enter new ISCI values
+    # Step 4: Process Rows (Delete & Enter per row)
+    # Note: process_media_rows handles scrolling to Media Details internally
     if isci_list:
-        print(f"[ACTION_HANDLER] Entering {len(isci_list)} new ISCI values...")
-        success, msg, entered_count = helpers.enter_all_isci_values(isci_list, debug)
+        print(f"[ACTION_HANDLER] Processing {len(isci_list)} ISCI rows...")
+        success, msg, errors = helpers.process_media_rows(isci_list, debug)
         if not success:
-            return False, f"Failed to enter ISCI values: {msg}"
-        print(f"[ACTION_HANDLER] Entered {entered_count} ISCI values")
+            error_details = "; ".join(errors) if errors else msg
+            return False, f"Failed to process media rows: {msg} Details: {error_details}"
+        print(f"[ACTION_HANDLER] Media processing complete: {msg}")
     else:
-        print("[ACTION_HANDLER] No ISCI values to enter")
+        print("[ACTION_HANDLER] No ISCI values to enter - clearing only?")
+        # Fallback to clear if list is empty? Or just return success.
+        # Assuming empty list means "clear everything", we might need a separate clear function.
+        # But per user request "row by row", if input is empty, maybe nothing to do?
+        # Let's assume user always provides ISCIs.
+        pass
     
-    # Step 7: Take final screenshot
+    # Step 6: Take final screenshot
     screenshot_after = computer_vision_utils.take_screenshot()
     if screenshot_after is not None:
-        debug.save_image(screenshot_after, "99_final_screenshot.png")
+        debug.save_image(screenshot_after, "final_screenshot.png")
     
     print(f"[ACTION_HANDLER] [OK] Step 12 completed successfully")
-    return True, f"Media Details updated: deleted {deleted_count}, entered {len(isci_list)} ISCI values"
+    return True, f"Media Details updated successfully. Processed {len(isci_list)} items."
 
 
 # ============================================================================
@@ -138,9 +131,9 @@ def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> 
     print(f"[ERROR_HANDLER] Error in Edit Media Details: {error_msg}")
     
     if attempt < max_attempts:
-        # Try to recover by scrolling to top
-        print("[ERROR_HANDLER] Attempting recovery - scrolling to top...")
-        helpers.scroll_media_details_to_top()
+        # Try to recover by scrolling to Media Details
+        print("[ERROR_HANDLER] Attempting recovery - scrolling to Media Details...")
+        helpers.scroll_to_media_details()
         time.sleep(1)
         return True, "Retrying..."
     

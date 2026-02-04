@@ -35,9 +35,19 @@ def action(begin_date: str, **kwargs) -> Tuple[bool, str]:
     """
     print(f"[ACTION_HANDLER] Entering begin date: '{begin_date}'")
     
+    # Debug: Print what OCR sees in the search region
+    search_region = (206, 152, 1439, 79)
+    cropped_image = take_screenshot_and_crop(search_region)
+    if cropped_image is not None:
+        success, extracted_text = scanner.extract_text(cropped_image)
+        if success:
+            print(f"[ACTION_HANDLER] DEBUG - OCR Content in region {search_region}: '{extracted_text}'")
+        else:
+            print(f"[ACTION_HANDLER] DEBUG - OCR failed to extract text in region {search_region}")
+
     # Step 1: Call helper to type text in begin date field
     return type_text_in_field(
-        field_label="begin",
+        field_label=["Begin Date:", "Begin Date", "Begin", "begin", "Beqin date:", "Beqin"],
         text_to_type=begin_date,
         press_enter=False,
         typing_interval=0.02
@@ -78,12 +88,20 @@ def verifier(begin_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[s
     print(f"[VERIFIER_HANDLER] Extracted text: '{extracted_text}'")
     
     # Step 4: Extract date from OCR text
-    extracted_date = extract_date_from_text(extracted_text, begin_date)
+    # Normalize input date for comparison (e.g. 2/2/2026 -> 02/02/2026)
+    from datetime import datetime
+    try:
+        dt = datetime.strptime(begin_date, "%m/%d/%Y")
+        normalized_begin_date = dt.strftime("%m/%d/%Y")
+    except ValueError:
+        normalized_begin_date = begin_date
+        
+    extracted_date = extract_date_from_text(extracted_text, normalized_begin_date)
     if not extracted_date:
         error_msg = f"Could not extract date from: '{extracted_text}'"
         print(f"[VERIFIER_HANDLER] {error_msg}")
         verification_data = {
-            "expected_text": begin_date,
+            "expected_text": normalized_begin_date,
             "extracted_text": extracted_text,
             "extracted_date": None,
             "field_region": field_region,
@@ -94,11 +112,11 @@ def verifier(begin_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[s
     print(f"[VERIFIER_HANDLER] Extracted begin date: '{extracted_date}'")
     
     # Step 5: Calculate similarity between expected and extracted date
-    similarity = calculate_text_similarity(begin_date, extracted_date)
+    similarity = calculate_text_similarity(normalized_begin_date, extracted_date)
     
     # Step 6: Build verification data dictionary
     verification_data = {
-        "expected_text": begin_date,
+        "expected_text": normalized_begin_date,
         "extracted_text": extracted_text,
         "extracted_date": extracted_date,
         "similarity_score": similarity,
@@ -113,7 +131,7 @@ def verifier(begin_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[s
         return True, success_msg, verification_data
     else:
         error_msg = f"✗ Begin date verification failed. Similarity: {similarity:.2%}"
-        print(f"[VERIFIER_HANDLER] {error_msg} (Expected: '{begin_date}', Extracted: '{extracted_date}')")
+        print(f"[VERIFIER_HANDLER] {error_msg} (Expected: '{normalized_begin_date}', Extracted: '{extracted_date}')")
         return False, error_msg, verification_data
 
 

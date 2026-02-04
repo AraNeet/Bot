@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""
+Handler for: Save Action
+
+This module contains:
+- Action: Save and close the multinetwork (save icon in 0,0,200,100; X icon in 1580,140,70,30 via template matching)
+- Verifier: Verify save and close completed
+- Error Handler: Handle errors for this action
+"""
+
+from typing import Tuple, Dict, Any, Optional
+from src.workflow_module.actions.helpers import actions
+from src.workflow_module.actions.helpers import computer_vision_utils
+from src.workflow_module.actions.helpers.computer_vision_utils import take_screenshot_and_crop
+from src.workflow_module.actions.helpers.ocr_utils import TextScanner
+import time
+import os
+
+# Region (x, y, width, height) for save icon and close button
+SAVE_ICON_REGION = (0, 0, 200, 100)
+CLOSE_X_REGION = (1580, 140, 70, 30)
+# Same title region as step 10 (get_multinet_window) to check if multinet tab is open
+MULTINET_TITLE_REGION = (200, 145, 1450, 25)
+
+scanner = TextScanner()
+
+# ============================================================================
+# ACTION
+# ============================================================================
+
+def action(**kwargs) -> Tuple[bool, str]:
+    """
+    Save and close the multinetwork: click save icon in (0,0,200,100), then click X in (1580,140,70,30).
+    """
+    print("[ACTION_HANDLER] Save action: save and close multinetwork")
+
+    # Step 1: Take screenshot
+    screenshot = computer_vision_utils.take_screenshot()
+    if screenshot is None:
+        return False, "Failed to take screenshot"
+
+    # Step 2: Find save icon in region (0, 0, 200, 100) via template matching
+    handler_dir = os.path.dirname(os.path.abspath(__file__))
+    save_icon_path = os.path.join(handler_dir, "14_save_icon.png")
+
+    save_found, save_confidence, save_position = computer_vision_utils.find_template_in_region(
+        screenshot, save_icon_path, SAVE_ICON_REGION, confidence=0.7
+    )
+    if not save_found or save_position is None:
+        return False, f"Save icon not found in region {SAVE_ICON_REGION} (confidence: {save_confidence:.2f})"
+
+    # Step 3: Click save icon
+    click_x, click_y = save_position
+    success, msg = actions.click_at_position(click_x, click_y)
+    if not success:
+        return False, f"Failed to click save icon: {msg}"
+    print(f"[ACTION_HANDLER] ✓ Clicked save icon at ({click_x}, {click_y})")
+    time.sleep(0.5)
+
+    # Step 4: Find X (close) icon in region (1580, 140, 70, 30) via template matching
+    x_icon_path = os.path.join(handler_dir, "14_X_icon.png")
+    x_found, x_confidence, x_position = computer_vision_utils.find_template_in_region(
+        computer_vision_utils.take_screenshot(), x_icon_path, CLOSE_X_REGION, confidence=0.7
+    )
+    if not x_found or x_position is None:
+        return False, f"Close X icon not found in region {CLOSE_X_REGION} (confidence: {x_confidence:.2f})"
+
+    # Step 5: Click close X once
+    center_x, center_y = x_position
+    success, msg = actions.click_at_position(center_x, center_y, clicks=1)
+    if not success:
+        return False, f"Failed to click close X: {msg}"
+    print(f"[ACTION_HANDLER] ✓ Clicked close X at ({center_x}, {center_y})")
+    time.sleep(0.3)
+
+    print("[ACTION_HANDLER] ✓ Save and close multinetwork completed")
+    return True, "Save and close multinetwork completed"
+
+
+# ============================================================================
+# VERIFIER
+# ============================================================================
+
+def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """Verify save and close by checking the same area as step 10: multinet tab should not be open."""
+    print("[VERIFIER_HANDLER] Verifying save action: checking if multinet tab is closed (same region as step 10)")
+
+    title_region = take_screenshot_and_crop(MULTINET_TITLE_REGION)
+    if title_region is None:
+        return False, "Failed to capture title region for verification", None
+
+    success, ocr_data = scanner.get_text_data(title_region)
+    if not success:
+        return False, "Failed to get OCR data from title region", None
+
+    texts = ocr_data.get("text", [])
+    for text in texts:
+        if "multinet" in text.lower().replace("-", "").replace(" ", ""):
+            return False, "Multinet tab still open in title region; save/close may not have completed", None
+
+    print("[VERIFIER_HANDLER] ✓ Save action verified (multinet tab not open in title region)")
+    return True, "Save action verified (multinet tab closed)", None
+
+
+# ============================================================================
+# ERROR HANDLER
+# ============================================================================
+
+def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> Tuple[bool, str]:
+    """Handle errors for save action."""
+    print(f"[ERROR_HANDLER] Handling error for save_action (attempt {attempt}/{max_attempts})")
+    print(f"[ERROR_HANDLER] Error: {error_msg}")
+
+    if attempt < max_attempts:
+        print("[ERROR_HANDLER] Will retry after waiting 0.5 seconds...")
+        time.sleep(0.5)
+        return True, "Retrying action"
+
+    return False, f"Save action failed after {max_attempts} attempts"

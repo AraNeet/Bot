@@ -14,6 +14,7 @@ import time
 import pyautogui
 import os
 import cv2
+import importlib
 
 # Initialize debugger for this handler
 debugger = debug_utils.Debugger("action_09_multinetwork_popup")
@@ -68,19 +69,34 @@ def wait_for_loading(max_wait_seconds=300):
     print("[ACTION_HANDLER] Timed out waiting for loading.")
     return False
 
-def action(**kwargs) -> Tuple[bool, str]:
-    """Detect and handle the Multi-Network popup."""
-    print("[ACTION_HANDLER] Checking for Multi-Network popup...")
-    
-    # Step 1: Initialize detection variables
-    max_attempts = 3
-    attempt_delay = 2
+def retry_step_8(begin_date):
+    """Retries Step 8 if popup is not found."""
+    print(f"[ACTION_HANDLER] Retrying Step 8: Open Multinetwork Row by Date with begin_date='{begin_date}'...")
+    if not begin_date:
+        print("[ACTION_HANDLER] Cannot retry Step 8: begin_date is missing.")
+        return False
+        
+    try:
+        # Import Step 8 handler dynamically
+        module = importlib.import_module("src.workflow_module.actions.steps.08_open_multinetwork_row_by_date.08_open_multinetwork_row_by_date_handler")
+        # Step 8 expects begin_date as argument
+        success, msg = module.action(begin_date=begin_date)
+        print(f"[ACTION_HANDLER] Step 8 retry result: {success} - {msg}")
+        return success
+    except Exception as e:
+        print(f"[ACTION_HANDLER] Failed to retry Step 8: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def detect_popup(max_attempts=3, attempt_delay=2) -> Tuple[bool, Optional[Tuple[int, int]], Any, Any, Tuple[int, int, int, int]]:
+    """Helper function to detect popup."""
+    print("[ACTION_HANDLER] Waiting 2s before starting popup detection...")
+    time.sleep(2)
     
     found = False
     pos = None
     cropped_screenshot = None
-    popup_template_path = None
-    template_size = (0, 0)
     
     # Step 2: Get template path and load template
     handler_dir = os.path.dirname(os.path.abspath(__file__))
@@ -88,7 +104,8 @@ def action(**kwargs) -> Tuple[bool, str]:
     
     template_img = computer_vision_utils.load_image(popup_template_path)
     if template_img is None:
-        return False, "Failed to load popup template"
+        print("[ACTION_HANDLER] Failed to load popup template")
+        return False, None, None, None, (0,0,0,0)
     template_size = (template_img.shape[1], template_img.shape[0])
     
     # Step 3: Calculate center region based on screen size
@@ -106,7 +123,8 @@ def action(**kwargs) -> Tuple[bool, str]:
                 time.sleep(attempt_delay)
                 continue
             else:
-                return False, "Failed to take screenshot"
+                print("[ACTION_HANDLER] Failed to take screenshot")
+                return False, None, None, None, center_region
         
         # Step 4b: Save for debug
         debugger.save_image(cropped_screenshot, f"01_initial_cropped_{attempt}.png")
@@ -136,8 +154,31 @@ def action(**kwargs) -> Tuple[bool, str]:
         if attempt < max_attempts - 1:
             print(f"[ACTION_HANDLER] Popup not found, waiting {attempt_delay}s before retry...")
             time.sleep(attempt_delay)
+            
+    return found, pos, cropped_screenshot, template_img, center_region
 
-    # Step 5: Handle case where popup not found
+def action(begin_date: str = "", **kwargs) -> Tuple[bool, str]:
+    """Detect and handle the Multi-Network popup."""
+    print("[ACTION_HANDLER] Checking for Multi-Network popup...")
+    
+    # Initial detection
+    found, pos, cropped_screenshot, template_img, center_region = detect_popup(max_attempts=3)
+
+    # Retry Step 8 if popup not found
+    if not found:
+        print("[ACTION_HANDLER] Popup not found after initial attempts.")
+        print("[ACTION_HANDLER] Logic: Retrying Step 8 to ensure row was double-clicked correctly...")
+        
+        if retry_step_8(begin_date):
+            print("[ACTION_HANDLER] Step 8 retried successfully.")
+            
+            # Try detection again
+            print("[ACTION_HANDLER] Checking for popup again after Step 8 retry...")
+            found, pos, cropped_screenshot, template_img, center_region = detect_popup(max_attempts=3)
+        else:
+            print("[ACTION_HANDLER] Step 8 retry failed or skipped.")
+
+    # Handle case where popup still not found
     if not found or not pos:
         print("[ACTION_HANDLER] Popup not found after retries. Checking for loading...")
         wait_for_loading(max_wait_seconds=10)

@@ -37,7 +37,7 @@ def action(end_date: str, **kwargs) -> Tuple[bool, str]:
     
     # Step 1: Call helper to type text in end date field
     return type_text_in_field(
-        field_label="end",
+        field_label="end date",
         text_to_type=end_date,
         press_enter=False,
         typing_interval=0.02
@@ -78,12 +78,20 @@ def verifier(end_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str
     print(f"[VERIFIER_HANDLER] Extracted text: '{extracted_text}'")
     
     # Step 4: Extract date from OCR text
-    extracted_date = extract_date_from_text(extracted_text, end_date)
+    # Normalize input date for comparison (e.g. 2/2/2026 -> 02/02/2026)
+    from datetime import datetime
+    try:
+        dt = datetime.strptime(end_date, "%m/%d/%Y")
+        normalized_end_date = dt.strftime("%m/%d/%Y")
+    except ValueError:
+        normalized_end_date = end_date
+        
+    extracted_date = extract_date_from_text(extracted_text, normalized_end_date)
     if not extracted_date:
         error_msg = f"Could not extract date from: '{extracted_text}'"
         print(f"[VERIFIER_HANDLER] {error_msg}")
         verification_data = {
-            "expected_text": end_date,
+            "expected_text": normalized_end_date,
             "extracted_text": extracted_text,
             "extracted_date": None,
             "field_region": field_region,
@@ -94,11 +102,11 @@ def verifier(end_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str
     print(f"[VERIFIER_HANDLER] Extracted end date: '{extracted_date}'")
     
     # Step 5: Calculate similarity between expected and extracted date
-    similarity = calculate_text_similarity(end_date, extracted_date)
+    similarity = calculate_text_similarity(normalized_end_date, extracted_date)
     
     # Step 6: Build verification data dictionary
     verification_data = {
-        "expected_text": end_date,
+        "expected_text": normalized_end_date,
         "extracted_text": extracted_text,
         "extracted_date": extracted_date,
         "similarity_score": similarity,
@@ -113,7 +121,7 @@ def verifier(end_date: str = "", **kwargs) -> Tuple[bool, str, Optional[Dict[str
         return True, success_msg, verification_data
     else:
         error_msg = f"✗ End date verification failed. Similarity: {similarity:.2%}"
-        print(f"[VERIFIER_HANDLER] {error_msg} (Expected: '{end_date}', Extracted: '{extracted_date}')")
+        print(f"[VERIFIER_HANDLER] {error_msg} (Expected: '{normalized_end_date}', Extracted: '{extracted_date}')")
         return False, error_msg, verification_data
 
 
