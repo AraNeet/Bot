@@ -67,30 +67,8 @@
                 "parameters": {}
             },
             {
-                "action_type": "edit_definition",
-                "description": "Edit definition details including Begin Date and Comments",
-                "parameters": {
-                    "begin_date": "",
-                    "end_date": "",
-                    "revision_number": "",
-                    "agent_name": ""
-                }
-            },
-            {
-                "action_type": "edit_media_details",
-                "description": "Edit Media Details - delete existing ISCI entries and enter new ones",
-                "parameters": {
-                    "isci_list": []
-                }
-            },
-            {
-                "action_type": "save_instruction",
-                "description": "Save the edited instruction",
-                "parameters": {}
-            },
-            {
-                "action_type": "verify_save",
-                "description": "Verify the instruction was saved successfully",
+                "action_type": "save_action",
+                "description": "Save and close the multinetwork",
                 "parameters": {}
             }
         ]

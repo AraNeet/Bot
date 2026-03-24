@@ -1,0 +1,1547 @@
+[UNIFIED_EXECUTOR] Loaded action list from src/workflow_module/actions/action_list.json
+
+[*] Objective Config Generator
+======================================================================
+
+======================================================================
+GENERATING OBJECTIVES CONFIG
+======================================================================
+[INFO] Scanning directory: src/workflow_module/objective_definitions
+[INFO] Found 1 definition file(s)
+[SCANNER] Processing: edit_copy_definition.json
+[SCANNER]   - Found objective type: edit_copy_definition
+[SCANNER]     • Required fields: 7
+[SCANNER]     • Optional fields: 2
+
+[INFO] Writing config to: objectives_config.json
+[SUCCESS] Config file generated successfully!
+[SUCCESS] Total objectives: 1
+
+----------------------------------------------------------------------
+GENERATED OBJECTIVES:
+  - edit_copy_definition: 7 required, 2 optional
+======================================================================
+
+[SUCCESS] Configuration generated successfully!
+
+==================================================
+CHECKING FOR EXISTING CROSSROAD WINDOW
+==================================================
+[UPDATE APP NAME] Found window: Crossroad 2025.6.0.509021444 [Crossroad DSHSTG] - Investigation Discovery / Adult - \\Remote
+[UPDATE APP NAME] APP_NAME already up to date
+[SUCCESS] APP_NAME synced with current window: Crossroad 2025.6.0.509021444 [Crossroad DSHSTG] - Investigation Discovery / Adult - \\Remote
+Environment variables loaded from bot.env
+Configuration loaded successfully
+Template paths loaded from config/template_paths.json
+Attempting to load top_left template:
+  Raw path: src/startup_module/assets/citrix_app_icon.png
+[SUCCESS] Successfully loaded top_left template
+Attempting to load top_right template:
+  Raw path: src/startup_module/assets/windows_options.png
+[SUCCESS] Successfully loaded top_right template
+Attempting to load bottom_right template:
+  Raw path: src/startup_module/assets/bottom_right.png
+[SUCCESS] Successfully loaded bottom_right template
+All corner templates loaded successfully
+==================================================
+APPLICATION STARTUP
+==================================================
+STARTING APPLICATION STARTUP SEQUENCE
+==================================================
+==============================
+Step 1: Checking if application is open
+Process 'wfica32.exe' found with PID: 8688
+[SUCCESS] Application is already open
+[SUCCESS] Window handle obtained
+==============================
+Step 2: Maximizing application
+[SUCCESS] Maximize command sent
+==============================
+Step 3: Verifying application state
+Step 3.1/2/3: Visual verification of open state and maximized state
+Found top_left template at position (24, 21)
+Found top_right template at position (1878, 9)
+Found bottom_right template at position (1820, 1008)
+All corner templates found - application appears maximized
+[SUCCESS] Visual open check and maximized state passed
+==================================================
+[SUCCESS] APPLICATION STARTUP SEQUENCE COMPLETED
+[SUCCESS] Application is: OPEN | FOREGROUND | MAXIMIZED
+==================================================
+
+==================================================
+[SUCCESS] SUCCESS: Application is now open, in foreground, and maximized!
+
+==================================================
+OBJECTIVE VALIDATION
+==================================================
+
+[DETECTED] New JSON format with alerts array
+
+[PARSER] Found 1 alert(s)
+[PARSER] Agency: Cadent Network
+[PARSER] Revision Number: APR2125
+
+[PARSER] Alert 1:
+  - Advertiser (original): IKEA
+  - Advertiser (cleaned): IKEA
+  - Order ID: 3842546
+  - Instructions: 1
+    [ASSIGNMENT] A -> 100%
+  [VALID] Instruction 1: edit_copy_definition (dates: 3/17/2026 to 3/29/2026)
+
+[OK] edit_copy_definition: 1 valid instances
+
+==================================================
+SUMMARY
+==================================================
+Supported objectives: 1
+[SUCCESS] All objectives validated successfully!
+==================================================
+Parser Results: {'supported_objectives': [{'objective_type': 'edit_copy_definition', 'values_list': [{'agency_name': 'Cadent Network', 'advertiser_name': 'IKEA', 'begin_date': '3/17/2026', 'end_date': '3/29/2026', 'estimate_number': 3842546, 'isci_1': 'SAAGTO50H', 'isci_list': ['SAAGTO50H'], 'assignment_data': {'A': '100'}, 'revision_number': 'APR2125', 'agent_name': 'test agent', 'valid_flight_start': '3/17/2026', 'valid_flight_end': '3/29/2026'}]}], 'unsupported_objectives': []}
+
+======================================================================
+WORKFLOW ENGINE - WORKFLOW START
+======================================================================
+
+[ENGINE] Starting planning phase...
+
+======================================================================
+WORKFLOW PLANNER - STARTING PLANNING PHASE
+======================================================================
+
+======================================================================
+[PLANNER] PREPARING ALL OBJECTIVES
+======================================================================
+[PLANNER] Total objective types: 1
+[PLANNER] Total value sets to prepare: 1
+
+[PLANNER] Processing 'edit_copy_definition':
+  - Value sets to prepare: 1
+
+[PLANNER] Preparing value set 1/1...
+
+==================================================
+[PLANNER] Preparing objective: edit_copy_definition
+==================================================
+[PLANNER] Loading instruction data...
+
+[LOADER] Starting load process for objective: edit_copy_definition
+[LOADER] Loading instruction file: src\workflow_module\objective_definitions\edit_copy_definition.json
+[LOADER SUCCESS] Instruction file loaded successfully
+[LOADER] Extracted 13 instruction steps
+[LOADER] Detected flat format (new parser format or legacy)
+[LOADER] Found 12 values (flat format - all treated as required)
+[LOADER] Merged 'advertiser_name' = 'IKEA'
+[LOADER] Merged 'agency_name' = 'Cadent Network'
+[LOADER] Merged 'begin_date' = '3/17/2026'
+[LOADER] Merged 'end_date' = '3/29/2026'
+[LOADER] Merged 'estimate_number' = '3842546'
+[LOADER] Merged 'advertiser_name' = 'IKEA'
+[LOADER] Merged 'begin_date' = '3/17/2026'
+[LOADER] Merged 'end_date' = '3/29/2026'
+[LOADER] Merged 'begin_date' = '3/17/2026'
+[LOADER] Merged 'begin_date' = '3/17/2026'
+[LOADER] Merged 'end_date' = '3/29/2026'
+[LOADER] Merged 'revision_number' = 'APR2125'
+[LOADER] Merged 'agent_name' = 'test agent'
+[LOADER] Merged 'isci_list' = '['SAAGTO50H']'
+[LOADER] Merged 'assignment_data' = '{'A': '100'}'
+[LOADER] Merged values into 13 instructions
+[LOADER SUCCESS] Load completed
+[PLANNER SUCCESS] Objective prepared successfully:
+  - Objective type: edit_copy_definition
+  - Total instructions: 13
+  - All instructions validated ✓
+[PLANNER] ✓ Value set 1 prepared successfully
+
+======================================================================
+[PLANNER] PREPARATION COMPLETE
+======================================================================
+  Total requested:  1
+  Successfully prepared: 1 ✓
+  Failed:           0 
+======================================================================
+
+[PLANNER SUCCESS] All objectives prepared successfully!
+
+======================================================================
+PREPARATION SUMMARY
+======================================================================
+
+edit_copy_definition:
+  - Value sets: 1
+    • Set #1: 13 instructions
+
+──────────────────────────────────────────────────────────────────────
+Total prepared: 1 objectives
+Total instructions: 13
+======================================================================
+
+======================================================================
+WORKFLOW PLANNER - PLANNING COMPLETE ✓
+Ready to execute 1 objectives
+======================================================================
+
+[ENGINE SUCCESS] ✓ Planning phase complete
+[ENGINE] Prepared 1 objectives for execution
+
+[ENGINE] Starting execution phase...
+
+======================================================================
+WORKFLOW EXECUTOR - STARTING EXECUTION
+======================================================================
+
+==================================================
+[REFRESH] Refreshing application window state...
+==================================================
+[UPDATE APP NAME] Found window: Crossroad 2025.6.0.509021444 [Crossroad DSHSTG] - Investigation Discovery / Adult - \\Remote
+[UPDATE APP NAME] APP_NAME already up to date
+[REFRESH SUCCESS] Window handle obtained for: Crossroad 2025.6.0.509021444 [Crossroad DSHSTG] - Investigation Discovery / Adult - \\Remote
+
+============================================================
+[EXECUTOR] Executing Objective 1/1
+[EXECUTOR] Type: edit_copy_definition
+[EXECUTOR] Value set: #1
+[EXECUTOR] Instructions: 13
+============================================================
+
+────────────────────────────────────────────────────────────
+[EXECUTOR] Step 1/13: open_instructions_page
+[EXECUTOR] Description: Navigate to Multinetwork Instructions page
+[EXECUTOR] Parameters: {}
+────────────────────────────────────────────────────────────
+[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...
+
+[UNIFIED_EXECUTOR] Executing action: open_instructions_page
+[UNIFIED_EXECUTOR] Parameters: {}
+[UNIFIED_EXECUTOR] Max retries: 3, Verify: True
+INFO: Could not find files for the given pattern(s).
+C:\Users\marti\Documents\Copy\Bot\VBot\Lib\site-packages\paddle\utils\cpp_extension\extension_utils.py:718: UserWarning: No ccache found. Please be aware that recompiling all source files may be required. You can download and install ccache from: https://github.com/ccache/ccache/blob/master/doc/INSTALL.md
+  warnings.warn(warning_message)
+[OCR] PaddleOCR imported successfully
+
+[UNIFIED_EXECUTOR] Attempt 1/3
+[UNIFIED_EXECUTOR] Executing action...
+[ACTION_HANDLER] Navigating to Multinetwork Instructions page...
+[CV] Screenshot captured: 1920x1080
+[ACTION_HANDLER] Searching for multi_network_icon in region (93, 52, 84, 66)
+[CV] Image loaded: 84x66 from C:\Users\marti\Documents\Copy\Bot\src\workflow_module\actions\steps\01_open_instructions_page\01_multi_network_Icon.png
+[CV] Image cropped: region (93,52,84,66)
+[CV] Template found in region with confidence 1.00
+[CV] Position: (135, 85)
+[ACTION_HANDLER] ✓ Multi-network icon found at (135, 85) with confidence 1.00
+[ACTION_HANDLER] Clicking on multi-network icon at (135, 85)
+[ACTION] Clicking at position (135, 85) - 1 left click(s)
+[ACTION SUCCESS] Successfully clicked at (135, 85)
+[ACTION] Moving mouse to (1800, 50) over 0s
+[ACTION SUCCESS] Successfully moved mouse to (1800, 50)
+[UNIFIED_EXECUTOR SUCCESS] Action executed: Successfully navigated to Multinetwork Instructions page
+[UNIFIED_EXECUTOR] Verifying action completion...
+[VERIFIER_HANDLER] Verifying multi-network page opened...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,152,1439,79)
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+WARNING: Logging before InitGoogleLogging() is written to STDERR
+I0323 14:37:44.093793 24876 onednn_context.cc:81] oneDNN v3.6.2
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR extracted: 156 characters
+[VERIFIER_HANDLER] Extracted text from search region: 'Search Global Comm...  > Order #: Deal #: Advertiser: Brand: Agency: Account Executive: Begin date: End date: IKEA Cadent Network 3/17/2026 3/29/2026 Search'
+[VERIFIER_HANDLER] ✓ Multi-network page opened successfully. Found 'Order #' and 'Advertiser' text
+[UNIFIED_EXECUTOR SUCCESS] Action verified: ✓ Multi-network page opened successfully. Found 'Order #' and 'Advertiser' text
+[EXECUTOR SUCCESS] Action 'open_instructions_page' completed and verified
+[EXECUTOR] Verification data: {'extracted_text': 'Search Global Comm...  > Order #: Deal #: Advertiser: Brand: Agency: Account Executive: Begin date: End date: IKEA Cadent Network 3/17/2026 3/29/2026 Search', 'search_region': (206, 152, 1439, 79), 'has_order_num': True, 'has_advertiser': True}
+[EXECUTOR] ✓ Instruction 1/13 completed
+
+────────────────────────────────────────────────────────────
+[EXECUTOR] Step 2/13: type_advertiser_name
+[EXECUTOR] Description: Enter advertiser name in search field
+[EXECUTOR] Parameters: {'advertiser_name': 'IKEA'}
+────────────────────────────────────────────────────────────
+[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...
+
+[UNIFIED_EXECUTOR] Executing action: type_advertiser_name
+[UNIFIED_EXECUTOR] Parameters: {'advertiser_name': 'IKEA'}
+[UNIFIED_EXECUTOR] Max retries: 3, Verify: True
+
+[UNIFIED_EXECUTOR] Attempt 1/3
+[UNIFIED_EXECUTOR] Executing action...
+[ACTION_HANDLER] Entering advertiser name: 'IKEA'
+[FIELD_UTILS] Entering 'IKEA' into 'advertiser' field
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,152,1439,79)
+[FIELD_UTILS] Searching for labels ['advertiser'] in region (206, 152, 1439, 79)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR detailed data: 15 elements
+[OCR] ✓ Found 'advertiser' at (177, 27) with confidence 1.00
+[FIELD_UTILS] ✓ Found label 'advertiser'
+[FIELD_UTILS] ✓ 'advertiser' text found at (383, 179)
+[FIELD_UTILS] Calculated field position: (383, 208) - 15px below 'advertiser' text
+[ACTION] Clicking at position (383, 208) - 1 left click(s)
+[ACTION SUCCESS] Successfully clicked at (383, 208)
+[ACTION] Clearing field (Ctrl+A + Delete)
+[ACTION SUCCESS] Successfully cleared field
+[ACTION] Typing text: 'IKEA' (interval: 0.02s)
+[ACTION SUCCESS] Successfully typed: 'IKEA'
+[ACTION] Pressing key: 'enter' (1 time(s))
+[ACTION SUCCESS] Successfully pressed 'enter' 1 time(s)
+[FIELD_UTILS] ✓ Successfully entered 'IKEA' into advertiser field
+[UNIFIED_EXECUTOR SUCCESS] Action executed: Successfully entered 'IKEA' into advertiser field
+[UNIFIED_EXECUTOR] Verifying action completion...
+[VERIFIER_HANDLER] Verifying advertiser name entered: 'IKEA'
+[CV] Screenshot captured: 1920x1080
+[VERIFIER_HANDLER] Checking for Name search dialog in region (0, 0, 500, 383)
+[CV] Image loaded: 364x24 from C:\Users\marti\Documents\Copy\Bot\src\workflow_module\actions\steps\02_type_advertiser_name\02_close_name_pop_up.png
+[CV] Image cropped: region (0,0,500,383)
+[CV] Template not found in region (confidence 0.38 < 0.8)
+[VERIFIER_HANDLER] No Name search dialog found (confidence: 0.38), proceeding with verification
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (370,175,160,48)
+[CV] Underline detection: found 1 horizontal contours
+[CV] ✓ Underline detected! Width: 123px, Aspect Ratio: 123.0
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR extracted: 16 characters
+[VERIFICATION_UTILS] Found best match: 'IKEA' (similarity: 100.00%)
+[VERIFIER_HANDLER] Extracted text: 'Advertiser: IKEA'
+[VERIFIER_HANDLER] Extracted advertiser name: 'IKEA'
+[VERIFIER_HANDLER] Underline detected: True
+[VERIFIER_HANDLER] ✓ Advertiser name verified (Underline detected)
+[UNIFIED_EXECUTOR SUCCESS] Action verified: ✓ Advertiser name verified (Underline detected)
+[EXECUTOR SUCCESS] Action 'type_advertiser_name' completed and verified
+[EXECUTOR] Verification data: {'expected_text': 'IKEA', 'extracted_text': 'Advertiser: IKEA', 'extracted_advertiser_name': 'IKEA', 'has_underline': True, 'field_region': (370, 175, 160, 48)}
+[EXECUTOR] ✓ Instruction 2/13 completed
+
+────────────────────────────────────────────────────────────
+[EXECUTOR] Step 3/13: type_agency_name
+[EXECUTOR] Description: Enter agency name into the field
+[EXECUTOR] Parameters: {'agency_name': 'Cadent Network'}
+────────────────────────────────────────────────────────────
+[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...
+
+[UNIFIED_EXECUTOR] Executing action: type_agency_name
+[UNIFIED_EXECUTOR] Parameters: {'agency_name': 'Cadent Network'}
+[UNIFIED_EXECUTOR] Max retries: 3, Verify: True
+
+[UNIFIED_EXECUTOR] Attempt 1/3
+[UNIFIED_EXECUTOR] Executing action...
+[ACTION_HANDLER] Entering agency name: 'Cadent Network'
+[FIELD_UTILS] Entering 'Cadent Network' into 'agency' field
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,152,1439,79)
+[FIELD_UTILS] Searching for labels ['agency'] in region (206, 152, 1439, 79)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 15 elements
+[OCR] ✓ Found 'agency' at (472, 26) with confidence 1.00
+[FIELD_UTILS] ✓ Found label 'agency'
+[FIELD_UTILS] ✓ 'agency' text found at (678, 178)
+[FIELD_UTILS] Calculated field position: (678, 210) - 15px below 'agency' text
+[ACTION] Clicking at position (678, 210) - 1 left click(s)
+[ACTION SUCCESS] Successfully clicked at (678, 210)
+[ACTION] Clearing field (Ctrl+A + Delete)
+[ACTION SUCCESS] Successfully cleared field
+[ACTION] Typing text: 'Cadent Network' (interval: 0.02s)
+[ACTION SUCCESS] Successfully typed: 'Cadent Network'
+[ACTION] Pressing key: 'enter' (1 time(s))
+[ACTION SUCCESS] Successfully pressed 'enter' 1 time(s)
+[FIELD_UTILS] ✓ Successfully entered 'Cadent Network' into agency field
+[UNIFIED_EXECUTOR SUCCESS] Action executed: Successfully entered 'Cadent Network' into agency field
+[UNIFIED_EXECUTOR] Verifying action completion...
+[VERIFIER_HANDLER] Verifying agency name entered: 'Cadent Network'
+[CV] Screenshot captured: 1920x1080
+[VERIFIER_HANDLER] Checking for Name search dialog in region (65, 25, 1217, 383)
+[CV] Image loaded: 364x24 from C:\Users\marti\Documents\Copy\Bot\src\workflow_module\actions\steps\03_type_agency_name\03_close_name_pop_up.png
+[CV] Image cropped: region (65,25,1217,383)
+[CV] Template not found in region (confidence 0.42 < 0.8)
+[VERIFIER_HANDLER] No Name search dialog found (confidence: 0.42), proceeding with verification
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (668,180,130,40)
+[CV] Underline detection: found 2 horizontal contours
+[CV] ✓ Underline detected! Width: 123px, Aspect Ratio: 123.0
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR extracted: 22 characters
+[VERIFICATION_UTILS] Found best match: 'Cadent Network' (similarity: 100.00%)
+[VERIFIER_HANDLER] Extracted text: 'Agency: Cadent Network'
+[VERIFIER_HANDLER] Extracted agency name: 'Cadent Network'
+[VERIFIER_HANDLER] Underline detected: True
+[VERIFIER_HANDLER] ✓ Agency name verified (Underline detected)
+[UNIFIED_EXECUTOR SUCCESS] Action verified: ✓ Agency name verified (Underline detected)
+[EXECUTOR SUCCESS] Action 'type_agency_name' completed and verified
+[EXECUTOR] Verification data: {'expected_text': 'Cadent Network', 'extracted_text': 'Agency: Cadent Network', 'extracted_agency_name': 'Cadent Network', 'has_underline': True, 'field_region': (668, 180, 130, 40)}
+[EXECUTOR] ✓ Instruction 3/13 completed
+
+────────────────────────────────────────────────────────────
+[EXECUTOR] Step 4/13: set_begin_date
+[EXECUTOR] Description: Enter begin date into the field
+[EXECUTOR] Parameters: {'begin_date': '3/17/2026'}
+────────────────────────────────────────────────────────────
+[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...
+
+[UNIFIED_EXECUTOR] Executing action: set_begin_date
+[UNIFIED_EXECUTOR] Parameters: {'begin_date': '3/17/2026'}
+[UNIFIED_EXECUTOR] Max retries: 3, Verify: True
+
+[UNIFIED_EXECUTOR] Attempt 1/3
+[UNIFIED_EXECUTOR] Executing action...
+[ACTION_HANDLER] Entering begin date: '3/17/2026'
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,152,1439,79)
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR extracted: 156 characters
+[ACTION_HANDLER] DEBUG - OCR Content in region (206, 152, 1439, 79): 'Search Global Comm.….  > Order #: Deal #: Advertiser: Brand: Agency: Account Executive: Begin date: End date: IKEA Cadent Network 3/17/2026 3/29/2026 Search'
+[FIELD_UTILS] Entering '3/17/2026' into 'Begin Date:' field
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,152,1439,79)
+[FIELD_UTILS] Searching for labels ['Begin Date:', 'Begin Date', 'Begin', 'begin', 'Beqin date:', 'Beqin'] in region (206, 152, 1439, 79)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 15 elements
+[OCR] ✓ Found 'Begin Date:' at (797, 27) with confidence 0.99
+[FIELD_UTILS] ✓ Found label 'Begin Date:'
+[FIELD_UTILS] ✓ 'Begin Date:' text found at (1003, 179)
+[FIELD_UTILS] Calculated field position: (1003, 208) - 15px below 'Begin Date:' text
+[ACTION] Clicking at position (1003, 208) - 1 left click(s)
+[ACTION SUCCESS] Successfully clicked at (1003, 208)
+[ACTION] Clearing field (Ctrl+A + Delete)
+[ACTION SUCCESS] Successfully cleared field
+[ACTION] Typing text: '3/17/2026' (interval: 0.02s)
+[ACTION SUCCESS] Successfully typed: '3/17/2026'
+[FIELD_UTILS] ✓ Successfully entered '3/17/2026' into Begin Date: field
+[UNIFIED_EXECUTOR SUCCESS] Action executed: Successfully entered '3/17/2026' into Begin Date: field
+[UNIFIED_EXECUTOR] Verifying action completion...
+[VERIFIER_HANDLER] Verifying begin date entered: '3/17/2026'
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (992,175,114,50)
+[OCR] PaddleOCR extracted: 21 characters
+[VERIFIER_HANDLER] Extracted text: 'Begin date: 3/17/2026'
+[VERIFICATION_UTILS] Found best match: '03/17/2026' (similarity: 100.00%)
+[VERIFIER_HANDLER] Extracted begin date: '03/17/2026'
+[VERIFIER_HANDLER] ✓ Begin date verified with 100.00% similarity (extracted: '03/17/2026')
+[UNIFIED_EXECUTOR SUCCESS] Action verified: ✓ Begin date verified with 100.00% similarity (extracted: '03/17/2026')
+[EXECUTOR SUCCESS] Action 'set_begin_date' completed and verified
+[EXECUTOR] Verification data: {'expected_text': '03/17/2026', 'extracted_text': 'Begin date: 3/17/2026', 'extracted_date': '03/17/2026', 'similarity_score': 1.0, 'field_region': (992, 175, 114, 50), 'threshold': 0.8}
+[EXECUTOR] ✓ Instruction 4/13 completed
+
+────────────────────────────────────────────────────────────
+[EXECUTOR] Step 5/13: set_end_date
+[EXECUTOR] Description: Enter end date into the field
+[EXECUTOR] Parameters: {'end_date': '3/29/2026'}
+────────────────────────────────────────────────────────────
+[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...
+
+[UNIFIED_EXECUTOR] Executing action: set_end_date
+[UNIFIED_EXECUTOR] Parameters: {'end_date': '3/29/2026'}
+[UNIFIED_EXECUTOR] Max retries: 3, Verify: True
+
+[UNIFIED_EXECUTOR] Attempt 1/3
+[UNIFIED_EXECUTOR] Executing action...
+[ACTION_HANDLER] Entering end date: '3/29/2026'
+[FIELD_UTILS] Entering '3/29/2026' into 'end date' field
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,152,1439,79)
+[FIELD_UTILS] Searching for labels ['end date'] in region (206, 152, 1439, 79)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 15 elements
+[OCR] ✓ Found 'end date' at (908, 27) with confidence 1.00
+[FIELD_UTILS] ✓ Found label 'end date'
+[FIELD_UTILS] ✓ 'end date' text found at (1114, 179)
+[FIELD_UTILS] Calculated field position: (1114, 208) - 15px below 'end date' text
+[ACTION] Clicking at position (1114, 208) - 1 left click(s)
+[ACTION SUCCESS] Successfully clicked at (1114, 208)
+[ACTION] Clearing field (Ctrl+A + Delete)
+[ACTION SUCCESS] Successfully cleared field
+[ACTION] Typing text: '3/29/2026' (interval: 0.02s)
+[ACTION SUCCESS] Successfully typed: '3/29/2026'
+[FIELD_UTILS] ✓ Successfully entered '3/29/2026' into end date field
+[UNIFIED_EXECUTOR SUCCESS] Action executed: Successfully entered '3/29/2026' into end date field
+[UNIFIED_EXECUTOR] Verifying action completion...
+[VERIFIER_HANDLER] Verifying end date entered: '3/29/2026'
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (1105,175,114,50)
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR extracted: 19 characters
+[VERIFIER_HANDLER] Extracted text: 'End date: 3/29/2026'
+[VERIFICATION_UTILS] Found best match: '03/29/2026' (similarity: 100.00%)
+[VERIFIER_HANDLER] Extracted end date: '03/29/2026'
+[VERIFIER_HANDLER] ✓ End date verified with 100.00% similarity (extracted: '03/29/2026')
+[UNIFIED_EXECUTOR SUCCESS] Action verified: ✓ End date verified with 100.00% similarity (extracted: '03/29/2026')
+[EXECUTOR SUCCESS] Action 'set_end_date' completed and verified
+[EXECUTOR] Verification data: {'expected_text': '03/29/2026', 'extracted_text': 'End date: 3/29/2026', 'extracted_date': '03/29/2026', 'similarity_score': 1.0, 'field_region': (1105, 175, 114, 50), 'threshold': 0.8}
+[EXECUTOR] ✓ Instruction 5/13 completed
+
+────────────────────────────────────────────────────────────
+[EXECUTOR] Step 6/13: click_search_button
+[EXECUTOR] Description: Click the search button to submit
+[EXECUTOR] Parameters: {}
+────────────────────────────────────────────────────────────
+[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...
+
+[UNIFIED_EXECUTOR] Executing action: click_search_button
+[UNIFIED_EXECUTOR] Parameters: {}
+[UNIFIED_EXECUTOR] Max retries: 3, Verify: True
+
+[UNIFIED_EXECUTOR] Attempt 1/3
+[UNIFIED_EXECUTOR] Executing action...
+[ACTION_HANDLER] Clicking search button...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,170,1439,79)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR detailed data: 14 elements
+[OCR] ✓ Found 'search' at (1378, 26) with confidence 1.00
+[ACTION] Clicking at position (1605, 205) - 1 left click(s)
+[ACTION SUCCESS] Successfully clicked at (1605, 205)
+[UNIFIED_EXECUTOR SUCCESS] Action executed: Successfully clicked search button
+[UNIFIED_EXECUTOR] Verifying action completion...
+[VERIFIER_HANDLER] Verifying search button clicked and checking results...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (205,225,50,30)
+[OCR] PaddleOCR extracted: 8 characters
+[VERIFICATION_UTILS] Found best match: 'Results' (similarity: 100.00%)
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,225,225,25)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 1 elements
+[GET_RESULTS] OCR text from results region: 'Results: 49 records (max results 500 records'
+[GET_RESULTS] Extracted result count: 49
+[UNIFIED_EXECUTOR SUCCESS] Action verified: ✓ Search results verified with 100.00% similarity. Found 49 result(s).
+[EXECUTOR SUCCESS] Action 'click_search_button' completed and verified
+[EXECUTOR] Verification data: {'expected_text': 'Results', 'extracted_text': 'Results:', 'similarity_score': 1.0, 'results_count': 49}
+[EXECUTOR] ✓ Instruction 6/13 completed
+
+────────────────────────────────────────────────────────────
+[EXECUTOR] Step 7/13: select_row_by_values
+[EXECUTOR] Description: Search through table rows to find matching estimate number
+[EXECUTOR] Parameters: {'estimate_number': 3842546, 'advertiser_name': 'IKEA', 'begin_date': '3/17/2026', 'end_date': '3/29/2026'}
+────────────────────────────────────────────────────────────
+[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...
+
+[UNIFIED_EXECUTOR] Executing action: select_row_by_values
+[UNIFIED_EXECUTOR] Parameters: {'estimate_number': 3842546, 'advertiser_name': 'IKEA', 'begin_date': '3/17/2026', 'end_date': '3/29/2026'}
+[UNIFIED_EXECUTOR] Max retries: 3, Verify: True
+
+[UNIFIED_EXECUTOR] Attempt 1/3
+[UNIFIED_EXECUTOR] Executing action...
+[ACTION_HANDLER] Ensuring table is at top position...
+[CV] Screenshot captured: 1920x1080
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR extracted: 351 characters
+[07_HELPERS] Scrolling up...
+[CV] Screenshot captured: 1920x1080
+[OCR] PaddleOCR extracted: 350 characters
+[07_HELPERS] Scrolling up...
+[CV] Screenshot captured: 1920x1080
+[OCR] PaddleOCR extracted: 343 characters
+[07_HELPERS] Scrolling up...
+[CV] Screenshot captured: 1920x1080
+[OCR] PaddleOCR extracted: 350 characters
+[07_HELPERS] Scrolling up...
+[CV] Screenshot captured: 1920x1080
+[OCR] PaddleOCR extracted: 364 characters
+[ACTION_HANDLER] ✓ Table is at top position
+[CV] Image loaded: 3x21 from C:\Users\marti\Documents\Copy\Bot\src\workflow_module\actions\steps\07_select_row_by_values\07_ColumnLine.png
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,225,225,25)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 1 elements
+[GET_RESULTS] OCR text from results region: 'Results: 49 records (max results 500 records'
+[GET_RESULTS] Extracted result count: 49
+[ACTION_HANDLER] Searching initial view...
+[SEARCH_VIEW] Skipping row selection (select_row=False)
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,225,1450,850)
+[CREATE_COLUMNS] Processing 13 separators
+[CREATE_COLUMNS] Cropping 14 columns
+[CREATE_COLUMNS] Using all 14 columns (no filtering)
+[CREATE_COLUMNS] Created separated columns image: 1580px wide, 14 columns
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR detailed data: 374 elements
+[SEARCH_VIEW] OCR found 374 texts
+[MATCH] Matching targets: ['3842546', 'IKEA', '3/17/2026', '3/29/2026']
+[MATCH] No matches found for '3/17/2026'
+[MATCH] '3/29/2026' matched to '3/29/2026' at (642, 55, 65, 21) (score: 1000)
+[MATCH] '3842546' matched to '3842546' at (136, 357, 49, 15) (score: 1000)
+[MATCH] 'IKEA' matched to 'IKEA' at (421, 56, 33, 19) (score: 1000)
+[MATCH] Target '3/17/2026' not matched—skipping!
+[MATCH] Final 3 unique positions (sorted by x): [(136, 357, 49, 15), (421, 56, 33, 19), (642, 55, 65, 21)]
+[SEARCH_VIEW] Matched 3/4 target texts: ['3842546', 'IKEA', '3/29/2026']
+[SEARCH_VIEW] Found estimate_number '3842546' at position (136, 357, 49, 15)
+[CV] Image loaded: 7x7 from src/workflow_module/actions/assets/07_RowExpander.png
+[CV] Screenshot captured: 1920x1080
+[SEARCH_VIEW] Searching for RowExpander in region: x=206, y=575, w=1450, h=30
+[CV] Image cropped: region (206,575,1450,30)
+[CV] Template found in region with confidence 1.00
+[CV] Position: (219, 590)
+[SEARCH_VIEW] Found RowExpander at (219, 590) with confidence 1.00 (same row as estimate_number)
+[ACTION_HANDLER] ✓ Match found in initial view
+[07_HELPERS] Clicking at (219, 590) with button=left
+[ACTION] Clicking at position (219, 590) - 1 left click(s)
+[ACTION SUCCESS] Successfully clicked at (219, 590)
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,225,1450,850)
+[CV] Detecting highlighted row (yellow/gold or blue)...
+[CV] Screen size: 1450x850
+[CV] Excluding bottom 100px (Y >= 750)
+[CV] Found 6895 potential contour(s)
+[CV] 0 contour(s) passed filters
+[CV] No candidates passed strict filters, trying relaxed search...
+[CV] Found candidate with relaxed filters
+[CV] ✓ Found highlighted row at (3, 354) with size 1420x112
+[07_HELPERS] Row height 112px >= 80px threshold - appears expanded
+[07_HELPERS] Blue highlighted row detected at y=579 (cropped y=354), center_y=635, height=112
+[07_HELPERS] Blue row bounds: top=579, bottom=691
+[07_HELPERS] Target region bounds: top=225, bottom=475
+[07_HELPERS] Row is EXPANDED
+[07_HELPERS] ✗ Expanded row HEADER NOT in target region (top=579 vs target_top=225)
+[07_HELPERS] Scrolling to position expanded row HEADER in target region 225-475...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,225,1450,850)
+[CV] Detecting highlighted row (yellow/gold or blue)...
+[CV] Screen size: 1450x850
+[CV] Excluding bottom 100px (Y >= 750)
+[CV] Found 7037 potential contour(s)
+[CV] 0 contour(s) passed filters
+[CV] No candidates passed strict filters, trying relaxed search...
+[CV] Found candidate with relaxed filters
+[CV] ✓ Found highlighted row at (3, 334) with size 1420x112
+[07_HELPERS] Row height 112px >= 80px threshold - appears expanded
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,225,1450,850)
+[CV] Detecting highlighted row (yellow/gold or blue)...
+[CV] Screen size: 1450x850
+[CV] Excluding bottom 100px (Y >= 750)
+[CV] Found 7213 potential contour(s)
+[CV] 0 contour(s) passed filters
+[CV] No candidates passed strict filters, trying relaxed search...
+[CV] Found candidate with relaxed filters
+[CV] ✓ Found highlighted row at (3, 314) with size 1420x112
+[07_HELPERS] Row height 112px >= 80px threshold - appears expanded
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,225,1450,850)
+[CV] Detecting highlighted row (yellow/gold or blue)...
+[CV] Screen size: 1450x850
+[CV] Excluding bottom 100px (Y >= 750)
+[CV] Found 7303 potential contour(s)
+[CV] 0 contour(s) passed filters
+[CV] No candidates passed strict filters, trying relaxed search...
+[CV] Found candidate with relaxed filters
+[CV] ✓ Found highlighted row at (3, 294) with size 1420x112
+[07_HELPERS] Row height 112px >= 80px threshold - appears expanded
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,225,1450,850)
+[CV] Detecting highlighted row (yellow/gold or blue)...
+[CV] Screen size: 1450x850
+[CV] Excluding bottom 100px (Y >= 750)
+[CV] Found 7280 potential contour(s)
+[CV] 0 contour(s) passed filters
+[CV] No candidates passed strict filters, trying relaxed search...
+[CV] Found candidate with relaxed filters
+[CV] ✓ Found highlighted row at (3, 274) with size 1420x112
+[07_HELPERS] Row height 112px >= 80px threshold - appears expanded
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,225,1450,850)
+[CV] Detecting highlighted row (yellow/gold or blue)...
+[CV] Screen size: 1450x850
+[CV] Excluding bottom 100px (Y >= 750)
+[CV] Found 7263 potential contour(s)
+[CV] 0 contour(s) passed filters
+[CV] No candidates passed strict filters, trying relaxed search...
+[CV] Found candidate with relaxed filters
+[CV] ✓ Found highlighted row at (3, 254) with size 1420x112
+[07_HELPERS] Row height 112px >= 80px threshold - appears expanded
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,225,1450,850)
+[CV] Detecting highlighted row (yellow/gold or blue)...
+[CV] Screen size: 1450x850
+[CV] Excluding bottom 100px (Y >= 750)
+[CV] Found 7218 potential contour(s)
+[CV] 0 contour(s) passed filters
+[CV] No candidates passed strict filters, trying relaxed search...
+[CV] Found candidate with relaxed filters
+[CV] ✓ Found highlighted row at (3, 234) with size 1420x112
+[07_HELPERS] Row height 112px >= 80px threshold - appears expanded
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,225,1450,850)
+[CV] Detecting highlighted row (yellow/gold or blue)...
+[CV] Screen size: 1450x850
+[CV] Excluding bottom 100px (Y >= 750)
+[CV] Found 7169 potential contour(s)
+[CV] 0 contour(s) passed filters
+[CV] No candidates passed strict filters, trying relaxed search...
+[CV] Found candidate with relaxed filters
+[CV] ✓ Found highlighted row at (3, 214) with size 1420x112
+[07_HELPERS] Row height 112px >= 80px threshold - appears expanded
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (206,225,1450,850)
+[CV] Detecting highlighted row (yellow/gold or blue)...
+[CV] Screen size: 1450x850
+[CV] Excluding bottom 100px (Y >= 750)
+[CV] Found 7179 potential contour(s)
+[CV] 0 contour(s) passed filters
+[CV] No candidates passed strict filters, trying relaxed search...
+[CV] Found candidate with relaxed filters
+[CV] ✓ Found highlighted row at (3, 194) with size 1420x112
+[07_HELPERS] Row height 112px >= 80px threshold - appears expanded
+[07_HELPERS] ✓ Expanded row HEADER positioned in target region after 8 scroll(s) (top=419)
+[07_HELPERS] Row is successfully expanded.
+[UNIFIED_EXECUTOR SUCCESS] Action executed: Row found, clicked, and positioned! Matched 3 targets
+[UNIFIED_EXECUTOR] Verifying action completion...
+[UNIFIED_EXECUTOR SUCCESS] Action verified: Row found and clicked
+[EXECUTOR SUCCESS] Action 'select_row_by_values' completed and verified
+[EXECUTOR] Verification data: {'verified': True}
+[EXECUTOR] ✓ Instruction 7/13 completed
+
+────────────────────────────────────────────────────────────
+[EXECUTOR] Step 8/13: open_multinetwork_row_by_date
+[EXECUTOR] Description: Find and double-click on a row in the second table by begin_date
+[EXECUTOR] Parameters: {'begin_date': '3/17/2026'}
+────────────────────────────────────────────────────────────
+[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...
+
+[UNIFIED_EXECUTOR] Executing action: open_multinetwork_row_by_date
+[UNIFIED_EXECUTOR] Parameters: {'begin_date': '3/17/2026'}
+[UNIFIED_EXECUTOR] Max retries: 3, Verify: True
+
+[UNIFIED_EXECUTOR] Attempt 1/3
+[UNIFIED_EXECUTOR] Executing action...
+[DEBUGGER] Initialized for 'action_08_clean'. Output dir: debug_images\action_08_clean
+================================================================================
+[HANDLER] Starting Step 08: Open Multinetwork Row by Date
+[HANDLER] Target begin_date: '3/17/2026'
+================================================================================
+[HANDLER] Step 3: Capturing screenshot...
+[CV] Screenshot captured: 1920x1080
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_08_clean\00_initial_screenshot.png
+[HANDLER] Screen size: 1920x1080
+[HANDLER] Step 4: Detecting blue highlighted expanded row...
+[08_HELPERS] Detecting blue highlighted expanded row...
+[08_HELPERS] Restricting search to work area: (200, 250, 1450, 750)
+[CV] Image cropped: region (200,250,1450,750)
+[CV] Detecting highlighted row (yellow/gold or blue)...
+[CV] Screen size: 1450x750
+[CV] Excluding bottom 100px (Y >= 650)
+[CV] Found 7103 potential contour(s)
+[CV] 0 contour(s) passed filters
+[CV] No candidates passed strict filters, trying relaxed search...
+[CV] Found candidate with relaxed filters
+[CV] ✓ Found highlighted row at (9, 169) with size 1420x112
+[08_HELPERS] ✓ Found blue row at (209, 419) with size 1420x112
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_08_clean\01_blue_row_detected.png
+[HANDLER] Step 6: Calculating crop region...
+[08_HELPERS] Calculating crop region for expanded row area...
+[08_HELPERS] Highlighted row header detected:
+[08_HELPERS]   Position: x=209, y=419
+[08_HELPERS]   Header size: w=1420, h=112
+[08_HELPERS] ✓ Using header dimensions (already large enough)
+[08_HELPERS] Final crop region: x=209, y=419, w=1420, h=112
+[08_HELPERS] This captures the header row + nested second table below
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_08_clean\02_crop_region.png
+[HANDLER] Step 9: Extracting table and detecting columns...
+[08_HELPERS] Extracting table and detecting column splits...
+[CV] Image cropped: region (209,419,1420,112)
+[08_HELPERS] ✓ Cropped table: 1420x112
+[CV] Image loaded: 3x32 from C:\Users\marti\Documents\Copy\Bot\src\workflow_module\actions\steps\08_open_multinetwork_row_by_date\08_RowColumnLineSecondTable.png
+[08_HELPERS] Column template loaded: 3x32
+[08_HELPERS] Found 0 column separator(s)
+[08_HELPERS] Calculated 2 column boundaries: [0, 1420]
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_08_clean\03_cropped_table.png
+[08_HELPERS] Visualizing 2 column splits...
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_08_clean\04_column_splits.png
+[HANDLER] Step 11: Searching for date in table...
+[08_HELPERS] Searching for begin_date '3/17/2026' in cropped table...
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR detailed data: 35 elements
+[08_HELPERS] OCR found 35 text elements
+[08_HELPERS] Normalized target date: '3/17/2026' (Original: '3/17/2026')
+[08_HELPERS] Grouped OCR into 6 rows
+[08_HELPERS] ✓ Found matching date in row 4: '3842546-0002-MN Fringe-Investigation 3/29/2026 06:00:00 - 05:59:59 M,Tu,W,Th,Fr,Sa,Su ID Active 30 3/17/2026 DR / Programmatic Percentage'
+[08_HELPERS] Click coordinates: local=(433, 90), screen=(642, 509)
+[HANDLER] ✓ Date found! Click position: (642, 509)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_08_clean\05_click_position.png
+[HANDLER] Step 13: Executing double-click...
+[08_HELPERS] Executing double-click at (642, 509)...
+[08_HELPERS] Saved pre-click visualization to debug_images\action_08_clean\06_before_click.png
+[08_HELPERS] ✓ Double-click executed at (642, 509)
+[CV] Screenshot captured: 1920x1080
+[08_HELPERS] Saved post-click screenshot to debug_images\action_08_clean\07_after_click.png
+================================================================================
+[HANDLER] ✓ SUCCESS: Double-click completed at (642, 509)
+================================================================================
+[UNIFIED_EXECUTOR SUCCESS] Action executed: Row found and double-clicked! Begin date: '3/17/2026'
+[UNIFIED_EXECUTOR] No verifier available for action type: 'open_multinetwork_row_by_date'
+[EXECUTOR SUCCESS] Action 'open_multinetwork_row_by_date' executed successfully
+[EXECUTOR] ✓ Instruction 8/13 completed
+
+────────────────────────────────────────────────────────────
+[EXECUTOR] Step 9/13: multinetwork_popup
+[EXECUTOR] Description: Handle Multi-Network popup if it appears
+[EXECUTOR] Parameters: {}
+────────────────────────────────────────────────────────────
+[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...
+
+[UNIFIED_EXECUTOR] Executing action: multinetwork_popup
+[UNIFIED_EXECUTOR] Parameters: {}
+[UNIFIED_EXECUTOR] Max retries: 3, Verify: True
+[DEBUGGER] Initialized for 'action_09_multinetwork_popup'. Output dir: debug_images\action_09_multinetwork_popup
+
+[UNIFIED_EXECUTOR] Attempt 1/3
+[UNIFIED_EXECUTOR] Executing action...
+[ACTION_HANDLER] Checking for Multi-Network popup...
+[ACTION_HANDLER] Waiting 2s before starting popup detection...
+[CV] Image loaded: 432x223 from C:\Users\marti\Documents\Copy\Bot\src\workflow_module\actions\steps\09_multinetwork_popup\09_MutliNetworkPopUp.png
+[ACTION_HANDLER] Detection attempt 1/3...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (384,216,1152,648)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_09_multinetwork_popup\01_initial_cropped_0.png
+[CV] Image cropped: region (0,0,1152,648)
+[CV] Template found in region with confidence 1.00
+[CV] Position: (576, 296)
+[ACTION_HANDLER] Popup found on attempt 1 with confidence 0.999996542930603
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_09_multinetwork_popup\03_popup_match_cropped_match_result.png
+[ACTION_HANDLER] Popup found at (960, 512)
+[CV] Image cropped: region (376,196,400,200)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_09_multinetwork_popup\04_popup_crop_for_ocr.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR detailed data: 5 elements
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_09_multinetwork_popup\05_popup_ocr_results_ocr_result.png
+[ACTION_HANDLER] OCR found button: Open as Multi-Network Instruction
+[ACTION_HANDLER] Clicking at (945, 518)
+[ACTION] Clicking at position (945, 518) - 1 left click(s)
+[ACTION SUCCESS] Successfully clicked at (945, 518)
+[UNIFIED_EXECUTOR SUCCESS] Action executed: Handled Multi-Network popup
+[UNIFIED_EXECUTOR] Verifying action completion...
+[UNIFIED_EXECUTOR SUCCESS] Action verified: Verification skipped/implicit
+[EXECUTOR SUCCESS] Action 'multinetwork_popup' completed and verified
+[EXECUTOR] ✓ Instruction 9/13 completed
+
+────────────────────────────────────────────────────────────
+[EXECUTOR] Step 10/13: get_multinet_window
+[EXECUTOR] Description: Verify Multi-Network window is open
+[EXECUTOR] Parameters: {}
+────────────────────────────────────────────────────────────
+[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...
+
+[UNIFIED_EXECUTOR] Executing action: get_multinet_window
+[UNIFIED_EXECUTOR] Parameters: {}
+[UNIFIED_EXECUTOR] Max retries: 3, Verify: True
+
+[UNIFIED_EXECUTOR] Attempt 1/3
+[UNIFIED_EXECUTOR] Executing action...
+[ACTION_HANDLER] Checking if Multi-Network window is open...
+[ACTION_HANDLER] Attempt 1/5: Looking for 'multinet' text...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,145,1450,25)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR detailed data: 3 elements
+[ACTION_HANDLER] 'multinet' not found in text: ['Search Global Comm..', '4', 'x']
+[ACTION_HANDLER] Waiting 10 seconds before retry...
+[ACTION_HANDLER] Attempt 2/5: Looking for 'multinet' text...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,145,1450,25)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 3 elements
+[ACTION_HANDLER] ✓ Found 'multinet' window: 'ID MultiNet'
+[UNIFIED_EXECUTOR SUCCESS] Action executed: ✓ Found 'multinet' window: 'ID MultiNet'
+[UNIFIED_EXECUTOR] Verifying action completion...
+[VERIFIER_HANDLER] Multi-Network window detection completed successfully
+[UNIFIED_EXECUTOR SUCCESS] Action verified: Multi-Network window verification passed
+[EXECUTOR SUCCESS] Action 'get_multinet_window' completed and verified
+[EXECUTOR] Verification data: {'verified': True, 'message': 'Multi-Network window is open'}
+[EXECUTOR] ✓ Instruction 10/13 completed
+
+────────────────────────────────────────────────────────────
+[EXECUTOR] Step 11/13: edit_definition
+[EXECUTOR] Description: Edit definition details including Begin Date and Comments
+[EXECUTOR] Parameters: {'begin_date': '3/17/2026', 'end_date': '3/29/2026', 'revision_number': 'APR2125', 'agent_name': 'test agent'}
+────────────────────────────────────────────────────────────
+[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...
+
+[UNIFIED_EXECUTOR] Executing action: edit_definition
+[UNIFIED_EXECUTOR] Parameters: {'begin_date': '3/17/2026', 'end_date': '3/29/2026', 'revision_number': 'APR2125', 'agent_name': 'test agent'}
+[UNIFIED_EXECUTOR] Max retries: 3, Verify: True
+
+[UNIFIED_EXECUTOR] Attempt 1/3
+[UNIFIED_EXECUTOR] Executing action...
+[ACTION_HANDLER] Starting Step 11: Edit Definition
+  Start: 3/17/2026, End: 3/29/2026, Rev: APR2125, Agent: test agent
+[DEBUGGER] Initialized for 'action_11_edit_definition'. Output dir: debug_images\action_11_edit_definition
+[CV] Screenshot captured: 1920x1080
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition\00_initial_screenshot.png
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition\01_begin_date_search_region_search_region.png
+[CV] Image cropped: region (200,425,1425,575)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition\01_begin_date_cropped_region.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR detailed data: 62 elements
+[OCR] ✓ Found 'Begin Date' at (255, 75) with confidence 0.99
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 62 elements
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition\01_begin_date_ocr_ocr_result.png
+[EDIT_DEF] Found label 'Begin Date' at (488, 517). Click: (488, 532)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition\01_begin_date_found.png
+[CV] Image cropped: region (438,517,100,30)
+[OCR] PaddleOCR extracted: 9 characters
+[ACTION_HANDLER] Extracted Begin Date: '3/17/2026'
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition\02_begin_date_extracted.png
+[ACTION_HANDLER] System Date (Mountain): 2026-03-23
+[ACTION_HANDLER] System date >= Begin Date. Skipping Begin Date update.
+[ACTION_HANDLER] Checking Comment field for idempotency...
+[CV] Screenshot captured: 1920x1080
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition\06_comment_search_region_search_region.png
+[CV] Image cropped: region (200,425,1425,575)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition\06_comment_cropped_region.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 62 elements
+[OCR] ✓ Found 'Comment' at (17, 279) with confidence 1.00
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 62 elements
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition\06_comment_ocr_ocr_result.png
+[EDIT_DEF] Found label 'Comment' at (245, 720). Click: (245, 735)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition\06_comment_found.png
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (0,685,600,100)
+[OCR] PaddleOCR extracted: 98 characters
+[ACTION_HANDLER] Current comment (extracted, length=98): '18 19 20 21 22 23 24 25 26 27 28 29 30 31 Comment: 03/13. OPERATIVE, GJ RFV MAR7926 AK 3.16 Legend'
+[ACTION_HANDLER] Looking for appended text: 'test agent APR2125 03/23'
+[ACTION_HANDLER] Idempotent check - Looking for: 'test agent APR2125 03/23'
+[ACTION_HANDLER] Idempotent check - In comment: '18 19 20 21 22 23 24 25 26 27 28 29 30 31 Comment: 03/13. OPERATIVE, GJ RFV MAR7926 AK 3.16 Legend...' (length: 98)
+[ACTION_HANDLER] ===== IDEMPOTENCY CHECK DETAILS =====
+[ACTION_HANDLER] Full comment: '18 19 20 21 22 23 24 25 26 27 28 29 30 31 Comment: 03/13. OPERATIVE, GJ RFV MAR7926 AK 3.16 Legend'
+[ACTION_HANDLER] Comment length: 98
+[ACTION_HANDLER] Search pattern: 'test agent apr2125 03/23'
+[ACTION_HANDLER] Revision+date pattern: 'apr2125 03/23'
+[ACTION_HANDLER] Check results:
+[ACTION_HANDLER]   - contains_appended (full text): False
+[ACTION_HANDLER]   - contains_pattern (agent+rev+date): False
+[ACTION_HANDLER]   - contains_revision_date (rev+date only): False
+[ACTION_HANDLER]   - ends_with_exact: False
+[ACTION_HANDLER]   - ends_with_stripped: False
+[ACTION_HANDLER]   - count_in_comment: 0
+[ACTION_HANDLER]   - count_pattern: 0
+[ACTION_HANDLER]   - count_revision_date: 0
+[ACTION_HANDLER] →→→ NOT IDEMPOTENT: Appended text not found in comment
+[ACTION_HANDLER] →→→ Will append now
+[ACTION_HANDLER] ===== END IDEMPOTENCY CHECK =====
+[ACTION_HANDLER] Clicking comment field at (245, 735)...
+[ACTION] Clicking at position (245, 735) - 1 left click(s)
+[ACTION SUCCESS] Successfully clicked at (245, 735)
+[ACTION_HANDLER] Appending comment: ' test agent APR2125 03/23'
+[ACTION] Typing text: ' test agent APR2125 03/23' (interval: 0.05s)
+[ACTION SUCCESS] Successfully typed: ' test agent APR2125 03/23'
+[ACTION] Pressing key: 'tab' (1 time(s))
+[ACTION SUCCESS] Successfully pressed 'tab' 1 time(s)
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (0,685,600,100)
+[OCR] PaddleOCR extracted: 121 characters
+[ACTION_HANDLER] ✓ Verified: Comment was successfully appended
+[CV] Screenshot captured: 1920x1080
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition\07_comment_updated.png
+[ACTION_HANDLER] [OK] Step 11 completed successfully
+[UNIFIED_EXECUTOR SUCCESS] Action executed: Definition updated successfully
+[UNIFIED_EXECUTOR] Verifying action completion...
+[VERIFIER_HANDLER] Starting comprehensive verification...
+[DEBUGGER] Initialized for 'action_11_edit_definition_verification'. Output dir: debug_images\action_11_edit_definition_verification
+[CV] Screenshot captured: 1920x1080
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition_verification\verify_begin_date_search_region_search_region.png
+[CV] Image cropped: region (200,425,1425,575)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition_verification\verify_begin_date_cropped_region.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 62 elements
+[OCR] ✓ Found 'Begin Date' at (256, 75) with confidence 1.00
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 62 elements
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition_verification\verify_begin_date_ocr_ocr_result.png
+[EDIT_DEF] Found label 'Begin Date' at (488, 517). Click: (488, 532)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition_verification\verify_begin_date_found.png
+[CV] Image cropped: region (438,517,100,30)
+[OCR] PaddleOCR extracted: 9 characters
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition_verification\verify_begin_date.png
+[CV] Screenshot captured: 1920x1080
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition_verification\verify_comment_search_region_search_region.png
+[CV] Image cropped: region (200,425,1425,575)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition_verification\verify_comment_cropped_region.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 62 elements
+[OCR] ✓ Found 'Comment' at (17, 279) with confidence 1.00
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 62 elements
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition_verification\verify_comment_ocr_ocr_result.png
+[EDIT_DEF] Found label 'Comment' at (245, 720). Click: (245, 735)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition_verification\verify_comment_found.png
+[CV] Image cropped: region (0,685,600,100)
+[OCR] PaddleOCR extracted: 121 characters
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_11_edit_definition_verification\verify_comment.png
+[VERIFIER_HANDLER] [PASS] All verifications passed: Begin Date and Comment verified successfully
+[UNIFIED_EXECUTOR SUCCESS] Action verified: All verifications passed: Begin Date and Comment verified successfully
+[EXECUTOR SUCCESS] Action 'edit_definition' completed and verified
+[EXECUTOR] Verification data: {'begin_date': {'success': True, 'message': "Begin Date verified: '3/17/2026' matches '3/17/2026'"}, 'comment': {'success': True, 'message': 'Comment verified: Appended text is present'}}
+[EXECUTOR] ✓ Instruction 11/13 completed
+
+────────────────────────────────────────────────────────────
+[EXECUTOR] Step 12/13: edit_media_details
+[EXECUTOR] Description: Edit Media Details - delete existing ISCI entries and enter new ones
+[EXECUTOR] Parameters: {'isci_list': ['SAAGTO50H']}
+────────────────────────────────────────────────────────────
+[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...
+
+[UNIFIED_EXECUTOR] Executing action: edit_media_details
+[UNIFIED_EXECUTOR] Parameters: {'isci_list': ['SAAGTO50H']}
+[UNIFIED_EXECUTOR] Max retries: 3, Verify: True
+
+[UNIFIED_EXECUTOR] Attempt 1/3
+[UNIFIED_EXECUTOR] Executing action...
+[ACTION_HANDLER] Starting Step 12: Edit Media Details
+  ISCI values to enter: ['SAAGTO50H']
+[DEBUGGER] Initialized for 'action_12_edit_media_details'. Output dir: debug_images\action_12_edit_media_details
+[CV] Screenshot captured: 1920x1080
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_edit_media_details\00_initial_screenshot.png
+[ACTION_HANDLER] Processing 1 ISCI rows...
+[MEDIA_DETAILS] Processing 1 ISCI values...
+
+[MEDIA_DETAILS] === STEP 1: Click on alias 'A' and get headers ===
+[MEDIA_DETAILS] Step 1: Finding and clicking on alias 'A'...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_edit_media_details\alias_column_scan.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR detailed data: 10 elements
+[MEDIA_DETAILS] Raw results: [{'raw_text': 'A', 'alias_x': 247, 'row_y': 940, 'local_bbox': [41, 509, 53, 521]}]
+[MEDIA_DETAILS] Raw OCR (sorted by Y): ['A']
+[MEDIA_DETAILS] Average row spacing: 30.0px
+[MEDIA_DETAILS] Aliases found: ['A']
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 61 elements
+[OCR] ✓ Found 'ISCI' at (177, 474) with confidence 1.00
+[MEDIA_DETAILS] Found 'ISCI' header text at X=408
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 61 elements
+[OCR] ✓ Found 'Feeds' at (77, 473) with confidence 1.00
+[MEDIA_DETAILS] Found 'Feeds' header at X=296
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_edit_media_details\header_positions.png
+[MEDIA_DETAILS] Clicking on alias 'A' at (247, 940)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_edit_media_details\click_alias_A.png
+[MEDIA_DETAILS] ISCI column X position: 408
+
+[MEDIA_DETAILS] === STEP 2: Collect all aliases until * is found ===
+[MEDIA_DETAILS] Collecting all aliases (scrolling until * found)...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 9 elements
+[MEDIA_DETAILS] Raw results: [{'raw_text': 'A', 'alias_x': 247, 'row_y': 899, 'local_bbox': [41, 467, 53, 481]}]
+[MEDIA_DETAILS] Raw OCR (sorted by Y): ['A']
+[MEDIA_DETAILS] Average row spacing: 30.0px
+[MEDIA_DETAILS] Aliases found: ['A']
+[MEDIA_DETAILS] Scroll 0: Visible = ['A']
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 8 elements
+[MEDIA_DETAILS] Raw results: [{'raw_text': 'A', 'alias_x': 247, 'row_y': 890, 'local_bbox': [41, 459, 53, 472]}]
+[MEDIA_DETAILS] Raw OCR (sorted by Y): ['A']
+[MEDIA_DETAILS] Average row spacing: 30.0px
+[MEDIA_DETAILS] Aliases found: ['A']
+[MEDIA_DETAILS] Scroll 1: Visible = ['A']
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 9 elements
+[MEDIA_DETAILS] Raw results: [{'raw_text': 'A', 'alias_x': 247, 'row_y': 883, 'local_bbox': [41, 451, 53, 465]}, {'raw_text': 'X', 'alias_x': 247, 'row_y': 913, 'local_bbox': [44, 486, 50, 490]}]
+[MEDIA_DETAILS] Raw OCR (sorted by Y): ['A', 'X']
+[MEDIA_DETAILS] Average row spacing: 30.0px
+[MEDIA_DETAILS] Gap: A -> X, filling: ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W']
+[MEDIA_DETAILS] Aliases found: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X']
+[MEDIA_DETAILS] Scroll 2: Visible = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X']
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 8 elements
+[MEDIA_DETAILS] Raw results: [{'raw_text': 'A', 'alias_x': 247, 'row_y': 875, 'local_bbox': [41, 443, 53, 457]}]
+[MEDIA_DETAILS] Raw OCR (sorted by Y): ['A']
+[MEDIA_DETAILS] Average row spacing: 30.0px
+[MEDIA_DETAILS] Aliases found: ['A']
+[MEDIA_DETAILS] Scroll 3: Visible = ['A']
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 8 elements
+[MEDIA_DETAILS] Raw results: [{'raw_text': 'A', 'alias_x': 246, 'row_y': 867, 'local_bbox': [41, 436, 52, 449]}]
+[MEDIA_DETAILS] Raw OCR (sorted by Y): ['A']
+[MEDIA_DETAILS] Average row spacing: 30.0px
+[MEDIA_DETAILS] Aliases found: ['A']
+[MEDIA_DETAILS] Scroll 4: Visible = ['A']
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 9 elements
+[MEDIA_DETAILS] Raw results: [{'raw_text': 'A', 'alias_x': 247, 'row_y': 859, 'local_bbox': [41, 428, 53, 441]}, {'raw_text': '*', 'alias_x': 247, 'row_y': 888, 'local_bbox': [45, 461, 50, 466]}]
+[MEDIA_DETAILS] Raw OCR (sorted by Y): ['A', '*']
+[MEDIA_DETAILS] Average row spacing: 30.0px
+[MEDIA_DETAILS] Space before '*': 29.0px, avg_spacing: 30.0px, estimated missing: 0
+[MEDIA_DETAILS] Aliases found: ['A', '*']
+[MEDIA_DETAILS] Scroll 5: Visible = ['A', '*']
+[MEDIA_DETAILS] Found '*' - end of aliases
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_edit_media_details\found_asterisk.png
+[MEDIA_DETAILS] Total unique aliases in SET before gap-fill: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X']
+[MEDIA_DETAILS] No gaps detected in alias sequence
+[MEDIA_DETAILS] Total unique aliases in SET after gap-fill: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X']
+[MEDIA_DETAILS] Found 24 unique aliases: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X']
+
+[MEDIA_DETAILS] === STEP 3: Scroll back up to headers ===
+[MEDIA_DETAILS] Scrolling back up to headers (so alias A isn't cut off)...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 47 elements
+[OCR] ✓ Found 'ISCI' at (177, 393) with confidence 1.00
+[MEDIA_DETAILS] Found 'ISCI' header text at X=408
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 47 elements
+[OCR] ✓ Found 'Feeds' at (77, 393) with confidence 1.00
+[MEDIA_DETAILS] Found 'Feeds' header at X=296
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 9 elements
+[MEDIA_DETAILS] Raw results: [{'raw_text': 'A', 'alias_x': 247, 'row_y': 859, 'local_bbox': [41, 428, 53, 441]}, {'raw_text': '*', 'alias_x': 247, 'row_y': 888, 'local_bbox': [45, 461, 50, 466]}]
+[MEDIA_DETAILS] Raw OCR (sorted by Y): ['A', '*']
+[MEDIA_DETAILS] Average row spacing: 30.0px
+[MEDIA_DETAILS] Space before '*': 29.0px, avg_spacing: 30.0px, estimated missing: 0
+[MEDIA_DETAILS] Aliases found: ['A', '*']
+[MEDIA_DETAILS] Scroll up 0: Headers found = ['ISCI', 'Feeds'], Aliases = ['A', '*']
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 47 elements
+[OCR] ✓ Found 'Alias' at (24, 390) with confidence 0.94
+[MEDIA_DETAILS] Found headers and alias 'A' - at the top, ready to process
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_edit_media_details\back_at_headers.png
+
+[MEDIA_DETAILS] === STEP 4: Build processing list ===
+[MEDIA_DETAILS] Will process 1 rows in order: ['A']
+[MEDIA_DETAILS] Pending: ['A'], Completed: []
+
+[MEDIA_DETAILS] === STEP 5: Process each row ===
+
+[MEDIA_DETAILS] --- Row 1/1: A -> SAAGTO50H ---
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 9 elements
+[MEDIA_DETAILS] Raw results: [{'raw_text': 'A', 'alias_x': 247, 'row_y': 859, 'local_bbox': [41, 428, 53, 441]}, {'raw_text': '*', 'alias_x': 247, 'row_y': 888, 'local_bbox': [45, 461, 50, 466]}]
+[MEDIA_DETAILS] Raw OCR (sorted by Y): ['A', '*']
+[MEDIA_DETAILS] Average row spacing: 30.0px
+[MEDIA_DETAILS] Space before '*': 29.0px, avg_spacing: 30.0px, estimated missing: 0
+[MEDIA_DETAILS] Aliases found: ['A', '*']
+[MEDIA_DETAILS] Row A found at Y=859
+[MEDIA_DETAILS] Step 5c: Deleting existing media for A...
+[MEDIA_DETAILS] Right-clicking FIRST ISCI field for row A at (408, 859)...
+[CV] Screenshot captured: 1920x1080
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_edit_media_details\before_rightclick_A.png
+[MEDIA_DETAILS] First right-click to select field...
+[MEDIA_DETAILS] Second right-click to open context menu...
+[CV] Screenshot captured: 1920x1080
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_edit_media_details\context_menu_A.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 295 elements
+[OCR] ✓ Found 'Delete Media' at (439, 900) with confidence 1.00
+[MEDIA_DETAILS] Found 'Delete Media' at (476, 908)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_edit_media_details\delete_media_click_A.png
+[MEDIA_DETAILS] Clicked 'Delete Media' for row A
+[MEDIA_DETAILS] Step 5d: Clicking away to remove hover state...
+[MEDIA_DETAILS] Step 5e: Re-scanning for row A (positions may have shifted)...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 9 elements
+[MEDIA_DETAILS] Raw results: [{'raw_text': 'A', 'alias_x': 247, 'row_y': 859, 'local_bbox': [41, 428, 53, 441]}, {'raw_text': '*', 'alias_x': 247, 'row_y': 888, 'local_bbox': [45, 461, 50, 466]}]
+[MEDIA_DETAILS] Raw OCR (sorted by Y): ['A', '*']
+[MEDIA_DETAILS] Average row spacing: 30.0px
+[MEDIA_DETAILS] Space before '*': 29.0px, avg_spacing: 30.0px, estimated missing: 0
+[MEDIA_DETAILS] Aliases found: ['A', '*']
+[MEDIA_DETAILS] Row A current position: Y=859
+[MEDIA_DETAILS] Step 5f: Entering ISCI 'SAAGTO50H' for A...
+[MEDIA_DETAILS] Clicking empty ISCI field for row A at (408, 859)...
+[CV] Screenshot captured: 1920x1080
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_edit_media_details\before_input_A.png
+[MEDIA_DETAILS] Typing ISCI: SAAGTO50H
+[CV] Screenshot captured: 1920x1080
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_edit_media_details\after_input_A.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 293 elements
+[OCR] ✗ Text 'No Matches' not found
+[MEDIA_DETAILS] Successfully entered ISCI for row A
+[MEDIA_DETAILS] Completed row A
+[MEDIA_DETAILS] Progress - Completed: ['A'], Pending: []
+
+[MEDIA_DETAILS] === STEP 6: Final Summary ===
+[MEDIA_DETAILS] Completed aliases: ['A']
+[MEDIA_DETAILS] Pending aliases: []
+[MEDIA_DETAILS] Errors: []
+[ACTION_HANDLER] Media processing complete: Successfully processed 1 rows: ['A']
+[CV] Screenshot captured: 1920x1080
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_edit_media_details\final_screenshot.png
+[ACTION_HANDLER] [OK] Step 12 completed successfully
+[UNIFIED_EXECUTOR SUCCESS] Action executed: Media Details updated successfully. Processed 1 items.
+[UNIFIED_EXECUTOR] Verifying action completion...
+[VERIFIER_HANDLER] Starting verification...
+[DEBUGGER] Initialized for 'action_12_verification'. Output dir: debug_images\action_12_verification
+[MEDIA_DETAILS] Verifying ISCI entries...
+[MEDIA_DETAILS] Step 1: Finding and clicking on alias 'A'...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_verification\alias_column_scan.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 9 elements
+[MEDIA_DETAILS] Raw results: [{'raw_text': 'A', 'alias_x': 247, 'row_y': 859, 'local_bbox': [41, 428, 53, 441]}, {'raw_text': '*', 'alias_x': 247, 'row_y': 888, 'local_bbox': [45, 461, 50, 466]}]
+[MEDIA_DETAILS] Raw OCR (sorted by Y): ['A', '*']
+[MEDIA_DETAILS] Average row spacing: 30.0px
+[MEDIA_DETAILS] Space before '*': 29.0px, avg_spacing: 30.0px, estimated missing: 0
+[MEDIA_DETAILS] Aliases found: ['A', '*']
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 47 elements
+[OCR] ✓ Found 'ISCI' at (177, 393) with confidence 1.00
+[MEDIA_DETAILS] Found 'ISCI' header text at X=408
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 47 elements
+[OCR] ✓ Found 'Feeds' at (77, 393) with confidence 1.00
+[MEDIA_DETAILS] Found 'Feeds' header at X=296
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_verification\header_positions.png
+[MEDIA_DETAILS] Clicking on alias 'A' at (247, 859)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_verification\click_alias_A.png
+[MEDIA_DETAILS] Collecting all aliases (scrolling until * found)...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 9 elements
+[MEDIA_DETAILS] Raw results: [{'raw_text': 'A', 'alias_x': 247, 'row_y': 859, 'local_bbox': [41, 428, 53, 441]}, {'raw_text': '*', 'alias_x': 247, 'row_y': 888, 'local_bbox': [45, 461, 50, 466]}]
+[MEDIA_DETAILS] Raw OCR (sorted by Y): ['A', '*']
+[MEDIA_DETAILS] Average row spacing: 30.0px
+[MEDIA_DETAILS] Space before '*': 29.0px, avg_spacing: 30.0px, estimated missing: 0
+[MEDIA_DETAILS] Aliases found: ['A', '*']
+[MEDIA_DETAILS] Scroll 0: Visible = ['A', '*']
+[MEDIA_DETAILS] Found '*' - end of aliases
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_12_verification\found_asterisk.png
+[MEDIA_DETAILS] Total unique aliases in SET before gap-fill: ['A']
+[MEDIA_DETAILS] Total unique aliases in SET after gap-fill: ['A']
+[VERIFIER_HANDLER] [PASS] Verified 1 entries
+[UNIFIED_EXECUTOR SUCCESS] Action verified: Verified 1 entries
+[EXECUTOR SUCCESS] Action 'edit_media_details' completed and verified
+[EXECUTOR] Verification data: {'verified': True, 'expected_count': 1, 'results': {'A': {'success': True, 'message': 'Row found for SAAGTO50H'}}}
+[EXECUTOR] ✓ Instruction 12/13 completed
+
+────────────────────────────────────────────────────────────
+[EXECUTOR] Step 13/13: edit_assignment_percentage
+[EXECUTOR] Description: Edit Assignment Percentage - clear existing and enter new values
+[EXECUTOR] Parameters: {'assignment_data': {'A': '100'}}
+────────────────────────────────────────────────────────────
+[EXECUTOR] Executing action with unified executor (includes verification and retry logic)...
+
+[UNIFIED_EXECUTOR] Executing action: edit_assignment_percentage
+[UNIFIED_EXECUTOR] Parameters: {'assignment_data': {'A': '100'}}
+[UNIFIED_EXECUTOR] Max retries: 3, Verify: True
+
+[UNIFIED_EXECUTOR] Attempt 1/3
+[UNIFIED_EXECUTOR] Executing action...
+[ACTION] Starting Step 13: Edit Assignment Percentage
+[ACTION] Assignment Data: {'A': '100'}
+[DEBUGGER] Initialized for 'action_13_edit_assignment'. Output dir: debug_images\action_13_edit_assignment
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_13_edit_assignment\00_initial_screenshot.png
+[ASSIGNMENT] Ensuring assignment area has Total or 10+ aliases in view...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_13_edit_assignment\ensure_step_initial.png
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] Initializing PaddleOCR...
+[OCR] Initializing PaddleOCR on CPU...
+[OCR] No GPU detected, using CPU
+[32mCreating model: ('PP-OCRv5_server_det', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\PP-OCRv5_server_det`.[0m
+[32mCreating model: ('en_PP-OCRv5_mobile_rec', None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\marti\.paddlex\official_models\en_PP-OCRv5_mobile_rec`.[0m
+[OCR] PaddleOCR initialized successfully
+[OCR] PaddleOCR detailed data: 47 elements
+[OCR] ✓ Found 'Assignment' at (10, 543) with confidence 0.97
+[CV] Image cropped: region (200,968,1450,27)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_13_edit_assignment\assignment_area.png
+[ASSIGNMENT] Identified assignment area: x=200, y=968, w=1450, h=27
+[CV] Image cropped: region (200,968,1450,27)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_13_edit_assignment\alias_column_scan_assignment.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 1 elements
+[ASSIGNMENT] Aliases found in area: []
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 47 elements
+[OCR] ✗ Text 'Total' not found
+[ASSIGNMENT] Only 0 aliases, no Total - scrolling down (1/20)
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 47 elements
+[OCR] ✓ Found 'Assignment' at (9, 519) with confidence 1.00
+[ASSIGNMENT] Identified assignment area: x=200, y=944, w=1450, h=51
+[CV] Image cropped: region (200,944,1450,51)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 2 elements
+[ASSIGNMENT] Aliases found in area: []
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 47 elements
+[OCR] ✗ Text 'Total' not found
+[ASSIGNMENT] Only 0 aliases, no Total - scrolling down (2/20)
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 37 elements
+[OCR] ✓ Found 'Assignment' at (9, 493) with confidence 1.00
+[ASSIGNMENT] Identified assignment area: x=200, y=918, w=1450, h=77
+[CV] Image cropped: region (200,918,1450,77)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 2 elements
+[ASSIGNMENT] Aliases found in area: []
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 37 elements
+[OCR] ✗ Text 'Total' not found
+[ASSIGNMENT] Only 0 aliases, no Total - scrolling down (3/20)
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 36 elements
+[OCR] ✓ Found 'Assignment' at (8, 467) with confidence 1.00
+[ASSIGNMENT] Identified assignment area: x=200, y=892, w=1450, h=103
+[CV] Image cropped: region (200,892,1450,103)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 3 elements
+[ASSIGNMENT] Aliases found in area: ['A']
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 36 elements
+[OCR] ✗ Text 'Total' not found
+[ASSIGNMENT] Only 1 aliases, no Total - scrolling down (4/20)
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 36 elements
+[OCR] ✓ Found 'Assignment' at (8, 440) with confidence 1.00
+[ASSIGNMENT] Identified assignment area: x=200, y=865, w=1450, h=130
+[CV] Image cropped: region (200,865,1450,130)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 4 elements
+[ASSIGNMENT] Aliases found in area: ['A']
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 36 elements
+[OCR] ✓ Found 'Total' at (22, 544) with confidence 1.00
+[ASSIGNMENT] Total in view - scrolling 2 more times then stopping
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 31 elements
+[OCR] ✓ Found 'Assignment' at (8, 392) with confidence 1.00
+[CV] Image cropped: region (200,817,1450,178)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_13_edit_assignment\assignment_area.png
+[ASSIGNMENT] Identified assignment area: x=200, y=817, w=1450, h=178
+[CV] Image cropped: region (200,817,1450,178)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_13_edit_assignment\alias_column_scan_assignment.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 4 elements
+[ASSIGNMENT] Aliases found in area: ['A']
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_13_edit_assignment\right_click_menu_A.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 34 elements
+[OCR] ✓ Found 'Delete' at (120, 298) with confidence 1.00
+[UNIFIED_EXECUTOR SUCCESS] Action executed: Assignment area ready: 1 aliases in view
+[UNIFIED_EXECUTOR] Verifying action completion...
+[VERIFIER] Starting Step 13 verification...
+[DEBUGGER] Initialized for 'action_13_verification'. Output dir: debug_images\action_13_verification
+[ASSIGNMENT] Ensuring assignment area has Total or 10+ aliases in view...
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_13_verification\ensure_step_initial.png
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 29 elements
+[OCR] ✓ Found 'Assignment' at (9, 344) with confidence 1.00
+[CV] Image cropped: region (200,769,1450,226)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_13_verification\assignment_area.png
+[ASSIGNMENT] Identified assignment area: x=200, y=769, w=1450, h=226
+[CV] Image cropped: region (200,769,1450,226)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_13_verification\alias_column_scan_assignment.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 4 elements
+[ASSIGNMENT] Aliases found in area: ['A']
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 29 elements
+[OCR] ✓ Found 'Total' at (22, 445) with confidence 1.00
+[ASSIGNMENT] Total in view - scrolling 2 more times then stopping
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 29 elements
+[OCR] ✓ Found 'Assignment' at (9, 340) with confidence 1.00
+[CV] Image cropped: region (200,765,1450,230)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_13_verification\assignment_area.png
+[ASSIGNMENT] Identified assignment area: x=200, y=765, w=1450, h=230
+[CV] Image cropped: region (200,765,1450,230)
+[DEBUGGER] Saved: C:\Users\marti\Documents\Copy\Bot\debug_images\action_13_verification\alias_column_scan_assignment.png
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 4 elements
+[ASSIGNMENT] Aliases found in area: ['A']
+[CV] Screenshot captured: 1920x1080
+[CV] Image cropped: region (200,425,1450,570)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 29 elements
+[OCR] ✓ Found 'Total' at (23, 441) with confidence 1.00
+[CV] Image cropped: region (259,861,100,29)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 2 elements
+[VERIFIER] Total is 100%
+[CV] Image cropped: region (277,837,70,28)
+[OCR] Using original image for get_text_data (PaddleOCR handles preprocessing internally)
+[OCR] PaddleOCR detailed data: 2 elements
+[VERIFIER] All fields have number values
+[UNIFIED_EXECUTOR SUCCESS] Action verified: Verification passed: Total is 100% and all fields have number values
+[EXECUTOR SUCCESS] Action 'edit_assignment_percentage' completed and verified
+[EXECUTOR] Verification data: {'total': 100, 'invalid_fields': []}
+[EXECUTOR] ✓ Instruction 13/13 completed
+
+[EXECUTOR SUCCESS] ✓ Objective 'edit_copy_definition' (set #1) completed
+[EXECUTOR SUCCESS] All 13 instructions executed successfully
+
+[EXECUTOR] Objective 1/1: SUCCESS ✓
+
+======================================================================
+WORKFLOW EXECUTION SUMMARY
+======================================================================
+
+Objectives:
+  Total:     1
+  Completed: 1 ✓
+  Failed:    0 
+
+Instructions:
+  Total:     13
+  Completed: 13 ✓
+  Failed:    0 
+
+Detailed Results:
+  ✓ edit_copy_definition (set #1): 13/13 instructions
+
+──────────────────────────────────────────────────────────────────────
+Overall Status: SUCCESS ✓
+======================================================================
+
+
+======================================================================
+WORKFLOW ENGINE - WORKFLOW COMPLETE ✓
+======================================================================
+
