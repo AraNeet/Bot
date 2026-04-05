@@ -183,7 +183,7 @@ def _parse_new_format(objectives: Dict[str, Any], config: Dict[str, Any]) -> Tup
     Parse the new JSON format:
     - alerts (groups of objectives)
     - instruction_set (objectives/instructions within each alert)
-    - action field maps to objective type (E -> edit_copy_definition, D -> unsupported)
+    - action field maps to objective type (E -> edit_copy_definition, D -> duplicate_copy_definition)
     
     Args:
         objectives: The loaded JSON dictionary
@@ -209,7 +209,7 @@ def _parse_new_format(objectives: Dict[str, Any], config: Dict[str, Any]) -> Tup
     # Action type mapping
     ACTION_TYPE_MAP = {
         "E": "edit_copy_definition",
-        "D": None  # Unsupported - will be skipped
+        "D": "duplicate_copy_definition",
     }
     
     # Track objectives by type
@@ -240,10 +240,7 @@ def _parse_new_format(objectives: Dict[str, Any], config: Dict[str, Any]) -> Tup
             objective_type = ACTION_TYPE_MAP.get(action_code)
             
             if objective_type is None:
-                if action_code == "D":
-                    print(f"  [SKIP] Instruction {inst_idx}: Action 'D' (duplicate) is unsupported")
-                else:
-                    print(f"  [SKIP] Instruction {inst_idx}: Unknown action '{action_code}'")
+                print(f"  [SKIP] Instruction {inst_idx}: Unknown action '{action_code}'")
                 continue
             
             # Check if objective type is supported

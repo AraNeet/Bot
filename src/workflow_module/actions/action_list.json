@@ -94,6 +94,12 @@
     "description": "Save and close the multinetwork",
     "has_verifier": true,
     "has_error_handler": true
+  },
+  "duplicate_instruction": {
+    "module": "src.workflow_module.actions.steps.15_duplicate_instruction.15_duplicate_instruction_handler",
+    "description": "Find and click Duplicate Instruction in the context menu region",
+    "has_verifier": true,
+    "has_error_handler": true
   }
 }
 

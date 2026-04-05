@@ -1,6 +1,6 @@
 {
     "definitions": {
-        "edit_copy_definition": [
+        "duplicate_copy_definition": [
             {
                 "action_type": "open_instructions_page",
                 "description": "Navigate to Multinetwork Instructions page",
@@ -64,6 +64,11 @@
             {
                 "action_type": "get_multinet_window",
                 "description": "Verify Multi-Network window is open",
+                "parameters": {}
+            },
+            {
+                "action_type": "duplicate_instruction",
+                "description": "Find and click Duplicate Instruction in the context menu region",
                 "parameters": {}
             },
             {

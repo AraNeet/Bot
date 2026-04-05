@@ -1,5 +1,52 @@
 {
     "objectives": {
+        "duplicate_copy_definition": {
+            "description": "Duplicate Copy Definition - Automated workflow objective",
+            "required_fields": {
+                "advertiser_name": {
+                    "type": "string",
+                    "description": "Name of the advertiser"
+                },
+                "agency_name": {
+                    "type": "string",
+                    "description": "Name of the agency"
+                },
+                "begin_date": {
+                    "type": "string",
+                    "description": "Begin Date for the instruction",
+                    "format": "MM/DD/YYYY"
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": "End Date for the instruction",
+                    "format": "MM/DD/YYYY"
+                },
+                "estimate_number": {
+                    "type": "number",
+                    "description": "Estimate Number"
+                },
+                "revision_number": {
+                    "type": "number",
+                    "description": "Revision Number"
+                },
+                "agent_name": {
+                    "type": "string",
+                    "description": "Name of the agent"
+                }
+            },
+            "optional_fields": {
+                "isci_list": {
+                    "type": "string",
+                    "description": "Isci List code",
+                    "default": []
+                },
+                "assignment_data": {
+                    "type": "string",
+                    "description": "Assignment Data",
+                    "default": {}
+                }
+            }
+        },
         "edit_copy_definition": {
             "description": "Edit Copy Definition - Automated workflow objective",
             "required_fields": {
@@ -24,9 +71,28 @@
                 "estimate_number": {
                     "type": "number",
                     "description": "Estimate Number"
+                },
+                "revision_number": {
+                    "type": "number",
+                    "description": "Revision Number"
+                },
+                "agent_name": {
+                    "type": "string",
+                    "description": "Name of the agent"
                 }
             },
-            "optional_fields": {}
+            "optional_fields": {
+                "isci_list": {
+                    "type": "string",
+                    "description": "Isci List code",
+                    "default": []
+                },
+                "assignment_data": {
+                    "type": "string",
+                    "description": "Assignment Data",
+                    "default": {}
+                }
+            }
         }
     }
 }

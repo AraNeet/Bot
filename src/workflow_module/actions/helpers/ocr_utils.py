@@ -14,6 +14,11 @@ Core Methods:
 - find_text_with_position: Find text and return its position
 - get_text_data: Get detailed text data with bounding boxes
 
+Module helpers:
+- screen_center_from_crop_bbox: Map crop-local (x,y,w,h) to absolute screen click center
+- union_ocr_boxes_xywh: Union PaddleOCR boxes into one (x,y,w,h) in crop space
+- find_click_bbox_for_phrase_in_crop: Locate phrase (or split OCR lines) for clicking
+
 Requirements:
     - paddleocr: PaddleOCR library for text recognition (install PaddlePaddle first, then pip install paddleocr)
     - opencv-python: For image processing
@@ -267,7 +272,86 @@ class TextScanner:
             error_msg = f"Text search with position failed: {e}"
             print(f"[OCR ERROR] {error_msg}")
             return False, False, None
-        
+
+
+def screen_center_from_crop_bbox(
+    bbox_xywh: Tuple[int, int, int, int],
+    region_xywh: Tuple[int, int, int, int],
+) -> Tuple[int, int]:
+    """Convert bbox (x, y, w, h) in cropped image coords to screen pixel center."""
+    rx, ry, _, _ = region_xywh
+    bx, by, bw, bh = bbox_xywh
+    return rx + bx + bw // 2, ry + by + bh // 2
+
+
+def union_ocr_boxes_xywh(
+    data: Dict[str, List], indices: List[int]
+) -> Optional[Tuple[int, int, int, int]]:
+    """Union of PaddleOCR boxes [x1,y1,x2,y2] -> (x, y, w, h) in crop space."""
+    if not indices:
+        return None
+    xs1, ys1, xs2, ys2 = [], [], [], []
+    for i in indices:
+        x1, y1, x2, y2 = data["bbox"][i]
+        xs1.append(x1)
+        ys1.append(y1)
+        xs2.append(x2)
+        ys2.append(y2)
+    x1, y1, x2, y2 = min(xs1), min(ys1), max(xs2), max(ys2)
+    return (int(x1), int(y1), int(x2 - x1), int(y2 - y1))
+
+
+def find_click_bbox_for_phrase_in_crop(
+    scanner: TextScanner,
+    cropped: np.ndarray,
+    phrase: str,
+    region_xywh: Tuple[int, int, int, int],
+) -> Tuple[bool, Optional[Tuple[int, int, int, int]]]:
+    """
+    Locate phrase in a cropped screenshot for clicking: full-line match first, then
+    pairs of OCR boxes matching the first two words of the phrase, else crop-sized bbox.
+    """
+    phrase_lower = phrase.lower()
+    success, data = scanner.get_text_data(cropped)
+    if not success or not isinstance(data, dict):
+        return False, None
+
+    texts = data.get("text") or []
+    combined = " ".join(t.lower() for t in texts if t and str(t).strip())
+    if phrase_lower not in combined:
+        return False, None
+
+    ok, found, bbox = scanner.find_text_with_position(cropped, phrase, case_sensitive=False)
+    if ok and found and bbox:
+        return True, bbox
+
+    words = phrase_lower.split()
+    w1 = words[0] if words else ""
+    w2 = words[1] if len(words) > 1 else ""
+
+    first_idxs: List[int] = []
+    second_idxs: List[int] = []
+    for i, t in enumerate(texts):
+        if not t or not str(t).strip():
+            continue
+        tl = t.lower()
+        if w1 and w1 in tl:
+            first_idxs.append(i)
+        if w2 and w2 in tl:
+            second_idxs.append(i)
+
+    for di in first_idxs:
+        for ii in second_idxs:
+            if di == ii:
+                x1, y1, x2, y2 = data["bbox"][di]
+                return True, (int(x1), int(y1), int(x2 - x1), int(y2 - y1))
+            merged = union_ocr_boxes_xywh(data, sorted({di, ii}))
+            if merged:
+                return True, merged
+
+    _, _, rw, rh = region_xywh
+    return True, (0, 0, rw, rh)
+
 
 def match_text_positions(target_texts: List[str], data: Dict[str, List]) -> List[Tuple[int, int, int, int]]:
     """
