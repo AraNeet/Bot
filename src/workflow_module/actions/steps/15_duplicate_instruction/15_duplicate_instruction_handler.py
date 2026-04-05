@@ -38,10 +38,12 @@ def action(**kwargs) -> Tuple[bool, str]:
     """
     print("[ACTION_HANDLER] Duplicate instruction: OCR search in region", DUPLICATE_INSTRUCTION_REGION)
 
+    # Step 1: Take screenshot and crop the region
     cropped = take_screenshot_and_crop(DUPLICATE_INSTRUCTION_REGION)
     if cropped is None:
         return False, "Failed to take screenshot and crop duplicate-instruction region"
 
+    # Step 2: Find the clickable bounding box for the search phrase
     ok, bbox = find_click_bbox_for_phrase_in_crop(
         scanner, cropped, SEARCH_PHRASE, DUPLICATE_INSTRUCTION_REGION
     )
@@ -52,12 +54,16 @@ def action(**kwargs) -> Tuple[bool, str]:
             f"'{SEARCH_PHRASE}' not found in region {DUPLICATE_INSTRUCTION_REGION}. OCR: '{detail}'"
         )
 
+    # Step 3: Calculate the center of the bounding box
     click_x, click_y = screen_center_from_crop_bbox(bbox, DUPLICATE_INSTRUCTION_REGION)
     print(f"[ACTION_HANDLER] Clicking '{SEARCH_PHRASE}' at screen ({click_x}, {click_y})")
 
+    # Step 4: Click the center of the bounding box
     success, msg = actions.click_at_position(click_x, click_y)
     if success:
+        # Step 5: Move the mouse to the right of the screen
         actions.move_mouse(1800, 50, 0)
+    # Step 6: Return the success or failure message
     if not success:
         return False, f"Failed to click duplicate instruction: {msg}"
 
