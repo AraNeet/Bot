@@ -18,6 +18,40 @@
           "flight_start_date": "3/30/2026",
           "flight_end_date": "4/26/2026",
           "networks_to_run": "HD NETWORKS",
+          "action": "E",
+          "copy_instructions": [
+            {
+              "copy_id": "SAAGTO50H",
+              "length_sec": 15,
+              "rotation_percent": "50%",
+              "flight_start_date": "01/06/2026",
+              "flight_end_date": "01/11/2026",
+              "networks_to_run": "HD NETWORKS"
+            },
+            {
+              "copy_id": "SAAGTO50H",
+              "length_sec": 15,
+              "rotation_percent": "50%",
+              "flight_start_date": "01/06/2026",
+              "flight_end_date": "01/11/2026",
+              "networks_to_run": "HD NETWORKS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "alert_id": 2,
+      "advertiser": "IKEA",
+      "order_id": "237514",
+      "product": "Chattem X",
+      "description_of_traffic_alert": "You are currently running 3 copies for this order, please make copy change effective 4/10.",
+      "instruction_set": [
+        {
+          "instruction_id": 1,
+          "flight_start_date": "3/30/2026",
+          "flight_end_date": "4/26/2026",
+          "networks_to_run": "HD NETWORKS",
           "action": "D",
           "copy_instructions": [
             {

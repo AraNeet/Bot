@@ -840,7 +840,7 @@ def process_media_rows(isci_list: List[str], debugger: Optional[Debugger] = None
         # ---------------------------------------------------------------------
         print(f"[MEDIA_DETAILS] Step 5d: Clicking away to remove hover state...")
         # Click on the Alias column header area (neutral position)
-        neutral_x = WORK_AREA[0] + 30  # Left side of work area
+        neutral_x = WORK_AREA[0] + 280  # Left side of work area
         neutral_y = WORK_AREA[1] + 10  # Top of work area (header area)
         pyautogui.click(neutral_x, neutral_y)
         time.sleep(0.5)
