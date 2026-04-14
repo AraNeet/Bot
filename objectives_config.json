@@ -71,9 +71,28 @@
                 "estimate_number": {
                     "type": "number",
                     "description": "Estimate Number"
+                },
+                "revision_number": {
+                    "type": "number",
+                    "description": "Revision Number"
+                },
+                "agent_name": {
+                    "type": "string",
+                    "description": "Name of the agent"
                 }
             },
-            "optional_fields": {}
+            "optional_fields": {
+                "isci_list": {
+                    "type": "string",
+                    "description": "Isci List code",
+                    "default": []
+                },
+                "assignment_data": {
+                    "type": "string",
+                    "description": "Assignment Data",
+                    "default": {}
+                }
+            }
         }
     }
 }

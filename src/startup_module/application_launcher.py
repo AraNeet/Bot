@@ -166,9 +166,9 @@ def startup_sequence(app_name: str, app_path: str,
                                     {"app_name": app_name, "process_name": process_name})
         return False
     
-    # Execute Step 2
-    if not maximize_application(window):
-        print("Step 2 had issues, continuing to verification...")
+    # # Execute Step 2
+    # if not maximize_application(window):
+    #     print("Step 2 had issues, continuing to verification...")
     
     # Execute Step 3
     if not verify_window_state(window, corner_templates, max_retries):
