@@ -2,7 +2,7 @@
 bot.env
 .env
 screenshots/
-
+debug_images/
 
 # Python
 __pycache__/
