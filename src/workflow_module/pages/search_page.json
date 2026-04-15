@@ -1,0 +1,110 @@
+{
+    "page_name": "search_page",
+    "description": "Multinetwork Instructions search page - contains search fields, search button, and results table",
+
+    "page_markers": {
+        "description": "Text markers used to verify this page is currently displayed",
+        "header_texts": ["order #", "advertiser"],
+        "header_region": [206, 152, 1439, 79]
+    },
+
+    "elements": {
+        "multi_network_icon": {
+            "description": "Toolbar icon to navigate to this page",
+            "region": [93, 52, 84, 66],
+            "template": "01_multi_network_Icon.png",
+            "template_dir": "steps/01_open_instructions_page",
+            "confidence": 0.9
+        },
+
+        "advertiser_field": {
+            "description": "Advertiser name search input field",
+            "field_label": "advertiser",
+            "verification_region": [370, 175, 160, 48],
+            "search_region": [206, 152, 1439, 79],
+            "field_spacing": 15
+        },
+
+        "advertiser_name_dialog": {
+            "description": "Name search popup that appears when typing advertiser name",
+            "region": [0, 0, 500, 383],
+            "close_template": "02_close_name_pop_up.png",
+            "close_template_dir": "steps/02_type_advertiser_name",
+            "confidence": 0.8
+        },
+
+        "agency_field": {
+            "description": "Agency name search input field",
+            "field_label": "agency",
+            "verification_region": [668, 180, 130, 40],
+            "search_region": [206, 152, 1439, 79],
+            "field_spacing": 15
+        },
+
+        "agency_name_dialog": {
+            "description": "Name search popup that appears when typing agency name",
+            "region": [65, 25, 1217, 383],
+            "close_template": "03_close_name_pop_up.png",
+            "close_template_dir": "steps/03_type_agency_name",
+            "confidence": 0.8
+        },
+
+        "begin_date_field": {
+            "description": "Begin date input field",
+            "field_label": ["begin", "begin date"],
+            "verification_region": [992, 175, 114, 50],
+            "search_region": [206, 152, 1439, 79],
+            "debug_search_region": [206, 152, 1439, 79],
+            "field_spacing": 15
+        },
+
+        "end_date_field": {
+            "description": "End date input field",
+            "field_label": ["end", "end date"],
+            "verification_region": [1105, 175, 114, 50],
+            "search_region": [206, 152, 1439, 79],
+            "field_spacing": 15
+        },
+
+        "search_button": {
+            "description": "Search button to submit query",
+            "field_label": "search",
+            "action_region": [206, 170, 1439, 79],
+            "results_count_region": [205, 225, 50, 30],
+            "search_region": [206, 152, 1439, 79],
+            "field_spacing": 15
+        },
+
+        "results_table": {
+            "description": "Search results table area",
+            "crop_x": 206,
+            "crop_y": 225,
+            "crop_width": 1450,
+            "crop_height": 850,
+            "scrollbar_check_region": [205, 225, 1450, 780],
+            "target_region_y": 225,
+            "target_region_height": 250,
+            "column_line_template": "07_ColumnLine.png",
+            "column_line_template_dir": "steps/07_select_row_by_values",
+            "row_expander_template": "07_RowExpander.png",
+            "row_expander_template_dir": "steps/07_select_row_by_values"
+        },
+
+        "results_count": {
+            "description": "Region showing number of search results",
+            "region": [206, 225, 225, 25]
+        },
+
+        "mouse_park": {
+            "description": "Safe position to move mouse out of the way after clicks",
+            "position": [1800, 50]
+        }
+    },
+
+    "defaults": {
+        "search_region": [206, 152, 1439, 79],
+        "field_spacing": 15,
+        "typing_interval": 0.02,
+        "confidence_threshold": 0.8
+    }
+}

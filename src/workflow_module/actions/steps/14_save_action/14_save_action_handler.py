@@ -12,17 +12,24 @@ from typing import Tuple, Dict, Any, Optional
 from src.workflow_module.actions.helpers import actions
 from src.workflow_module.actions.helpers import computer_vision_utils
 from src.workflow_module.actions.helpers.computer_vision_utils import take_screenshot_and_crop
-from src.workflow_module.actions.helpers.ocr_utils import TextScanner
+from src.workflow_module.actions.helpers.vision_service import scanner
+from src.workflow_module.actions.helpers.precheck_utils import verify_page
+from src.workflow_module.pages.page_loader import get_element, get_region, get_template_path, get_confidence
 import time
 import os
 
-# Region (x, y, width, height) for save icon and close button
-SAVE_ICON_REGION = (0, 0, 200, 100)
-CLOSE_X_REGION = (1580, 140, 70, 30)
-# Same title region as step 10 (get_multinet_window) to check if multinet tab is open
-MULTINET_TITLE_REGION = (200, 145, 1450, 25)
+# Load regions from page config
+SAVE_ICON_REGION = get_region("multinetwork_page", "save_icon")
+CLOSE_X_REGION = get_region("multinetwork_page", "close_x_button")
+MULTINET_TITLE_REGION = get_region("multinetwork_page", "title_bar")
 
-scanner = TextScanner()
+# ============================================================================
+# PRECHECK
+# ============================================================================
+
+def precheck(**kwargs) -> Tuple[bool, str]:
+    """Verify multinet window is open before saving."""
+    return verify_page("multinetwork_page")
 
 # ============================================================================
 # ACTION
@@ -39,12 +46,12 @@ def action(**kwargs) -> Tuple[bool, str]:
     if screenshot is None:
         return False, "Failed to take screenshot"
 
-    # Step 2: Find save icon in region (0, 0, 200, 100) via template matching
-    handler_dir = os.path.dirname(os.path.abspath(__file__))
-    save_icon_path = os.path.join(handler_dir, "14_save_icon.png")
+    # Step 2: Find save icon via template matching
+    save_icon_path = get_template_path("multinetwork_page", "save_icon")
+    save_confidence_threshold = get_confidence("multinetwork_page", "save_icon")
 
     save_found, save_confidence, save_position = computer_vision_utils.find_template_in_region(
-        screenshot, save_icon_path, SAVE_ICON_REGION, confidence=0.7
+        screenshot, save_icon_path, SAVE_ICON_REGION, confidence=save_confidence_threshold
     )
     if not save_found or save_position is None:
         return False, f"Save icon not found in region {SAVE_ICON_REGION} (confidence: {save_confidence:.2f})"
@@ -57,10 +64,11 @@ def action(**kwargs) -> Tuple[bool, str]:
     print(f"[ACTION_HANDLER] ✓ Clicked save icon at ({click_x}, {click_y})")
     time.sleep(0.5)
 
-    # Step 4: Find X (close) icon in region (1580, 140, 70, 30) via template matching
-    x_icon_path = os.path.join(handler_dir, "14_X_icon.png")
+    # Step 4: Find X (close) icon via template matching
+    x_icon_path = get_template_path("multinetwork_page", "close_x_button")
+    x_confidence_threshold = get_confidence("multinetwork_page", "close_x_button")
     x_found, x_confidence, x_position = computer_vision_utils.find_template_in_region(
-        computer_vision_utils.take_screenshot(), x_icon_path, CLOSE_X_REGION, confidence=0.7
+        computer_vision_utils.take_screenshot(), x_icon_path, CLOSE_X_REGION, confidence=x_confidence_threshold
     )
     if not x_found or x_position is None:
         return False, f"Close X icon not found in region {CLOSE_X_REGION} (confidence: {x_confidence:.2f})"

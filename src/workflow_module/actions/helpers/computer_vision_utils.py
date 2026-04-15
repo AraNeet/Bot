@@ -98,6 +98,56 @@ def save_screenshot(screenshot: np.ndarray,
         print(f"[CV ERROR] {error_msg}")
         return False, error_msg
 
+
+def capture_failure_screenshot(step_name: str, attempt: int = 0,
+                                context: str = "", 
+                                output_dir: str = "screenshots/failures") -> Tuple[bool, str]:
+    """
+    Capture a screenshot when a step fails, for debugging purposes.
+    
+    Creates a timestamped screenshot in the failures directory with
+    the step name and attempt number in the filename.
+    
+    Args:
+        step_name: Name of the step that failed (e.g., "type_advertiser_name")
+        attempt: Which retry attempt this failure occurred on
+        context: Optional context string (e.g., "precheck", "action", "postcheck")
+        output_dir: Directory to save failure screenshots
+        
+    Returns:
+        Tuple of (success: bool, filepath or error_message)
+        
+    Example:
+        success, path = capture_failure_screenshot("type_advertiser_name", attempt=2, context="postcheck")
+        # Saves: screenshots/failures/20260415_143022_type_advertiser_name_attempt2_postcheck.png
+    """
+    try:
+        screenshot = take_screenshot()
+        if screenshot is None:
+            return False, "Failed to capture screenshot for failure record"
+        
+        # Build descriptive filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        parts = [timestamp, step_name]
+        if attempt > 0:
+            parts.append(f"attempt{attempt}")
+        if context:
+            parts.append(context)
+        
+        filename = "_".join(parts) + ".png"
+        
+        success, result = save_screenshot(screenshot, filename=filename, output_dir=output_dir)
+        
+        if success:
+            print(f"[CV] Failure screenshot captured: {result}")
+        
+        return success, result
+        
+    except Exception as e:
+        error_msg = f"Failed to capture failure screenshot: {e}"
+        print(f"[CV ERROR] {error_msg}")
+        return False, error_msg
+
 def load_image(image_path: str) -> Optional[np.ndarray]:
     """
     Load an image from file.

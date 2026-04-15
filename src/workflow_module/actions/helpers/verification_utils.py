@@ -16,7 +16,11 @@ import re
 
 def calculate_text_similarity(text1: str, text2: str) -> float:
     """
-    Calculate similarity between two text strings.
+    Calculate similarity between two text strings using edit-distance-based matching.
+    
+    Uses difflib.SequenceMatcher which computes the ratio of matching characters
+    in their correct positions — unlike simple character membership, this correctly
+    handles transpositions, insertions, and deletions.
     
     Args:
         text1: First text string
@@ -25,26 +29,24 @@ def calculate_text_similarity(text1: str, text2: str) -> float:
     Returns:
         Similarity score between 0.0 and 1.0
     """
+    from difflib import SequenceMatcher
+    
     try:
-        # Step 1: Handle empty strings
         if not text1 or not text2:
             return 0.0
         
-        # Step 2: Clean strings - remove spaces and special characters, lowercase
+        # Clean strings - remove spaces and special characters, lowercase
         clean1 = ''.join(c.lower() for c in text1 if c.isalnum())
         clean2 = ''.join(c.lower() for c in text2 if c.isalnum())
         
-        # Step 3: Handle empty cleaned strings
         if not clean1 or not clean2:
             return 0.0
         
-        # Step 4: Calculate character overlap similarity
-        matches = sum(1 for c in clean1 if c in clean2)
-        similarity = matches / max(len(clean1), len(clean2))
-        return similarity
+        # SequenceMatcher.ratio() returns 2.0 * M / T where M is matching
+        # characters in sequence and T is total characters in both strings
+        return SequenceMatcher(None, clean1, clean2).ratio()
         
     except Exception as e:
-        # Step 5: Handle errors
         print(f"[VERIFICATION_UTILS ERROR] Error calculating text similarity: {e}")
         return 0.0
 

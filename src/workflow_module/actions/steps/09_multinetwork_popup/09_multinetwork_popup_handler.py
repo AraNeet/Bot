@@ -19,6 +19,17 @@ import importlib
 # Initialize debugger for this handler
 debugger = debug_utils.Debugger("action_09_multinetwork_popup")
 
+# ============================================================================
+# PRECHECK
+# ============================================================================
+
+def precheck(**kwargs) -> Tuple[bool, str]:
+    """Verify application is visible. Popup detection happens in the action itself."""
+    screenshot = computer_vision_utils.take_screenshot()
+    if screenshot is None:
+        return False, "Cannot take screenshot — application may not be visible"
+    return True, "Application is visible, ready to check for popup"
+
 def wait_for_loading(max_wait_seconds=300):
     """Waits for the loading circle to disappear."""
     print("[ACTION_HANDLER] Checking for loading circle...")

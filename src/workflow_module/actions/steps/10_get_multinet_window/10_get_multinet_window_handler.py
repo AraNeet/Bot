@@ -13,10 +13,22 @@ in the title bar region. Retries up to 5 times with 10 second delays.
 
 from typing import Tuple, Dict, Any, Optional
 from src.workflow_module.actions.helpers import computer_vision_utils
-from src.workflow_module.actions.helpers.ocr_utils import TextScanner
+from src.workflow_module.actions.helpers.vision_service import scanner
+from src.workflow_module.pages.page_loader import get_element
 import time
 import cv2
 import os
+
+# ============================================================================
+# PRECHECK
+# ============================================================================
+
+def precheck(**kwargs) -> Tuple[bool, str]:
+    """Verify application is visible before checking for multinet window."""
+    screenshot = computer_vision_utils.take_screenshot()
+    if screenshot is None:
+        return False, "Cannot take screenshot — application may not be visible"
+    return True, "Application is visible"
 
 # ============================================================================
 # ACTION
@@ -28,15 +40,13 @@ def action(**kwargs) -> Tuple[bool, str]:
     """
     print("[ACTION_HANDLER] Checking if Multi-Network window is open...")
 
-    # Step 1: Define region to search for window title
-    region = (200, 145, 1450, 25)
+    # Step 1: Get region from page config
+    title_config = get_element("multinetwork_page", "title_bar")
+    region = tuple(title_config["region"])
     
     # Step 2: Set retry parameters
     max_attempts = 5
     wait_time = 10  # seconds between attempts
-    
-    # Step 3: Initialize OCR scanner
-    scanner = TextScanner()
     
     # Step 4: Loop through detection attempts
     for attempt in range(1, max_attempts + 1):

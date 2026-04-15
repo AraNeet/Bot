@@ -1,0 +1,77 @@
+{
+    "page_name": "multinetwork_page",
+    "description": "Multinetwork detail window - contains definition editing, media details, assignment percentages, and save/close actions",
+
+    "page_markers": {
+        "description": "Text markers used to verify this page is currently displayed",
+        "header_texts": ["multinet"],
+        "header_region": [200, 145, 1450, 25]
+    },
+
+    "elements": {
+        "second_table": {
+            "description": "Sub-table within an expanded row showing multinetwork date entries",
+            "column_line_template": "08_RowColumnLineSecondTable.png",
+            "column_line_template_dir": "steps/08_open_multinetwork_row_by_date"
+        },
+
+        "multinetwork_popup": {
+            "description": "Multi-Network instruction popup dialog that appears after double-clicking a row",
+            "popup_template": "09_MutliNetworkPopUp.png",
+            "popup_template_dir": "steps/09_multinetwork_popup",
+            "loading_template": "09_loading_template.png",
+            "loading_template_dir": "steps/09_multinetwork_popup",
+            "confidence": 0.7
+        },
+
+        "title_bar": {
+            "description": "Title bar region used to verify multinet window is open",
+            "region": [200, 145, 1450, 25],
+            "expected_text": "multinet"
+        },
+
+        "definition_window": {
+            "description": "The definition editing area within the multinetwork window",
+            "region": [200, 425, 1425, 575]
+        },
+
+        "work_area": {
+            "description": "Main work area for media details and assignment percentage editing",
+            "region": [200, 425, 1450, 570]
+        },
+
+        "scroll_area": {
+            "description": "Scrollbar region for scrolling within the work area",
+            "region": [1625, 460, 20, 540]
+        },
+
+        "save_icon": {
+            "description": "Save button/icon in the toolbar",
+            "region": [0, 0, 200, 100],
+            "template": "14_save_icon.png",
+            "template_dir": "steps/14_save_action",
+            "confidence": 0.7
+        },
+
+        "close_x_button": {
+            "description": "Close (X) button to close the multinetwork window",
+            "region": [1580, 140, 70, 30],
+            "template": "14_X_icon.png",
+            "template_dir": "steps/14_save_action",
+            "confidence": 0.7
+        },
+
+        "duplicate_instruction_menu": {
+            "description": "Context menu region where 'Duplicate Instruction' option appears",
+            "region": [110, 45, 135, 80],
+            "search_phrase": "duplicate instruction"
+        }
+    },
+
+    "defaults": {
+        "confidence_threshold": 0.7,
+        "scroll_wait": 0.5,
+        "loading_timeout": 60,
+        "loading_poll_interval": 2
+    }
+}

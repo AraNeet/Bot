@@ -26,6 +26,15 @@ helpers = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(helpers)
 
 # ============================================================================
+# PRECHECK
+# ============================================================================
+
+def precheck(**kwargs) -> Tuple[bool, str]:
+    """Verify multinet window is open before editing definition."""
+    from src.workflow_module.actions.helpers.precheck_utils import verify_page
+    return verify_page("multinetwork_page")
+
+# ============================================================================
 # ACTION
 # ============================================================================
 
@@ -125,8 +134,6 @@ def action(begin_date: str = "", end_date: str = "", revision_number: str = "", 
     # Step 10: Idempotency check - verify if comment already contains appended text
     # We check if the exact appended text is at the END of the comment (most strict check)
     current_comment_stripped = current_comment.strip()
-    current_comment_rstripped = current_comment.rstrip()
-    expected_appended_rstripped = expected_appended.rstrip()
     
     print(f"[ACTION_HANDLER] Idempotent check - Looking for: '{expected_appended_stripped}'")
     print(f"[ACTION_HANDLER] Idempotent check - In comment: '{current_comment[:150]}...' (length: {len(current_comment)})")

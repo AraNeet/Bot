@@ -2,23 +2,31 @@
 """
 Handler for: Click Search Button
 
-This module contains:
+- Precheck: Verify search page is displayed
 - Action: Click the search button to submit the search form
-- Verifier: Verify the search button was clicked and results loaded
-- Error Handler: Handle errors for this specific action
+- Verifier: Wait for loading spinner to clear, then verify results loaded
+- Error Handler: Handle errors
 """
 
 from typing import Tuple, Dict, Any, Optional
 from src.workflow_module.actions.helpers import actions
 from src.workflow_module.actions.helpers import computer_vision_utils
 from src.workflow_module.actions.helpers.computer_vision_utils import take_screenshot_and_crop
-from src.workflow_module.actions.helpers.ocr_utils import TextScanner
+from src.workflow_module.actions.helpers.vision_service import scanner
 from src.workflow_module.actions.helpers.verification_utils import calculate_text_similarity, extract_string_from_text
 from src.workflow_module.actions.helpers.field_utils import get_results_count
+from src.workflow_module.actions.helpers.precheck_utils import verify_page, verify_no_loading_spinner
+from src.workflow_module.pages.page_loader import get_element
 import time
 import cv2
 
-scanner = TextScanner()
+# ============================================================================
+# PRECHECK
+# ============================================================================
+
+def precheck(**kwargs) -> Tuple[bool, str]:
+    """Verify search page is displayed before clicking search."""
+    return verify_page("search_page")
 
 # ============================================================================
 # ACTION
@@ -28,18 +36,19 @@ def action(**kwargs) -> Tuple[bool, str]:
     """Click the search button to submit the search form."""
     print("[ACTION_HANDLER] Clicking search button...")
     
-    # Step 1: Take screenshot
-    region_x, region_y, region_width, region_height = 206, 170, 1439, 79
-    cropped_image = take_screenshot_and_crop((region_x, region_y, region_width, region_height))
+    # Get action region from page config
+    btn_config = get_element("search_page", "search_button")
+    action_region = tuple(btn_config["action_region"])
+    region_x, region_y, region_width, region_height = action_region
+    
+    cropped_image = take_screenshot_and_crop(action_region)
     if cropped_image is None:
         return False, "Failed to take screenshot and crop to search region"
     
-    # Step 2: Find search button via OCR
     success, found, bbox = scanner.find_text_with_position(cropped_image, "search", case_sensitive=False)
     if not success or not found or bbox is None:
         return False, "Could not determine exact position of 'search' text"
     
-    # Step 3: Click on the search button
     cropped_text_x, cropped_text_y, text_width, text_height = bbox
     text_x = region_x + cropped_text_x
     text_y = region_y + cropped_text_y
@@ -52,7 +61,6 @@ def action(**kwargs) -> Tuple[bool, str]:
         return False, f"Failed to click on search button: {click_msg}"
 
     time.sleep(0.5)
-    
     return True, "Successfully clicked search button"
 
 # ============================================================================
@@ -60,37 +68,38 @@ def action(**kwargs) -> Tuple[bool, str]:
 # ============================================================================
 
 def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """Verify that the search button was clicked successfully and results are present."""
+    """Wait for loading to clear, then verify search results are present."""
     print("[VERIFIER_HANDLER] Verifying search button clicked and checking results...")
     
-    # Step 1: Wait for search results to load
+    # Wait for any loading spinner to disappear
+    spinner_ok, spinner_msg = verify_no_loading_spinner(max_wait=30.0, poll_interval=2.0)
+    if not spinner_ok:
+        return False, f"Loading spinner did not clear: {spinner_msg}", None
+    
+    # Wait for search results to load
     time.sleep(2.0)
     
-    # Step 2: Define field region and crop screenshot
-    field_region = (205, 225, 50, 30)
+    # Check results count region from page config
+    btn_config = get_element("search_page", "search_button")
+    field_region = tuple(btn_config["results_count_region"])
     cropped_image = take_screenshot_and_crop(field_region)
     if cropped_image is None:
         return False, "Failed to take screenshot and crop to order field region", None
     
-    # Step 3: Extract text using OCR
     success, extracted_text = scanner.extract_text(cropped_image)
     if not success:
         return False, f"Failed to extract text from order field: {extracted_text}", None
     
-    # Step 4: Extract "Results" text from OCR output
     extracted_results = extract_string_from_text(extracted_text, "Results")
     if not extracted_results:
         return False, f"Expected 'Results', could not extract from: '{extracted_text}'", None
     
-    # Step 5: Calculate similarity
     similarity = calculate_text_similarity("Results", extracted_results)
     
-    # Step 6: Check results count
     results_count = get_results_count()
     if results_count is None:
         return False, "Failed to extract results count from the page", None
     
-    # Step 7: Build verification data dictionary
     verification_data = {
         "expected_text": "Results",
         "extracted_text": extracted_text,
@@ -98,43 +107,25 @@ def verifier(**kwargs) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         "results_count": results_count
     }
     
-    # Step 8: Check if results count is greater than 0
     if results_count == 0:
-        return False, f"✗ Search returned 0 results. No data found matching the search criteria.", verification_data
+        return False, f"Search returned 0 results. No data found matching the search criteria.", verification_data
     
-    # Step 9: Return result based on similarity threshold
     if similarity >= 0.80:
-        return True, f"✓ Search results verified with {similarity:.2%} similarity. Found {results_count} result(s).", verification_data
+        return True, f"Search results verified ({similarity:.0%} similarity). Found {results_count} result(s).", verification_data
     else:
-        return False, f"✗ Search button verification failed. Similarity: {similarity:.2%}", verification_data
+        return False, f"Search button verification failed. Similarity: {similarity:.0%}", verification_data
 
 # ============================================================================
 # ERROR HANDLER
 # ============================================================================
 
 def error_handler(error_msg: str, attempt: int, max_attempts: int, **kwargs) -> Tuple[bool, str]:
-    """
-    Handle errors specific to clicking search button.
-    
-    Args:
-        error_msg: The error message from the failed action
-        attempt: Current attempt number
-        max_attempts: Maximum number of attempts
-        **kwargs: Additional context
-        
-    Returns:
-        Tuple of (should_retry: bool, recovery_message: str)
-    """
+    """Handle errors specific to clicking search button."""
     print(f"[ERROR_HANDLER] Handling error for click_search_button (attempt {attempt}/{max_attempts})")
     print(f"[ERROR_HANDLER] Error: {error_msg}")
     
     if attempt < max_attempts:
-        print(f"[ERROR_HANDLER] Will retry after waiting 1 second...")
         time.sleep(1.0)
         return True, "Retrying action"
     
     return False, f"Failed to click search button after {max_attempts} attempts"
-
-
-
-

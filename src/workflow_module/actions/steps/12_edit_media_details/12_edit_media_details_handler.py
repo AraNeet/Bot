@@ -23,6 +23,15 @@ helpers = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(helpers)
 
 # ============================================================================
+# PRECHECK
+# ============================================================================
+
+def precheck(**kwargs) -> Tuple[bool, str]:
+    """Verify multinet window is open before editing media details."""
+    from src.workflow_module.actions.helpers.precheck_utils import verify_page
+    return verify_page("multinetwork_page")
+
+# ============================================================================
 # ACTION
 # ============================================================================
 

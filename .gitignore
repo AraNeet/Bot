@@ -3,6 +3,8 @@ bot.env
 .env
 screenshots/
 debug_images/
+.env.example
+worker_config.env
 
 # Python
 __pycache__/

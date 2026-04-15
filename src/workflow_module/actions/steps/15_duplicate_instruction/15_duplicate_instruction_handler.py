@@ -12,20 +12,28 @@ from typing import Tuple, Dict, Any, Optional
 
 from src.workflow_module.actions.helpers import actions
 from src.workflow_module.actions.helpers.computer_vision_utils import take_screenshot_and_crop
+from src.workflow_module.actions.helpers.vision_service import scanner
 from src.workflow_module.actions.helpers.ocr_utils import (
-    TextScanner,
     screen_center_from_crop_bbox,
     find_click_bbox_for_phrase_in_crop,
 )
+from src.workflow_module.actions.helpers.precheck_utils import verify_page
+from src.workflow_module.pages.page_loader import get_element, get_region
 import time
 
-scanner = TextScanner()
+# Load region from page config
+_dup_config = get_element("multinetwork_page", "duplicate_instruction_menu")
+DUPLICATE_INSTRUCTION_REGION = tuple(_dup_config["region"])
+SEARCH_PHRASE = _dup_config.get("search_phrase", "duplicate instruction")
 
-# (x, y, width, height) — screen region to search for "duplicate instruction"
-DUPLICATE_INSTRUCTION_REGION = (110, 45, 135, 80)
 
-SEARCH_PHRASE = "duplicate instruction"
+# ============================================================================
+# PRECHECK
+# ============================================================================
 
+def precheck(**kwargs) -> Tuple[bool, str]:
+    """Verify multinet window is open before looking for duplicate instruction menu."""
+    return verify_page("multinetwork_page")
 
 # ============================================================================
 # ACTION

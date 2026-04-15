@@ -18,6 +18,7 @@ Date: 2026-01-06
 
 import os
 import time
+import pyautogui
 from typing import Tuple
 
 # Import helper modules
@@ -31,6 +32,20 @@ if helpers_dir not in sys.path:
     sys.path.insert(0, helpers_dir)
 helpers = importlib.import_module('08_helpers')
 sys.path.remove(helpers_dir)
+
+# ============================================================================
+# PRECHECK
+# ============================================================================
+
+def precheck(**kwargs) -> Tuple[bool, str]:
+    """Verify search page is displayed and an expanded/highlighted row is visible."""
+    screenshot = computer_vision_utils.take_screenshot()
+    if screenshot is None:
+        return False, "Cannot take screenshot"
+    found, row_info = computer_vision_utils.find_highlighted_row(screenshot)
+    if found:
+        return True, f"Expanded row found at y={row_info['y']}"
+    return False, "No expanded/highlighted row found — step 07 may not have completed"
 
 def action(begin_date: str = "", **kwargs) -> Tuple[bool, str]:
     """
@@ -82,12 +97,51 @@ def action(begin_date: str = "", **kwargs) -> Tuple[bool, str]:
         
         # Step 4: Detect blue highlighted expanded row
         print("[HANDLER] Step 4: Detecting blue highlighted expanded row...")
-        found_blue, blue_row_info = helpers.detect_blue_highlighted_expanded_row(
-            screenshot
-        )
         
-        if not found_blue:
-            return False, "Blue highlighted expanded row not found"
+        # Loop: find blue row (scroll down then up if needed), then adjust position if too high/low
+        max_attempts = 5
+        blue_row_info = None
+        found_blue = False
+        work_area_top = 250
+        min_space_below = 150
+
+        for attempt in range(max_attempts):
+            if attempt > 0:
+                screenshot = computer_vision_utils.take_screenshot()
+                if screenshot is None:
+                    return False, "Failed to capture screenshot during adjustment"
+                debug.save_image(screenshot, f"01_blue_row_detected_attempt_{attempt}.png")
+            screen_height, screen_width = screenshot.shape[:2]
+            center_x, center_y = screen_width // 2, screen_height // 2
+
+            found_blue, blue_row_info = helpers.detect_blue_highlighted_expanded_row(screenshot)
+            if not found_blue:
+                # Scroll to search: attempts 0–2 down, 3 big up, 4–6 up; then give up
+                if attempt >= 7:
+                    return False, "Blue highlighted row not found after scrolling down and up"
+                pyautogui.moveTo(center_x, center_y)
+                if attempt < 3:
+                    pyautogui.scroll(-80 if attempt == 0 else -60)
+                elif attempt == 3:
+                    pyautogui.scroll(150)
+                else:
+                    pyautogui.scroll(60)
+                time.sleep(0.5)
+                continue
+
+            row_y = blue_row_info['y']
+            row_h = blue_row_info['height']
+            if row_y < work_area_top:
+                pyautogui.moveTo(center_x, center_y)
+                pyautogui.scroll(30)
+                time.sleep(0.5)
+                continue
+            if row_y + row_h + min_space_below > screen_height:
+                pyautogui.moveTo(center_x, center_y)
+                pyautogui.scroll(-50)
+                time.sleep(0.5)
+                continue
+            break
         
         # Step 5: Visualize detected blue row for debugging
         annotated = screenshot.copy()
