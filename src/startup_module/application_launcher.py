@@ -3,14 +3,19 @@ Startup process functions for application management.
 Contains step-by-step functions for the application startup sequence.
 """
 
+from re import L
 import time
 from typing import Tuple, Optional, Dict, Any
 import pygetwindow
+from pyotp import otp
 from src.startup_module.helpers import computer_vision_utils, window_utils
 from src.notification_module.error_notifier import notify_error
+from src.startup_module.login_application import login_system, open_network_app
 
 
-def ensure_application_open(app_name: str, app_path: str, process_name: str, max_retries: int = 3) -> Tuple[bool, Optional[pygetwindow.Window]]:
+def ensure_application_open(app_name: str, app_path: str, process_name: str,login_app_name: str, app_open_path: str, 
+                            username_citrix: str, password_citrix: str, otp_secret: str, login_templates: Dict[str, Any],
+                            max_retries: int = 3) -> Tuple[bool, Optional[pygetwindow.Window]]:
     """
     Step 1: Check if the application is already open.
     Step 1.1: If not open then open it (iterate until open).
@@ -39,33 +44,28 @@ def ensure_application_open(app_name: str, app_path: str, process_name: str, max
             print("Failed to get application window handle")
             return False, None
     else:
-        print("Application is not open")
-        return False, None
-
-    # Step 1.1: Iteratively try to open
-    print("Step 1.1: Application not open, attempting to open...")
-    
-    # attempts = 0
-    # while attempts < max_retries:
-    #     attempts += 1
-    #     print(f"Opening attempt {attempts}/{max_retries}")
-        
-    #     success = window_utils.open_application(app_path)
-    #     if success:
-    #         window = window_utils.get_window_handle(app_name)
-    #         if window:
-    #             print("[SUCCESS] Application successfully opened")
-    #             return True, window
-    #         else:
-    #             print("Failed to get application window handle after opening")
-    #     time.sleep(0.3)
-    
-    # print("[FAILED] Failed to open application")
-    # return False, None
+        print("Application is not open, attempting to open...")
+        success = window_utils.open_application(app_path, app_open_path)
+        if success:
+            window = window_utils.get_window_handle(login_app_name)
+            if window:
+                print("[SUCCESS] Application successfully opened")
+                success = login_system(username_citrix, password_citrix, otp_secret, login_templates)
+                if not success:
+                    return False, None
+                success = open_network_app(login_templates)
+                if not success:
+                    return False, None
+                return True, window
+            else:
+                print("Failed to get application window handle after opening")
+                return False, None
+        else:
+            print("Failed to open application")
+            return False, None
 
 def maximize_application(window: pygetwindow.Window) -> bool:
     """
-    Step 2: Maximize the application.
     Also ensures the application is in the foreground.
     
     Args:
@@ -139,9 +139,9 @@ def verify_window_state(window: pygetwindow.Window, corner_templates: Dict[str, 
         print("[SUCCESS] Visual open check and maximized state passed")
         return True
 
-def startup_sequence(app_name: str, app_path: str, 
-                        process_name: str, corner_templates: Dict[str, Any], 
-                        max_retries: int = 3) -> bool:
+def startup_sequence(app_name: str, app_path: str, process_name: str,
+                    login_app_name: str, app_open_path: str, username_citrix: str, password_citrix: str, otp_secret: str,
+                    corner_templates: Dict[str, Any], login_templates: Dict[str, Any], max_retries: int = 3) -> bool:
     """
     Execute the complete sequence following all specified steps.
     
@@ -160,19 +160,16 @@ def startup_sequence(app_name: str, app_path: str,
     print("="*50)
     
     # Execute Step 1
-    process_found, window = ensure_application_open(app_name, app_path, process_name, max_retries)
+    process_found, window = ensure_application_open(app_name, app_path, process_name, login_app_name, app_open_path, 
+                                                    username_citrix, password_citrix, otp_secret, login_templates, max_retries)
     if not process_found or window is None:
         notify_error("Could not ensure application is open", "ensure_application_open", 
                                     {"app_name": app_name, "process_name": process_name})
         return False
     
     # Execute Step 2
-    if not maximize_application(window):
-        print("Step 2 had issues, continuing to verification...")
-    
-    # Execute Step 3
     if not verify_window_state(window, corner_templates, max_retries):
-        print("Sequence failed at Step 3")
+        print("Sequence failed at Step 2")
         notify_error("Could not verify and fix application state", "verify_window_state", 
                                     {"app_name": app_name, "process_name": process_name})
         return False
@@ -183,35 +180,3 @@ def startup_sequence(app_name: str, app_path: str,
     print("="*50)
     
     return True
-
-def run_startup(config: Dict[str, Any]) -> bool:
-    """
-    Execute standard mode application startup sequence.
-    
-    Args:
-        config: Configuration dictionary
-    
-    Returns:
-        True if successful, False otherwise
-    """
-    # Get corner templates from config (already loaded)
-    corner_templates = config.get('corner_templates', {})
-
-    # Run startup sequence
-    success = startup_sequence(
-        app_name=config['app_name'],
-        app_path=config.get('app_path'),
-        process_name=config.get('process_name'),
-        corner_templates=corner_templates,
-        max_retries=config.get('max_retries', 3)
-    )
-
-    # Display standard mode results
-    print("\n" + "="*50)
-    if success:
-        print("[SUCCESS] SUCCESS: Application is now open, in foreground, and maximized!")
-        return True
-
-    else:
-        print("[FAILED] Could not complete the sequence.")
-        return False

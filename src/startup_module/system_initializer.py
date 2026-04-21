@@ -155,6 +155,11 @@ def load_config(env_file_path: str = "bot.env") -> Optional[Dict[str, Any]]:
             'app_name': os.getenv('APP_NAME'),
             'app_path': os.getenv('APP_PATH'),
             'process_name': os.getenv('PROCESS_NAME'),
+            'login_app_name': os.getenv('LOGIN_APP_NAME'),
+            'app_open_path':os.getenv('APP_OPEN_PATH'),
+            'username_citrix':os.getenv('USERNAME_CITRIX'),
+            'password_citrix':os.getenv('PASSWORD_CITRIX'),
+            'otp_secret':os.getenv('OTP_SECRET'),
             'max_retries': int(os.getenv('MAX_RETRIES', '3')),
         }
 
@@ -196,29 +201,34 @@ def initialize_system() -> bool:
         return False
 
     # Load templates
-    corner_templates = computer_vision_utils.load_templates("config/template_paths.json")
+    all_templates = computer_vision_utils.load_templates("src/startup_module/assets/template_paths.json")
 
-    # If the templates aren't loaded the program closed
-    if not corner_templates:
-        error_msg = "Could not load corner templates"
-        print(f"[FAILED] {error_msg}")
-        notify_error(error_msg, "runner.initialize_system")
+    if not all_templates:
+        print("[FAILED] Template loading failed")
         return False
 
-    config['corner_templates'] = corner_templates
+    config["corner_templates"] = all_templates.get("corners_templates", {})
+    config["login_templates"] = all_templates.get("login_templates", {})
+
+    print("Templates ready:")
+    print(config.keys())
+
 
     print("="*50)
     print("APPLICATION STARTUP")
-
-    # Get corner templates from config (already loaded)
-    corner_templates = config.get('corner_templates', {})
 
     # Run startup sequence
     success = startup_sequence(
         app_name=config['app_name'],
         app_path=config.get('app_path'),
         process_name=config.get('process_name'),
-        corner_templates=corner_templates,
+        login_app_name=config.get('login_app_name'),
+        app_open_path=config.get('app_open_path'),
+        username_citrix=config.get('username_citrix'),
+        password_citrix=config.get('password_citrix'),
+        otp_secret=config.get('otp_secret'),
+        corner_templates=config.get("corner_templates"),
+        login_templates=config.get("login_templates"),
         max_retries=config.get('max_retries', 3)
     )
 

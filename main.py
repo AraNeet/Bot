@@ -21,6 +21,7 @@ Next Steps (TODO):
 """
 
 from src.startup_module.system_initializer import initialize_system
+from src.startup_module.login_application import login_system
 from src.parser_module.objectives_processer import process_objectives_file
 from src.workflow_module.engine.process_input import process_input_workflow
 import time

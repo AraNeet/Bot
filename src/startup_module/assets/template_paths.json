@@ -3,5 +3,9 @@
         "top_left": "src/startup_module/assets/citrix_app_icon.png",
         "top_right": "src/startup_module/assets/windows_options.png",
         "bottom_right": "src/startup_module/assets/bottom_right.png"
+    },
+    "login_templates":{
+        "login_screen":"src/startup_module/assets/login_screen.png",
+        "network_app_selection_screen":"src/startup_module/assets/network_app_chooses.png"
     }
 }

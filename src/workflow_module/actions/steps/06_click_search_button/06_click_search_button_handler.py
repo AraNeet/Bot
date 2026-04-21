@@ -18,7 +18,7 @@ from src.workflow_module.actions.helpers.field_utils import get_results_count
 from src.workflow_module.actions.helpers.precheck_utils import verify_page, verify_no_loading_spinner
 from src.workflow_module.pages.page_loader import get_element
 import time
-import cv2
+
 
 # ============================================================================
 # PRECHECK

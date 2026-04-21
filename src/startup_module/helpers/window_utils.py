@@ -41,7 +41,7 @@ def is_application_open(process_name: str) -> bool:
         
     return process_found
 
-def open_application(app_path: str) -> bool:
+def open_application(app_path: str, app_open_path: str) -> bool:
     """
     Open the application.
     
@@ -56,7 +56,7 @@ def open_application(app_path: str) -> bool:
         return False
     
     try:
-        subprocess.Popen(app_path)
+        subprocess.Popen(app_open_path, shell=True)
         print(f"Launched application: {app_path}")
         time.sleep(1)
         return True
